@@ -281,7 +281,16 @@ export function TransactionTable({
 
         {/* Toolbar */}
         <div className="mb-2 flex items-center justify-end">
-          <Button size="sm" variant="outline" disabled>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const params = new URLSearchParams(searchParams.toString());
+              router.push(
+                `/organizations/${orgId}/reports?${params.toString()}`
+              );
+            }}
+          >
             <Download className="mr-1 h-4 w-4" />
             Export
           </Button>
