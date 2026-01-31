@@ -1,6 +1,6 @@
 # Treasurer App - Product Requirements Document
 
-> **Version:** 1.2  
+> **Version:** 1.3  
 > **Status:** Draft  
 > **Last Updated:** January 30, 2025
 
@@ -224,18 +224,14 @@ CONSTRAINT: SUM(line_items.amount) for a transaction MUST equal transaction.amou
 
 ### 6.3 Database Indexes
 
-```sql
--- Performance indexes
-CREATE INDEX idx_transactions_account_date ON transactions(account_id, transaction_date);
-CREATE INDEX idx_transactions_status ON transactions(account_id, status);
-CREATE INDEX idx_transactions_created ON transactions(account_id, created_at);
-CREATE INDEX idx_line_items_transaction ON transaction_line_items(transaction_id);
-CREATE INDEX idx_line_items_category ON transaction_line_items(category_id);
-CREATE INDEX idx_categories_organization ON categories(organization_id);
-CREATE INDEX idx_categories_parent ON categories(parent_id);
-CREATE INDEX idx_accounts_organization ON accounts(organization_id);
-CREATE INDEX idx_organizations_treasurer ON organizations(treasurer_id);
-```
+See **Section 11: Tech Stack** for the complete Supabase PostgreSQL schema including indexes, RLS policies, and triggers.
+
+**Key indexes for performance:**
+- `idx_transactions_account_date` - Transaction queries by account and date range
+- `idx_transactions_status` - Filtering by status
+- `idx_line_items_transaction` - Loading line items for a transaction
+- `idx_line_items_category` - Category-based reporting
+- `idx_categories_parent` - Hierarchical category queries
 
 ---
 
@@ -422,15 +418,18 @@ EXPENSES BY CATEGORY
 
 ---
 
-## 9. API Endpoints
+## 9. API Routes & Server Actions
+
+The application uses a combination of Next.js API Routes (for complex operations like Excel export) and Server Actions (for data mutations). Below are the endpoint patterns.
 
 ### 9.1 Authentication
 
+Handled by Supabase Auth. Key flows:
 ```
-POST   /api/auth/register     - Create new treasurer account
-POST   /api/auth/login        - Login and receive JWT token
-POST   /api/auth/logout       - Invalidate token
-POST   /api/auth/refresh      - Refresh JWT token
+supabase.auth.signUp()      - Create new treasurer account
+supabase.auth.signInWithPassword() - Login
+supabase.auth.signOut()     - Logout
+supabase.auth.getSession()  - Get current session
 ```
 
 ### 9.2 Organizations
@@ -559,27 +558,307 @@ GET    /api/organizations/:orgId/reports/export       - Export to Excel (.xlsx)
 
 ---
 
-## 11. Tech Stack Recommendations
+## 11. Tech Stack
 
 ### Frontend
-- **Framework:** React or Vue.js
-- **State Management:** Redux or Pinia
-- **UI Components:** Tailwind CSS + Headless UI or shadcn/ui
-- **Date Handling:** date-fns or dayjs
-- **Forms:** React Hook Form or VeeValidate
+- **Framework:** Next.js (App Router)
+- **UI Components:** shadcn/ui
+- **Styling:** Tailwind CSS
+- **State Management:** React Context + React Query (TanStack Query)
+- **Forms:** React Hook Form + Zod validation
+- **Date Handling:** date-fns
+- **Excel Export:** ExcelJS (client-side) or server-side API route
 
 ### Backend
-- **Runtime:** Node.js or Python
-- **Framework:** Express.js, Fastify, or FastAPI
-- **Database:** PostgreSQL
-- **ORM:** Prisma, Drizzle, or SQLAlchemy
-- **Authentication:** JWT with refresh tokens
-- **Excel Export:** ExcelJS (Node.js) or openpyxl (Python)
+- **Framework:** Next.js API Routes / Server Actions
+- **Database:** Supabase PostgreSQL
+- **ORM:** Supabase Client SDK (with TypeScript types generated via Supabase CLI)
+- **Authentication:** Supabase Auth
+- **File Storage:** Supabase Storage (for receipt attachments)
 
 ### Infrastructure
-- **Hosting:** Vercel, Railway, or AWS
-- **Database Hosting:** Supabase, Neon, or AWS RDS
-- **File Storage:** S3-compatible (for receipt attachments)
+- **Hosting:** Vercel (recommended for Next.js)
+- **Database:** Supabase (managed PostgreSQL)
+- **Environment:** Node.js 18+
+
+### Development Tools
+- **Language:** TypeScript
+- **Package Manager:** pnpm (recommended) or npm
+- **Linting:** ESLint + Prettier
+- **Database Migrations:** Supabase Migrations
+- **Type Generation:** `supabase gen types typescript`
+
+### Key Dependencies
+```json
+{
+  "dependencies": {
+    "next": "^14.x",
+    "@supabase/supabase-js": "^2.x",
+    "@supabase/ssr": "^0.x",
+    "react-hook-form": "^7.x",
+    "zod": "^3.x",
+    "@hookform/resolvers": "^3.x",
+    "@tanstack/react-query": "^5.x",
+    "date-fns": "^3.x",
+    "exceljs": "^4.x",
+    "class-variance-authority": "^0.x",
+    "clsx": "^2.x",
+    "tailwind-merge": "^2.x",
+    "lucide-react": "^0.x"
+  }
+}
+```
+
+### Supabase Schema Setup
+```sql
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Treasurers table (extends Supabase auth.users)
+CREATE TABLE public.treasurers (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Organizations table
+CREATE TABLE public.organizations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  treasurer_id UUID NOT NULL REFERENCES public.treasurers(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  ein TEXT,
+  fiscal_year_start_month INTEGER DEFAULT 1 CHECK (fiscal_year_start_month BETWEEN 1 AND 12),
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Accounts table
+CREATE TABLE public.accounts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  account_type TEXT NOT NULL CHECK (account_type IN ('checking', 'savings', 'paypal', 'cash', 'other')),
+  description TEXT,
+  opening_balance DECIMAL(12,2) DEFAULT 0.00,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Categories table
+CREATE TABLE public.categories (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+  parent_id UUID REFERENCES public.categories(id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  category_type TEXT NOT NULL CHECK (category_type IN ('income', 'expense')),
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Transactions table
+CREATE TABLE public.transactions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  account_id UUID NOT NULL REFERENCES public.accounts(id) ON DELETE CASCADE,
+  transaction_date DATE NOT NULL,
+  amount DECIMAL(12,2) NOT NULL CHECK (amount > 0),
+  transaction_type TEXT NOT NULL CHECK (transaction_type IN ('income', 'expense')),
+  description TEXT NOT NULL,
+  check_number TEXT,
+  status TEXT NOT NULL DEFAULT 'uncleared' CHECK (status IN ('uncleared', 'cleared', 'reconciled')),
+  cleared_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Transaction Line Items table
+CREATE TABLE public.transaction_line_items (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  transaction_id UUID NOT NULL REFERENCES public.transactions(id) ON DELETE CASCADE,
+  category_id UUID NOT NULL REFERENCES public.categories(id) ON DELETE RESTRICT,
+  amount DECIMAL(12,2) NOT NULL CHECK (amount > 0),
+  memo TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX idx_organizations_treasurer ON public.organizations(treasurer_id);
+CREATE INDEX idx_accounts_organization ON public.accounts(organization_id);
+CREATE INDEX idx_categories_organization ON public.categories(organization_id);
+CREATE INDEX idx_categories_parent ON public.categories(parent_id);
+CREATE INDEX idx_transactions_account_date ON public.transactions(account_id, transaction_date);
+CREATE INDEX idx_transactions_status ON public.transactions(account_id, status);
+CREATE INDEX idx_line_items_transaction ON public.transaction_line_items(transaction_id);
+CREATE INDEX idx_line_items_category ON public.transaction_line_items(category_id);
+
+-- Row Level Security (RLS)
+ALTER TABLE public.treasurers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.organizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transaction_line_items ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies (treasurers can only access their own data)
+CREATE POLICY "Users can view own treasurer profile" ON public.treasurers
+  FOR ALL USING (auth.uid() = id);
+
+CREATE POLICY "Users can access own organizations" ON public.organizations
+  FOR ALL USING (treasurer_id = auth.uid());
+
+CREATE POLICY "Users can access accounts in their organizations" ON public.accounts
+  FOR ALL USING (
+    organization_id IN (
+      SELECT id FROM public.organizations WHERE treasurer_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can access categories in their organizations" ON public.categories
+  FOR ALL USING (
+    organization_id IN (
+      SELECT id FROM public.organizations WHERE treasurer_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can access transactions in their accounts" ON public.transactions
+  FOR ALL USING (
+    account_id IN (
+      SELECT a.id FROM public.accounts a
+      JOIN public.organizations o ON a.organization_id = o.id
+      WHERE o.treasurer_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can access line items in their transactions" ON public.transaction_line_items
+  FOR ALL USING (
+    transaction_id IN (
+      SELECT t.id FROM public.transactions t
+      JOIN public.accounts a ON t.account_id = a.id
+      JOIN public.organizations o ON a.organization_id = o.id
+      WHERE o.treasurer_id = auth.uid()
+    )
+  );
+
+-- Function to validate line items sum equals transaction amount
+CREATE OR REPLACE FUNCTION validate_line_items_sum()
+RETURNS TRIGGER AS $$
+DECLARE
+  line_items_sum DECIMAL(12,2);
+  transaction_amount DECIMAL(12,2);
+BEGIN
+  SELECT COALESCE(SUM(amount), 0) INTO line_items_sum
+  FROM public.transaction_line_items
+  WHERE transaction_id = COALESCE(NEW.transaction_id, OLD.transaction_id);
+  
+  SELECT amount INTO transaction_amount
+  FROM public.transactions
+  WHERE id = COALESCE(NEW.transaction_id, OLD.transaction_id);
+  
+  IF line_items_sum != transaction_amount THEN
+    RAISE EXCEPTION 'Line items sum (%) does not equal transaction amount (%)', line_items_sum, transaction_amount;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Updated_at trigger function
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Apply updated_at triggers
+CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.treasurers FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.organizations FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.accounts FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.categories FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.transactions FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.transaction_line_items FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+```
+
+### Project Structure
+```
+treasurer-app/
+├── app/
+│   ├── (auth)/
+│   │   ├── login/
+│   │   │   └── page.tsx
+│   │   └── register/
+│   │       └── page.tsx
+│   ├── (dashboard)/
+│   │   ├── layout.tsx
+│   │   ├── page.tsx                    # Dashboard
+│   │   ├── organizations/
+│   │   │   ├── page.tsx                # List organizations
+│   │   │   ├── new/
+│   │   │   │   └── page.tsx
+│   │   │   └── [orgId]/
+│   │   │       ├── page.tsx            # Org overview
+│   │   │       ├── accounts/
+│   │   │       │   └── page.tsx
+│   │   │       ├── categories/
+│   │   │       │   └── page.tsx
+│   │   │       ├── transactions/
+│   │   │       │   ├── page.tsx        # Transaction list
+│   │   │       │   └── new/
+│   │   │       │       └── page.tsx
+│   │   │       └── reports/
+│   │   │           └── page.tsx
+│   │   └── settings/
+│   │       └── page.tsx
+│   ├── api/
+│   │   └── reports/
+│   │       └── export/
+│   │           └── route.ts            # Excel export endpoint
+│   ├── layout.tsx
+│   └── globals.css
+├── components/
+│   ├── ui/                             # shadcn/ui components
+│   ├── forms/
+│   │   ├── transaction-form.tsx
+│   │   ├── organization-form.tsx
+│   │   ├── account-form.tsx
+│   │   └── category-form.tsx
+│   ├── tables/
+│   │   └── transactions-table.tsx
+│   └── layout/
+│       ├── header.tsx
+│       ├── sidebar.tsx
+│       └── org-switcher.tsx
+├── lib/
+│   ├── supabase/
+│   │   ├── client.ts                   # Browser client
+│   │   ├── server.ts                   # Server client
+│   │   └── middleware.ts
+│   ├── validations/
+│   │   ├── transaction.ts              # Zod schemas
+│   │   ├── organization.ts
+│   │   └── category.ts
+│   └── utils.ts
+├── hooks/
+│   ├── use-organizations.ts
+│   ├── use-transactions.ts
+│   └── use-categories.ts
+├── types/
+│   ├── database.ts                     # Generated Supabase types
+│   └── index.ts
+├── supabase/
+│   ├── migrations/
+│   │   └── 00001_initial_schema.sql
+│   └── config.toml
+├── .env.local
+├── tailwind.config.ts
+├── next.config.js
+└── package.json
+```
 
 ---
 
@@ -656,6 +935,7 @@ The following features are out of scope for the initial release but may be consi
 | 1.0 | January 30, 2025 | - | Initial draft |
 | 1.1 | January 30, 2025 | - | Updated transaction status to three states (Uncleared, Cleared, Reconciled); added transaction_date, created_at, and cleared_at date fields |
 | 1.2 | January 30, 2025 | - | Added split transaction support with multiple category line items per transaction; updated TXN-008 (check number) to Must Have |
+| 1.3 | January 30, 2025 | - | Defined tech stack: Next.js, Supabase PostgreSQL, shadcn/ui; added complete database schema with RLS policies; added project structure |
 
 ---
 
