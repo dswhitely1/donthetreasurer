@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Landmark } from "lucide-react";
+import { ArrowLeft, FolderTree, Landmark } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
@@ -96,6 +96,12 @@ export default async function OrganizationDetailPage({
                 <Link href={`/organizations/${orgId}/accounts`}>
                   <Landmark className="mr-2 h-4 w-4" />
                   Accounts
+                </Link>
+              </Button>
+              <Button variant="outline" asChild className="justify-start">
+                <Link href={`/organizations/${orgId}/categories`}>
+                  <FolderTree className="mr-2 h-4 w-4" />
+                  Categories
                 </Link>
               </Button>
             </div>
