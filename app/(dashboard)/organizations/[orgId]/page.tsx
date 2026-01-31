@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Landmark } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -85,6 +86,20 @@ export default async function OrganizationDetailPage({
               </dd>
             </div>
           </dl>
+
+          <div className="mt-6 border-t border-border pt-6">
+            <h3 className="mb-3 text-sm font-medium text-muted-foreground">
+              Manage
+            </h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Button variant="outline" asChild className="justify-start">
+                <Link href={`/organizations/${orgId}/accounts`}>
+                  <Landmark className="mr-2 h-4 w-4" />
+                  Accounts
+                </Link>
+              </Button>
+            </div>
+          </div>
 
           <OrganizationActions organization={organization} />
         </CardContent>
