@@ -16,7 +16,9 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -143,28 +145,24 @@ export function CategoryForm({
                   </SelectTrigger>
                   <SelectContent>
                     {incomeParents.length > 0 && (
-                      <>
-                        <SelectItem value="" disabled>
-                          Income
-                        </SelectItem>
+                      <SelectGroup>
+                        <SelectLabel>Income</SelectLabel>
                         {incomeParents.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
                             {p.name}
                           </SelectItem>
                         ))}
-                      </>
+                      </SelectGroup>
                     )}
                     {expenseParents.length > 0 && (
-                      <>
-                        <SelectItem value="" disabled>
-                          Expense
-                        </SelectItem>
+                      <SelectGroup>
+                        <SelectLabel>Expense</SelectLabel>
                         {expenseParents.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
                             {p.name}
                           </SelectItem>
                         ))}
-                      </>
+                      </SelectGroup>
                     )}
                   </SelectContent>
                 </Select>

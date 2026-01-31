@@ -17,7 +17,7 @@ export async function createCategory(
     organization_id: formData.get("organization_id") as string,
     name: formData.get("name") as string,
     category_type: formData.get("category_type") as string,
-    parent_id: formData.get("parent_id") as string,
+    parent_id: (formData.get("parent_id") as string) ?? "",
   };
 
   const parsed = createCategorySchema.safeParse(raw);
@@ -98,7 +98,7 @@ export async function updateCategory(
     organization_id: formData.get("organization_id") as string,
     name: formData.get("name") as string,
     category_type: formData.get("category_type") as string,
-    parent_id: formData.get("parent_id") as string,
+    parent_id: (formData.get("parent_id") as string) ?? "",
   };
 
   const parsed = updateCategorySchema.safeParse(raw);
