@@ -110,7 +110,7 @@ supabase/
 
 Next.js App Router application with Supabase as the backend-as-a-service layer. Authentication is handled by Supabase Auth with JWT tokens. Data access is secured at the database level using PostgreSQL Row Level Security (RLS) policies, ensuring treasurers can only access their own organizations and related data.
 
-The data model has a clear ownership chain: Treasurer -> Organizations -> Accounts -> Transactions -> Line Items, with Categories defined per-organization. Transactions support split categorization through line items, where the sum of line item amounts must equal the transaction total (enforced by a database trigger).
+The data model has a clear ownership chain: Treasurer -> Organizations -> Accounts -> Transactions -> Line Items, with Categories defined per-organization. Transactions support split categorization through line items, where the sum of line item amounts must equal the transaction total (enforced at the application level via Zod validation).
 
 Server Actions handle data mutations. API Routes handle operations returning non-HTML responses (Excel export). Client-side state management uses TanStack Query for server state caching and React Context for UI state like the active organization.
 
@@ -208,7 +208,7 @@ PostgreSQL via Supabase with Row Level Security. Six tables with the ownership c
 - `transaction_line_items` — category allocations (split transactions)
 
 Key constraints:
-- Line item amounts must sum to transaction total (database trigger)
+- Line item amounts must sum to transaction total (application-level Zod validation)
 - Categories with transactions cannot be deleted (`ON DELETE RESTRICT`)
 - `updated_at` auto-managed by database triggers on all tables
 

@@ -1,8 +1,8 @@
 # Treasurer App - Product Requirements Document
 
-> **Version:** 1.3  
-> **Status:** Draft  
-> **Last Updated:** January 30, 2025
+> **Version:** 1.4
+> **Status:** Draft
+> **Last Updated:** January 31, 2026
 
 ---
 
@@ -219,12 +219,12 @@ Line Item (Many) ── references ─> (1) Category
 - created_at: Timestamp
 - updated_at: Timestamp
 
-CONSTRAINT: SUM(line_items.amount) for a transaction MUST equal transaction.amount
+CONSTRAINT: SUM(line_items.amount) for a transaction MUST equal transaction.amount (enforced at application level via Zod validation)
 ```
 
 ### 6.3 Database Indexes
 
-See **Section 11: Tech Stack** for the complete Supabase PostgreSQL schema including indexes, RLS policies, and triggers.
+See **Section 11: Tech Stack** for the complete Supabase PostgreSQL schema including indexes, RLS policies, and triggers. Note: line item sum validation is enforced at the application level, not via database trigger.
 
 **Key indexes for performance:**
 - `idx_transactions_account_date` - Transaction queries by account and date range
@@ -743,28 +743,9 @@ CREATE POLICY "Users can access line items in their transactions" ON public.tran
     )
   );
 
--- Function to validate line items sum equals transaction amount
-CREATE OR REPLACE FUNCTION validate_line_items_sum()
-RETURNS TRIGGER AS $$
-DECLARE
-  line_items_sum DECIMAL(12,2);
-  transaction_amount DECIMAL(12,2);
-BEGIN
-  SELECT COALESCE(SUM(amount), 0) INTO line_items_sum
-  FROM public.transaction_line_items
-  WHERE transaction_id = COALESCE(NEW.transaction_id, OLD.transaction_id);
-  
-  SELECT amount INTO transaction_amount
-  FROM public.transactions
-  WHERE id = COALESCE(NEW.transaction_id, OLD.transaction_id);
-  
-  IF line_items_sum != transaction_amount THEN
-    RAISE EXCEPTION 'Line items sum (%) does not equal transaction amount (%)', line_items_sum, transaction_amount;
-  END IF;
-  
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+-- Note: Line item sum validation (SUM(line_items.amount) = transaction.amount)
+-- is enforced at the application level via Zod schema validation during
+-- transaction creation and updates, not via database trigger.
 
 -- Updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -936,6 +917,7 @@ The following features are out of scope for the initial release but may be consi
 | 1.1 | January 30, 2025 | - | Updated transaction status to three states (Uncleared, Cleared, Reconciled); added transaction_date, created_at, and cleared_at date fields |
 | 1.2 | January 30, 2025 | - | Added split transaction support with multiple category line items per transaction; updated TXN-008 (check number) to Must Have |
 | 1.3 | January 30, 2025 | - | Defined tech stack: Next.js, Supabase PostgreSQL, shadcn/ui; added complete database schema with RLS policies; added project structure |
+| 1.4 | January 31, 2026 | - | Removed `validate_line_items_sum` database trigger; line item sum validation enforced at application level via Zod |
 
 ---
 
