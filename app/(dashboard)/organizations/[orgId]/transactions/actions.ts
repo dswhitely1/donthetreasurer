@@ -1,4 +1,4 @@
-"use server";
+ "use server";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -410,4 +410,182 @@ export async function deleteTransaction(
 
   revalidatePath("/dashboard", "layout");
   redirect(`/organizations/${organizationId}/transactions`);
+}
+
+export async function bulkUpdateStatus(
+  _prevState: { error: string } | null,
+  formData: FormData
+) {
+  const idsRaw = formData.get("ids") as string;
+  const newStatus = formData.get("status") as string;
+  const orgId = formData.get("org_id") as string;
+
+  if (!idsRaw || !newStatus || !orgId) {
+    return { error: "Missing required fields." };
+  }
+
+  if (!["uncleared", "cleared", "reconciled"].includes(newStatus)) {
+    return { error: "Invalid status." };
+  }
+
+  const ids = idsRaw.split(",").filter(Boolean);
+  if (ids.length === 0) {
+    return { error: "No transactions selected." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be signed in." };
+  }
+
+  // Verify the organization belongs to this user
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("id")
+    .eq("id", orgId)
+    .single();
+
+  if (!org) {
+    return { error: "Organization not found." };
+  }
+
+  // Fetch all selected transactions
+  const { data: txns } = await supabase
+    .from("transactions")
+    .select("id, status, cleared_at, account_id")
+    .in("id", ids);
+
+  if (!txns || txns.length === 0) {
+    return { error: "No transactions found." };
+  }
+
+  // Block updating reconciled transactions (unless explicitly unreconciling)
+  const reconciledIds = txns
+    .filter((t) => t.status === "reconciled")
+    .map((t) => t.id);
+  if (reconciledIds.length > 0) {
+    return {
+      error: `${reconciledIds.length} reconciled transaction(s) cannot be bulk-updated. Deselect them and try again.`,
+    };
+  }
+
+  // Verify all accounts belong to this organization
+  const accountIds = [...new Set(txns.map((t) => t.account_id))];
+  const { data: accounts } = await supabase
+    .from("accounts")
+    .select("id")
+    .in("id", accountIds)
+    .eq("organization_id", orgId);
+
+  if (!accounts || accounts.length !== accountIds.length) {
+    return { error: "Some transactions do not belong to this organization." };
+  }
+
+  // Update each transaction with proper cleared_at handling
+  for (const txn of txns) {
+    let clearedAt: string | null = txn.cleared_at;
+
+    if (
+      txn.status === "uncleared" &&
+      (newStatus === "cleared" || newStatus === "reconciled")
+    ) {
+      clearedAt = new Date().toISOString();
+    } else if (newStatus === "uncleared") {
+      clearedAt = null;
+    }
+
+    await supabase
+      .from("transactions")
+      .update({ status: newStatus, cleared_at: clearedAt })
+      .eq("id", txn.id);
+  }
+
+  revalidatePath("/dashboard", "layout");
+  return null;
+}
+
+export async function bulkDeleteTransactions(
+  _prevState: { error: string } | null,
+  formData: FormData
+) {
+  const idsRaw = formData.get("ids") as string;
+  const orgId = formData.get("org_id") as string;
+
+  if (!idsRaw || !orgId) {
+    return { error: "Missing required fields." };
+  }
+
+  const ids = idsRaw.split(",").filter(Boolean);
+  if (ids.length === 0) {
+    return { error: "No transactions selected." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be signed in." };
+  }
+
+  // Verify the organization belongs to this user
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("id")
+    .eq("id", orgId)
+    .single();
+
+  if (!org) {
+    return { error: "Organization not found." };
+  }
+
+  // Fetch all selected transactions to check status
+  const { data: txns } = await supabase
+    .from("transactions")
+    .select("id, status, account_id")
+    .in("id", ids);
+
+  if (!txns || txns.length === 0) {
+    return { error: "No transactions found." };
+  }
+
+  // Block deletion of reconciled transactions
+  const reconciledIds = txns
+    .filter((t) => t.status === "reconciled")
+    .map((t) => t.id);
+  if (reconciledIds.length > 0) {
+    return {
+      error: `${reconciledIds.length} reconciled transaction(s) cannot be deleted. Deselect them and try again.`,
+    };
+  }
+
+  // Verify all accounts belong to this organization
+  const accountIds = [...new Set(txns.map((t) => t.account_id))];
+  const { data: accounts } = await supabase
+    .from("accounts")
+    .select("id")
+    .in("id", accountIds)
+    .eq("organization_id", orgId);
+
+  if (!accounts || accounts.length !== accountIds.length) {
+    return { error: "Some transactions do not belong to this organization." };
+  }
+
+  // Delete (line items cascade via ON DELETE CASCADE)
+  const { error } = await supabase
+    .from("transactions")
+    .delete()
+    .in("id", ids);
+
+  if (error) {
+    return { error: "Failed to delete transactions. Please try again." };
+  }
+
+  revalidatePath("/dashboard", "layout");
+  return null;
 }

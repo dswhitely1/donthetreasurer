@@ -3,24 +3,51 @@ import { notFound } from "next/navigation";
 import { Plus } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-import {
-  TRANSACTION_STATUS_LABELS,
-} from "@/lib/validations/transaction";
 import { computeRunningBalances } from "@/lib/balances";
-import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { AccountFilter } from "./account-filter";
+import { TransactionFilters } from "./transaction-filters";
+import { TransactionTable } from "./transaction-table";
+
+import type { CategoryOption } from "./transaction-filters";
+
+interface SearchParams {
+  account_id?: string;
+  status?: string;
+  category_id?: string;
+  start_date?: string;
+  end_date?: string;
+  sort?: string;
+  order?: string;
+}
+
+const VALID_SORT_FIELDS = [
+  "transaction_date",
+  "created_at",
+  "amount",
+  "description",
+  "status",
+] as const;
+
+type SortField = (typeof VALID_SORT_FIELDS)[number];
 
 export default async function TransactionsPage({
   params,
   searchParams,
 }: {
   params: Promise<{ orgId: string }>;
-  searchParams: Promise<{ account_id?: string }>;
+  searchParams: Promise<SearchParams>;
 }) {
   const { orgId } = await params;
-  const { account_id: filterAccountId } = await searchParams;
+  const {
+    account_id: filterAccountId,
+    status: filterStatus,
+    category_id: filterCategoryId,
+    start_date: filterStartDate,
+    end_date: filterEndDate,
+    sort: sortParam,
+    order: orderParam,
+  } = await searchParams;
+
   const supabase = await createClient();
 
   // Verify org exists and user has access
@@ -45,7 +72,15 @@ export default async function TransactionsPage({
 
   const activeAccounts = accounts ?? [];
 
-  // Build transaction query with optional account filter
+  // Determine sort field and order
+  const sortField: SortField = VALID_SORT_FIELDS.includes(
+    sortParam as SortField
+  )
+    ? (sortParam as SortField)
+    : "transaction_date";
+  const sortAscending = orderParam === "asc";
+
+  // Build transaction query with filters
   let txnQuery = supabase
     .from("transactions")
     .select(
@@ -56,6 +91,7 @@ export default async function TransactionsPage({
         id,
         amount,
         category_id,
+        memo,
         categories(id, name, parent_id, category_type)
       )
     `
@@ -66,37 +102,108 @@ export default async function TransactionsPage({
     txnQuery = txnQuery.eq("account_id", filterAccountId);
   }
 
-  // For running balance we need ascending order; we'll reverse for display
-  const { data: transactions } = await txnQuery.order("transaction_date", {
-    ascending: true,
-  }).order("created_at", { ascending: true });
+  if (filterStartDate) {
+    txnQuery = txnQuery.gte("transaction_date", filterStartDate);
+  }
 
-  // Fetch all categories to resolve parent names
+  if (filterEndDate) {
+    txnQuery = txnQuery.lte("transaction_date", filterEndDate);
+  }
+
+  if (filterStatus && filterStatus !== "all") {
+    const statuses = filterStatus.split(",").filter(Boolean);
+    txnQuery = txnQuery.in("status", statuses);
+  }
+
+  // Apply sort. For running balance computation we need a separate query path.
+  txnQuery = txnQuery.order(sortField, { ascending: sortAscending });
+  // Secondary sort for stability
+  if (sortField !== "created_at") {
+    txnQuery = txnQuery.order("created_at", { ascending: sortAscending });
+  }
+
+  const { data: transactions } = await txnQuery;
+
+  // Fetch all categories to resolve parent names and build filter options
   const { data: allCategories } = await supabase
     .from("categories")
-    .select("id, name")
-    .eq("organization_id", orgId);
+    .select("id, name, parent_id, category_type, is_active")
+    .eq("organization_id", orgId)
+    .order("name");
 
-  const categoryNameMap = new Map(
-    (allCategories ?? []).map((c) => [c.id, c.name])
+  const categoryList = allCategories ?? [];
+  const categoryNameMap: Record<string, string> = {};
+  for (const c of categoryList) {
+    categoryNameMap[c.id] = c.name;
+  }
+
+  // Build hierarchical category options for filter
+  const categoryOptions: CategoryOption[] = [];
+  const parentCategories = categoryList.filter(
+    (c) => !c.parent_id && c.is_active
   );
+  for (const parent of parentCategories) {
+    categoryOptions.push({ id: parent.id, label: parent.name });
+    const children = categoryList.filter(
+      (c) => c.parent_id === parent.id && c.is_active
+    );
+    for (const child of children) {
+      categoryOptions.push({
+        id: child.id,
+        label: `${parent.name} \u2192 ${child.name}`,
+      });
+    }
+  }
+  // Add active root-less children (orphans)
+  const orphans = categoryList.filter(
+    (c) =>
+      c.parent_id &&
+      c.is_active &&
+      !parentCategories.some((p) => p.id === c.parent_id)
+  );
+  for (const orphan of orphans) {
+    const parentName = categoryNameMap[orphan.parent_id!] ?? "";
+    categoryOptions.push({
+      id: orphan.id,
+      label: parentName
+        ? `${parentName} \u2192 ${orphan.name}`
+        : orphan.name,
+    });
+  }
 
-  const allTransactions = transactions ?? [];
+  let allTransactions = transactions ?? [];
 
-  // Compute running balances when filtered to a single account
+  // Post-fetch category filter: filter transactions where any line item matches
+  if (filterCategoryId) {
+    allTransactions = allTransactions.filter((txn) => {
+      const lineItems = txn.transaction_line_items ?? [];
+      return lineItems.some(
+        (li: { category_id: string }) => li.category_id === filterCategoryId
+      );
+    });
+  }
+
+  // Compute running balance only when single account AND sorted by transaction_date ascending
   const isSingleAccount = !!filterAccountId;
-  let runningBalanceMap: Map<string, number> | null = null;
+  const isSortedByDate =
+    sortField === "transaction_date" && sortAscending;
+  const showRunningBalance = isSingleAccount && isSortedByDate && !filterCategoryId;
 
-  if (isSingleAccount) {
+  let runningBalanceRecord: Record<string, number> | null = null;
+
+  if (showRunningBalance) {
+    // We need all transactions for the account in ascending date order for running balance
+    // The current query already has the right order when sortField=transaction_date && ascending
     const selectedAccount = activeAccounts.find(
       (a) => a.id === filterAccountId
     );
     const openingBalance = selectedAccount?.opening_balance ?? 0;
-    runningBalanceMap = computeRunningBalances(openingBalance, allTransactions);
+    const balanceMap = computeRunningBalances(openingBalance, allTransactions);
+    runningBalanceRecord = {};
+    for (const [k, v] of balanceMap.entries()) {
+      runningBalanceRecord[k] = v;
+    }
   }
-
-  // Reverse for display (newest first)
-  const displayTransactions = [...allTransactions].reverse();
 
   return (
     <div>
@@ -118,10 +225,13 @@ export default async function TransactionsPage({
       </div>
 
       <div className="mt-4">
-        <AccountFilter accounts={activeAccounts} />
+        <TransactionFilters
+          accounts={activeAccounts}
+          categories={categoryOptions}
+        />
       </div>
 
-      {displayTransactions.length === 0 ? (
+      {allTransactions.length === 0 ? (
         <div className="mt-12 flex flex-col items-center justify-center rounded-lg border border-dashed border-border p-12 text-center">
           <h3 className="text-lg font-semibold text-foreground">
             No transactions yet
@@ -137,119 +247,16 @@ export default async function TransactionsPage({
           </Button>
         </div>
       ) : (
-        <div className="mt-4 overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/50">
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                  Date
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                  Description
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                  Account
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                  Category
-                </th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">
-                  Amount
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                  Status
-                </th>
-                {isSingleAccount && (
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">
-                    Balance
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {displayTransactions.map((txn) => {
-                const lineItems = txn.transaction_line_items ?? [];
-                const isIncome = txn.transaction_type === "income";
-
-                // Build category display
-                let categoryDisplay: string;
-                if (lineItems.length === 0) {
-                  categoryDisplay = "Uncategorized";
-                } else if (lineItems.length === 1) {
-                  const li = lineItems[0];
-                  const cat = li.categories;
-                  if (cat && cat.parent_id) {
-                    const parentName =
-                      categoryNameMap.get(cat.parent_id) ?? "";
-                    categoryDisplay = parentName
-                      ? `${parentName} → ${cat.name}`
-                      : cat.name;
-                  } else if (cat) {
-                    categoryDisplay = cat.name;
-                  } else {
-                    categoryDisplay = "Unknown";
-                  }
-                } else {
-                  categoryDisplay = `Multiple (${lineItems.length})`;
-                }
-
-                const statusLabel =
-                  TRANSACTION_STATUS_LABELS[
-                    txn.status as keyof typeof TRANSACTION_STATUS_LABELS
-                  ] ?? txn.status;
-
-                const statusVariant =
-                  txn.status === "reconciled"
-                    ? ("default" as const)
-                    : txn.status === "cleared"
-                      ? ("secondary" as const)
-                      : ("outline" as const);
-
-                return (
-                  <tr
-                    key={txn.id}
-                    className="border-b border-border last:border-b-0 hover:bg-muted/30"
-                  >
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {new Date(
-                        txn.transaction_date + "T00:00:00"
-                      ).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/organizations/${orgId}/transactions/${txn.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {txn.description}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                      {txn.accounts?.name ?? "Unknown"}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                      {categoryDisplay}
-                    </td>
-                    <td
-                      className={`px-4 py-3 whitespace-nowrap text-right font-medium tabular-nums ${
-                        isIncome ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-                      }`}
-                    >
-                      {isIncome ? "+" : "-"}
-                      {formatCurrency(txn.amount)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <Badge variant={statusVariant}>{statusLabel}</Badge>
-                    </td>
-                    {isSingleAccount && runningBalanceMap && (
-                      <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums font-medium">
-                        {formatCurrency(runningBalanceMap.get(txn.id) ?? 0)}
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="mt-4">
+          <TransactionTable
+            transactions={allTransactions}
+            orgId={orgId}
+            categoryNameMap={categoryNameMap}
+            runningBalanceMap={runningBalanceRecord}
+            showRunningBalance={showRunningBalance}
+            currentSort={sortField}
+            currentOrder={sortAscending ? "asc" : "desc"}
+          />
         </div>
       )}
     </div>
