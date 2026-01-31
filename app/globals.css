@@ -123,3 +123,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Fix Radix UI popover/select z-index in Tailwind v4 CSS layers.
+   Radix Popper creates a wrapper div that reads z-index from child
+   computed styles, which can fail under CSS cascade layers. Target
+   the wrapper directly to ensure dropdowns render above other content. */
+[data-radix-popper-content-wrapper] {
+  z-index: 50 !important;
+}
