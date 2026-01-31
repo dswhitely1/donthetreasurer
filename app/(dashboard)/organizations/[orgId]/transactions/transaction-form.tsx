@@ -12,6 +12,7 @@ import {
   TRANSACTION_STATUSES,
   TRANSACTION_STATUS_LABELS,
 } from "@/lib/validations/transaction";
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -61,13 +62,6 @@ interface TransactionDefaultValues {
     amount: number;
     memo: string | null;
   }>;
-}
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(amount);
 }
 
 function generateKey(): string {

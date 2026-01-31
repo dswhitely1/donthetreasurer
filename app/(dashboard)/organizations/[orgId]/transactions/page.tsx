@@ -4,25 +4,23 @@ import { Plus } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import {
-  TRANSACTION_TYPE_LABELS,
   TRANSACTION_STATUS_LABELS,
 } from "@/lib/validations/transaction";
+import { computeRunningBalances } from "@/lib/balances";
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(amount);
-}
+import { AccountFilter } from "./account-filter";
 
 export default async function TransactionsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ orgId: string }>;
+  searchParams: Promise<{ account_id?: string }>;
 }) {
   const { orgId } = await params;
+  const { account_id: filterAccountId } = await searchParams;
   const supabase = await createClient();
 
   // Verify org exists and user has access
@@ -37,8 +35,18 @@ export default async function TransactionsPage({
     notFound();
   }
 
-  // Fetch transactions with account info and line items with categories
-  const { data: transactions } = await supabase
+  // Fetch active accounts for the filter dropdown
+  const { data: accounts } = await supabase
+    .from("accounts")
+    .select("id, name, opening_balance")
+    .eq("organization_id", orgId)
+    .eq("is_active", true)
+    .order("name");
+
+  const activeAccounts = accounts ?? [];
+
+  // Build transaction query with optional account filter
+  let txnQuery = supabase
     .from("transactions")
     .select(
       `
@@ -52,8 +60,16 @@ export default async function TransactionsPage({
       )
     `
     )
-    .eq("accounts.organization_id", orgId)
-    .order("transaction_date", { ascending: false });
+    .eq("accounts.organization_id", orgId);
+
+  if (filterAccountId) {
+    txnQuery = txnQuery.eq("account_id", filterAccountId);
+  }
+
+  // For running balance we need ascending order; we'll reverse for display
+  const { data: transactions } = await txnQuery.order("transaction_date", {
+    ascending: true,
+  }).order("created_at", { ascending: true });
 
   // Fetch all categories to resolve parent names
   const { data: allCategories } = await supabase
@@ -66,6 +82,21 @@ export default async function TransactionsPage({
   );
 
   const allTransactions = transactions ?? [];
+
+  // Compute running balances when filtered to a single account
+  const isSingleAccount = !!filterAccountId;
+  let runningBalanceMap: Map<string, number> | null = null;
+
+  if (isSingleAccount) {
+    const selectedAccount = activeAccounts.find(
+      (a) => a.id === filterAccountId
+    );
+    const openingBalance = selectedAccount?.opening_balance ?? 0;
+    runningBalanceMap = computeRunningBalances(openingBalance, allTransactions);
+  }
+
+  // Reverse for display (newest first)
+  const displayTransactions = [...allTransactions].reverse();
 
   return (
     <div>
@@ -86,7 +117,11 @@ export default async function TransactionsPage({
         </Button>
       </div>
 
-      {allTransactions.length === 0 ? (
+      <div className="mt-4">
+        <AccountFilter accounts={activeAccounts} />
+      </div>
+
+      {displayTransactions.length === 0 ? (
         <div className="mt-12 flex flex-col items-center justify-center rounded-lg border border-dashed border-border p-12 text-center">
           <h3 className="text-lg font-semibold text-foreground">
             No transactions yet
@@ -102,7 +137,7 @@ export default async function TransactionsPage({
           </Button>
         </div>
       ) : (
-        <div className="mt-6 overflow-x-auto rounded-lg border border-border">
+        <div className="mt-4 overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
@@ -124,10 +159,15 @@ export default async function TransactionsPage({
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">
                   Status
                 </th>
+                {isSingleAccount && (
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">
+                    Balance
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
-              {allTransactions.map((txn) => {
+              {displayTransactions.map((txn) => {
                 const lineItems = txn.transaction_line_items ?? [];
                 const isIncome = txn.transaction_type === "income";
 
@@ -200,6 +240,11 @@ export default async function TransactionsPage({
                     <td className="px-4 py-3 whitespace-nowrap">
                       <Badge variant={statusVariant}>{statusLabel}</Badge>
                     </td>
+                    {isSingleAccount && runningBalanceMap && (
+                      <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums font-medium">
+                        {formatCurrency(runningBalanceMap.get(txn.id) ?? 0)}
+                      </td>
+                    )}
                   </tr>
                 );
               })}

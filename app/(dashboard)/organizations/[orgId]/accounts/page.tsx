@@ -4,6 +4,8 @@ import { Plus } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/validations/account";
+import { getAccountBalances } from "@/lib/balances";
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,13 +15,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(amount);
-}
 
 export default async function AccountsPage({
   params,
@@ -47,6 +42,19 @@ export default async function AccountsPage({
     .eq("organization_id", orgId)
     .eq("is_active", true)
     .order("name");
+
+  const activeAccounts = accounts ?? [];
+  const accountIds = activeAccounts.map((a) => a.id);
+
+  // Fetch transactions for all active accounts to compute balances
+  const { data: transactions } = accountIds.length > 0
+    ? await supabase
+        .from("transactions")
+        .select("account_id, amount, transaction_type")
+        .in("account_id", accountIds)
+    : { data: [] };
+
+  const balanceMap = getAccountBalances(activeAccounts, transactions ?? []);
 
   return (
     <div>
@@ -103,9 +111,18 @@ export default async function AccountsPage({
                         account.account_type as keyof typeof ACCOUNT_TYPE_LABELS
                       ] ?? account.account_type}
                     </Badge>
-                    <span className="text-sm font-medium text-foreground">
-                      {formatCurrency(account.opening_balance ?? 0)}
-                    </span>
+                    <div className="text-right">
+                      <span className="text-sm font-medium text-foreground tabular-nums">
+                        {formatCurrency(
+                          balanceMap.get(account.id)?.currentBalance ?? 0
+                        )}
+                      </span>
+                      {(account.opening_balance ?? 0) !== 0 && (
+                        <p className="text-xs text-muted-foreground tabular-nums">
+                          Opening: {formatCurrency(account.opening_balance ?? 0)}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>

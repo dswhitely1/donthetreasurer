@@ -4,6 +4,8 @@ import { ArrowLeft } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/validations/account";
+import { getAccountBalances } from "@/lib/balances";
+import { formatCurrency } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -12,13 +14,6 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AccountActions } from "./account-actions";
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(amount);
-}
 
 export default async function AccountDetailPage({
   params,
@@ -50,6 +45,18 @@ export default async function AccountDetailPage({
   if (!account) {
     notFound();
   }
+
+  // Fetch transactions to compute balance
+  const { data: transactions } = await supabase
+    .from("transactions")
+    .select("account_id, amount, transaction_type")
+    .eq("account_id", accountId);
+
+  const balanceMap = getAccountBalances([account], transactions ?? []);
+  const balance = balanceMap.get(account.id);
+  const currentBalance = balance?.currentBalance ?? (account.opening_balance ?? 0);
+  const totalIncome = balance?.totalIncome ?? 0;
+  const totalExpense = balance?.totalExpense ?? 0;
 
   const typeLabel =
     ACCOUNT_TYPE_LABELS[
@@ -95,8 +102,24 @@ export default async function AccountDetailPage({
               <dt className="font-medium text-muted-foreground">
                 Current Balance
               </dt>
-              <dd className="mt-1 text-foreground">
-                {formatCurrency(account.opening_balance ?? 0)}
+              <dd className="mt-1 text-lg font-semibold tabular-nums text-foreground">
+                {formatCurrency(currentBalance)}
+              </dd>
+            </div>
+            <div>
+              <dt className="font-medium text-muted-foreground">
+                Total Income
+              </dt>
+              <dd className="mt-1 tabular-nums text-green-600 dark:text-green-400">
+                {formatCurrency(totalIncome)}
+              </dd>
+            </div>
+            <div>
+              <dt className="font-medium text-muted-foreground">
+                Total Expenses
+              </dt>
+              <dd className="mt-1 tabular-nums text-red-600 dark:text-red-400">
+                {formatCurrency(totalExpense)}
               </dd>
             </div>
             <div>

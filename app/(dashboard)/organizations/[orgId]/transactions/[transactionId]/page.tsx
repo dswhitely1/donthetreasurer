@@ -8,6 +8,7 @@ import {
   TRANSACTION_STATUS_LABELS,
 } from "@/lib/validations/transaction";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/validations/account";
+import { formatCurrency } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -16,13 +17,6 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TransactionActions } from "./transaction-actions";
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(amount);
-}
 
 export default async function TransactionDetailPage({
   params,
