@@ -25,7 +25,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { bulkUpdateStatus, bulkDeleteTransactions } from "./actions";
+import {
+  useBulkUpdateStatus,
+  useBulkDeleteTransactions,
+} from "@/hooks/use-transactions";
 
 interface LineItem {
   id: string;
@@ -155,6 +158,10 @@ export function TransactionTable({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  const bulkUpdateMutation = useBulkUpdateStatus(orgId);
+  const bulkDeleteMutation = useBulkDeleteTransactions(orgId);
+  const isMutating = bulkUpdateMutation.isPending || bulkDeleteMutation.isPending;
+
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkError, setBulkError] = useState<string | null>(null);
@@ -222,24 +229,19 @@ export function TransactionTable({
 
   async function handleBulkAction(action: "cleared" | "reconciled" | "delete") {
     setBulkError(null);
-    const ids = Array.from(selectedIds).join(",");
+    const ids = Array.from(selectedIds);
 
-    const formData = new FormData();
-    formData.set("ids", ids);
-    formData.set("org_id", orgId);
-
-    let result: { error: string } | null;
-    if (action === "delete") {
-      result = await bulkDeleteTransactions(null, formData);
-    } else {
-      formData.set("status", action);
-      result = await bulkUpdateStatus(null, formData);
-    }
-
-    if (result?.error) {
-      setBulkError(result.error);
-    } else {
+    try {
+      if (action === "delete") {
+        await bulkDeleteMutation.mutateAsync({ ids });
+      } else {
+        await bulkUpdateMutation.mutateAsync({ ids, status: action });
+      }
       setSelectedIds(new Set());
+    } catch (err) {
+      setBulkError(
+        err instanceof Error ? err.message : "An error occurred."
+      );
     }
   }
 
@@ -255,6 +257,7 @@ export function TransactionTable({
             <Button
               size="sm"
               variant="outline"
+              disabled={isMutating}
               onClick={() => handleBulkAction("cleared")}
             >
               Mark as Cleared
@@ -262,6 +265,7 @@ export function TransactionTable({
             <Button
               size="sm"
               variant="outline"
+              disabled={isMutating}
               onClick={() => handleBulkAction("reconciled")}
             >
               Mark as Reconciled
@@ -269,6 +273,7 @@ export function TransactionTable({
             <Button
               size="sm"
               variant="destructive"
+              disabled={isMutating}
               onClick={() => handleBulkAction("delete")}
             >
               Delete Selected
