@@ -52,6 +52,7 @@ function makeCreateTxnFormData(overrides: Partial<Record<string, string>> = {}):
     transaction_type: "expense",
     description: "Office Supplies",
     check_number: "",
+    vendor: "",
     status: "uncleared",
     line_items: JSON.stringify([{ category_id: catId, amount: 500, memo: "" }]),
     ...overrides,
@@ -302,6 +303,7 @@ describe("transaction actions", () => {
         transaction_type: "expense",
         description: "Test",
         check_number: "",
+        vendor: "",
         status: "uncleared",
         line_items: JSON.stringify([{ category_id: catId, amount: 500 }]),
       });
@@ -348,6 +350,7 @@ describe("transaction actions", () => {
         transaction_type: "expense",
         description: "Test",
         check_number: "",
+        vendor: "",
         status: "cleared",
         line_items: JSON.stringify([{ category_id: catId, amount: 500 }]),
       });
@@ -397,6 +400,7 @@ describe("transaction actions", () => {
         transaction_type: "expense",
         description: "Test",
         check_number: "",
+        vendor: "",
         status: "uncleared",
         line_items: JSON.stringify([{ category_id: catId, amount: 500 }]),
       });
@@ -755,6 +759,32 @@ describe("transaction actions", () => {
       });
       const result = await inlineUpdateTransaction(null, fd);
       expect(result?.error).toContain("20 characters");
+    });
+
+    it("validates vendor length", async () => {
+      setupInlineEdit(existingTxn);
+
+      const fd = makeFormData({
+        id: txnId,
+        org_id: orgId,
+        field: "vendor",
+        value: "A".repeat(256),
+      });
+      const result = await inlineUpdateTransaction(null, fd);
+      expect(result?.error).toContain("255 characters");
+    });
+
+    it("clears vendor to null when empty", async () => {
+      setupInlineEdit(existingTxn);
+
+      const fd = makeFormData({
+        id: txnId,
+        org_id: orgId,
+        field: "vendor",
+        value: "",
+      });
+      const result = await inlineUpdateTransaction(null, fd);
+      expect(result).toBeNull();
     });
 
     it("validates status enum", async () => {

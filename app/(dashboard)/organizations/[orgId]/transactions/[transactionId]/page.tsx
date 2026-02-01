@@ -184,6 +184,14 @@ export default async function TransactionDetailPage({
                 </dd>
               </div>
             )}
+            {transaction.vendor && (
+              <div>
+                <dt className="font-medium text-muted-foreground">Vendor</dt>
+                <dd className="mt-1 text-foreground">
+                  {transaction.vendor}
+                </dd>
+              </div>
+            )}
             {transaction.cleared_at && (
               <div>
                 <dt className="font-medium text-muted-foreground">
@@ -286,6 +294,7 @@ export default async function TransactionDetailPage({
               transaction_type: transaction.transaction_type,
               description: transaction.description,
               check_number: transaction.check_number,
+              vendor: transaction.vendor,
               status: transaction.status,
             }}
             lineItems={lineItems.map((li) => ({

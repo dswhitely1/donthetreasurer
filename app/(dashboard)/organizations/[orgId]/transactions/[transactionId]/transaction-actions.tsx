@@ -23,6 +23,7 @@ interface TransactionData {
   transaction_type: string;
   description: string;
   check_number: string | null;
+  vendor: string | null;
   status: string;
 }
 
@@ -70,6 +71,7 @@ export function TransactionActions({
             transaction_type: transaction.transaction_type,
             description: transaction.description,
             check_number: transaction.check_number,
+            vendor: transaction.vendor,
             status: transaction.status,
             line_items: lineItems,
           }}

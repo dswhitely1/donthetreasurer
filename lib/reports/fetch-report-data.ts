@@ -35,6 +35,7 @@ interface RawTransaction {
   transaction_type: string;
   description: string;
   check_number: string | null;
+  vendor: string | null;
   status: string;
   cleared_at: string | null;
   account_id: string;
@@ -170,6 +171,7 @@ export async function fetchReportData(
       createdAt: txn.created_at,
       accountName: txn.accounts?.name ?? "Unknown",
       checkNumber: txn.check_number,
+      vendor: txn.vendor,
       description: txn.description,
       transactionType: txn.transaction_type as "income" | "expense",
       amount: txn.amount,

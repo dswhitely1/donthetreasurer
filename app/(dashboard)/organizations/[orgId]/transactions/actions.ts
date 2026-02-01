@@ -23,6 +23,7 @@ export async function createTransaction(
     transaction_type: formData.get("transaction_type") as string,
     description: formData.get("description") as string,
     check_number: formData.get("check_number") as string,
+    vendor: formData.get("vendor") as string,
     status: formData.get("status") as string,
     line_items: formData.get("line_items") as string,
   };
@@ -130,6 +131,7 @@ export async function createTransaction(
       transaction_type: parsed.data.transaction_type,
       description: parsed.data.description,
       check_number: parsed.data.check_number || null,
+      vendor: parsed.data.vendor || null,
       status: parsed.data.status,
       cleared_at: clearedAt,
     })
@@ -178,6 +180,7 @@ export async function updateTransaction(
     transaction_type: formData.get("transaction_type") as string,
     description: formData.get("description") as string,
     check_number: formData.get("check_number") as string,
+    vendor: formData.get("vendor") as string,
     status: formData.get("status") as string,
     line_items: formData.get("line_items") as string,
   };
@@ -306,6 +309,7 @@ export async function updateTransaction(
       transaction_type: parsed.data.transaction_type,
       description: parsed.data.description,
       check_number: parsed.data.check_number || null,
+      vendor: parsed.data.vendor || null,
       status: parsed.data.status,
       cleared_at: clearedAt,
     })
@@ -689,6 +693,14 @@ export async function inlineUpdateTransaction(
         return { error: "Check number must be 20 characters or fewer." };
       }
       update.check_number = trimmed || null;
+      break;
+    }
+    case "vendor": {
+      const trimmedVendor = value.trim();
+      if (trimmedVendor.length > 255) {
+        return { error: "Vendor must be 255 characters or fewer." };
+      }
+      update.vendor = trimmedVendor || null;
       break;
     }
     case "status": {

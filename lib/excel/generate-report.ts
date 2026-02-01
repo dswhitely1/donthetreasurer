@@ -33,6 +33,7 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
     { key: "createdDate", width: 15 },
     { key: "account", width: 20 },
     { key: "checkNum", width: 10 },
+    { key: "vendor", width: 20 },
     { key: "description", width: 40 },
     { key: "category", width: 30 },
     { key: "lineMemo", width: 25 },
@@ -46,23 +47,23 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
   // Header section
   const titleRow = sheet.addRow([data.organizationName]);
   titleRow.font = { size: 14, bold: true };
-  sheet.mergeCells("A1:L1");
+  sheet.mergeCells("A1:M1");
 
   const subtitleRow = sheet.addRow(["Transaction Report"]);
   subtitleRow.font = { size: 12 };
-  sheet.mergeCells("A2:L2");
+  sheet.mergeCells("A2:M2");
 
   const dateRangeRow = sheet.addRow([
     `Cleared: ${formatExcelDate(data.startDate)} to ${formatExcelDate(data.endDate)} (includes all uncleared)`,
   ]);
   dateRangeRow.font = { italic: true };
-  sheet.mergeCells("A3:L3");
+  sheet.mergeCells("A3:M3");
 
   const generatedRow = sheet.addRow([
     `Generated: ${new Date(data.generatedAt).toLocaleString()}`,
   ]);
   generatedRow.font = { italic: true, color: { argb: "FF666666" } };
-  sheet.mergeCells("A4:L4");
+  sheet.mergeCells("A4:M4");
 
   // Blank row
   sheet.addRow([]);
@@ -73,6 +74,7 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
     "Created Date",
     "Account",
     "Check #",
+    "Vendor",
     "Description",
     "Category",
     "Line Memo",
@@ -115,6 +117,7 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
         isFirst && txn.createdAt ? formatExcelDateTime(txn.createdAt) : "",
         isFirst ? txn.accountName : "",
         isFirst ? txn.checkNumber ?? "" : "",
+        isFirst ? txn.vendor ?? "" : "",
         isFirst ? txn.description : "",
         li.categoryLabel,
         li.memo ?? "",
@@ -128,9 +131,9 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
       ]);
 
       // Format currency cells
-      const incomeCell = row.getCell(8);
-      const expenseCell = row.getCell(9);
-      const balanceCell = row.getCell(12);
+      const incomeCell = row.getCell(9);
+      const expenseCell = row.getCell(10);
+      const balanceCell = row.getCell(13);
 
       if (incomeCell.value !== null) {
         incomeCell.numFmt = currencyFmt;
@@ -155,7 +158,7 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
   // If no transactions, add a note
   if (data.transactions.length === 0) {
     const emptyRow = sheet.addRow(["No transactions found matching these filters."]);
-    sheet.mergeCells(`A${emptyRow.number}:L${emptyRow.number}`);
+    sheet.mergeCells(`A${emptyRow.number}:M${emptyRow.number}`);
     emptyRow.font = { italic: true, color: { argb: "FF666666" } };
   }
 }

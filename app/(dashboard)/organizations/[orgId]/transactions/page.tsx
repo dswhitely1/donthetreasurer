@@ -188,6 +188,7 @@ export default async function TransactionsPage({
     transaction_type: string;
     description: string;
     check_number: string | null;
+    vendor: string | null;
     status: string;
     cleared_at: string | null;
     account_id: string;

@@ -44,6 +44,7 @@ describe("constants", () => {
     expect(INLINE_EDITABLE_FIELDS).toContain("transaction_date");
     expect(INLINE_EDITABLE_FIELDS).toContain("description");
     expect(INLINE_EDITABLE_FIELDS).toContain("check_number");
+    expect(INLINE_EDITABLE_FIELDS).toContain("vendor");
     expect(INLINE_EDITABLE_FIELDS).toContain("status");
     expect(INLINE_EDITABLE_FIELDS).toContain("amount");
     expect(INLINE_EDITABLE_FIELDS).toContain("account_id");
@@ -234,6 +235,30 @@ describe("createTransactionSchema", () => {
       check_number: "",
     });
     expect(result.success).toBe(true);
+  });
+
+  it("accepts valid vendor", () => {
+    const result = createTransactionSchema.safeParse({
+      ...validInput,
+      vendor: "Staples",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts empty string for vendor", () => {
+    const result = createTransactionSchema.safeParse({
+      ...validInput,
+      vendor: "",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects vendor longer than 255 characters", () => {
+    const result = createTransactionSchema.safeParse({
+      ...validInput,
+      vendor: "A".repeat(256),
+    });
+    expect(result.success).toBe(false);
   });
 
   it("line_items is treated as a string (JSON)", () => {

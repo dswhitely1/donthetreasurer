@@ -55,6 +55,11 @@ export const createTransactionSchema = z.object({
     .max(20, "Check number must be 20 characters or fewer.")
     .optional()
     .or(z.literal("")),
+  vendor: z
+    .string()
+    .max(255, "Vendor must be 255 characters or fewer.")
+    .optional()
+    .or(z.literal("")),
   status: z
     .enum(TRANSACTION_STATUSES, { message: "Invalid status." })
     .default("uncleared"),
@@ -69,6 +74,7 @@ export const INLINE_EDITABLE_FIELDS = [
   "transaction_date",
   "description",
   "check_number",
+  "vendor",
   "status",
   "amount",
   "account_id",

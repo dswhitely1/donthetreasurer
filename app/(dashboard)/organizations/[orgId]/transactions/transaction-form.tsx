@@ -56,6 +56,7 @@ interface TransactionDefaultValues {
   transaction_type: string;
   description: string;
   check_number: string | null;
+  vendor: string | null;
   status: string;
   line_items: Array<{
     category_id: string;
@@ -267,6 +268,18 @@ export function TransactionForm({
                 required
                 placeholder="0.00"
                 defaultValue={defaultValues?.amount ?? ""}
+              />
+            </div>
+
+            {/* Vendor */}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={`${formId}-vendor`}>Vendor (optional)</Label>
+              <Input
+                id={`${formId}-vendor`}
+                name="vendor"
+                maxLength={255}
+                placeholder="e.g. Staples, Amazon"
+                defaultValue={defaultValues?.vendor ?? ""}
               />
             </div>
 

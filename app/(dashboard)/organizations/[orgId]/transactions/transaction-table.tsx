@@ -56,6 +56,7 @@ interface Transaction {
   transaction_type: string;
   description: string;
   check_number: string | null;
+  vendor: string | null;
   status: string;
   cleared_at: string | null;
   account_id: string;
@@ -393,6 +394,10 @@ export function TransactionTable({
                 <th className="px-3 py-3 text-left font-medium text-muted-foreground">
                   Check #
                 </th>
+                {/* Vendor */}
+                <th className="px-3 py-3 text-left font-medium text-muted-foreground">
+                  Vendor
+                </th>
                 {/* Sortable: Description */}
                 <th className="px-3 py-3 text-left">
                   <button
@@ -532,7 +537,7 @@ function TransactionRow({
   accountOptions: SelectOption[];
 }>) {
   // Count total columns for expanded row colspan
-  const totalCols = showRunningBalance ? 12 : 11;
+  const totalCols = showRunningBalance ? 13 : 12;
 
   const isEditingField = (field: string) =>
     editingCell?.transactionId === txn.id && editingCell?.field === field;
@@ -618,6 +623,24 @@ function TransactionRow({
           onStartEdit={() => onStartEdit(txn.id, "check_number")}
           onEndEdit={onEndEdit}
           onSave={(val) => onSave(txn.id, "check_number", val)}
+          className="px-3 py-3 whitespace-nowrap"
+        />
+        {/* Vendor - inline editable */}
+        <InlineEditCell
+          transactionId={txn.id}
+          field="vendor"
+          value={txn.vendor ?? ""}
+          displayValue={
+            <span className="text-muted-foreground">
+              {txn.vendor || "\u2014"}
+            </span>
+          }
+          fieldType="text"
+          isEditable={!isReconciled}
+          isEditing={isEditingField("vendor")}
+          onStartEdit={() => onStartEdit(txn.id, "vendor")}
+          onEndEdit={onEndEdit}
+          onSave={(val) => onSave(txn.id, "vendor", val)}
           className="px-3 py-3 whitespace-nowrap"
         />
         {/* Description - inline editable */}
@@ -739,7 +762,7 @@ function TransactionRow({
               key={li.id}
               className="border-b border-border bg-muted/20 last:border-b-0"
             >
-              <td colSpan={7} className="px-3 py-2">
+              <td colSpan={8} className="px-3 py-2">
                 <div className="pl-12 text-xs text-muted-foreground">
                   {catName}
                   {li.memo && (
@@ -751,7 +774,7 @@ function TransactionRow({
               <td className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">
                 {formatCurrency(li.amount)}
               </td>
-              <td colSpan={totalCols - 9} className="px-3 py-2" />
+              <td colSpan={totalCols - 10} className="px-3 py-2" />
             </tr>
           );
         })}

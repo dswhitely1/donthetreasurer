@@ -10,6 +10,7 @@ export interface ReportTransaction {
   createdAt: string | null;
   accountName: string;
   checkNumber: string | null;
+  vendor: string | null;
   description: string;
   transactionType: "income" | "expense";
   amount: number;

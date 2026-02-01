@@ -230,6 +230,7 @@ export type Database = {
           transaction_date: string
           transaction_type: string
           updated_at: string | null
+          vendor: string | null
         }
         Insert: {
           account_id: string
@@ -243,6 +244,7 @@ export type Database = {
           transaction_date: string
           transaction_type: string
           updated_at?: string | null
+          vendor?: string | null
         }
         Update: {
           account_id?: string
@@ -256,6 +258,7 @@ export type Database = {
           transaction_date?: string
           transaction_type?: string
           updated_at?: string | null
+          vendor?: string | null
         }
         Relationships: [
           {
