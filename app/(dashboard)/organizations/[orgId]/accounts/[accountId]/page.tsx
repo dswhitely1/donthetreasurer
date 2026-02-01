@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Circle, CircleCheck, Lock } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/validations/account";
@@ -49,7 +49,7 @@ export default async function AccountDetailPage({
   // Fetch transactions to compute balance
   const { data: transactions } = await supabase
     .from("transactions")
-    .select("account_id, amount, transaction_type")
+    .select("account_id, amount, transaction_type, status")
     .eq("account_id", accountId);
 
   const balanceMap = getAccountBalances([account], transactions ?? []);
@@ -57,6 +57,7 @@ export default async function AccountDetailPage({
   const currentBalance = balance?.currentBalance ?? (account.opening_balance ?? 0);
   const totalIncome = balance?.totalIncome ?? 0;
   const totalExpense = balance?.totalExpense ?? 0;
+  const statusNet = balance?.statusNet ?? { uncleared: 0, cleared: 0, reconciled: 0 };
 
   const typeLabel =
     ACCOUNT_TYPE_LABELS[
@@ -64,7 +65,7 @@ export default async function AccountDetailPage({
     ] ?? account.account_type;
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div>
       <Link
         href={`/organizations/${orgId}/accounts`}
         className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
@@ -73,78 +74,135 @@ export default async function AccountDetailPage({
         Back to accounts
       </Link>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <CardTitle>{account.name}</CardTitle>
+      {/* Page header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">
+            {account.name}
+          </h2>
+          <div className="mt-1 flex items-center gap-2">
             <Badge variant="secondary">{typeLabel}</Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <dl className="grid grid-cols-2 gap-4 text-sm">
             {account.description && (
-              <div className="col-span-2">
-                <dt className="font-medium text-muted-foreground">
-                  Description
-                </dt>
-                <dd className="mt-1 text-foreground">{account.description}</dd>
-              </div>
+              <span className="text-sm text-muted-foreground">
+                {account.description}
+              </span>
             )}
-            <div>
-              <dt className="font-medium text-muted-foreground">
-                Opening Balance
-              </dt>
-              <dd className="mt-1 text-foreground">
-                {formatCurrency(account.opening_balance ?? 0)}
-              </dd>
-            </div>
-            <div>
-              <dt className="font-medium text-muted-foreground">
-                Current Balance
-              </dt>
-              <dd className="mt-1 text-lg font-semibold tabular-nums text-foreground">
-                {formatCurrency(currentBalance)}
-              </dd>
-            </div>
-            <div>
-              <dt className="font-medium text-muted-foreground">
-                Total Income
-              </dt>
-              <dd className="mt-1 tabular-nums text-green-600 dark:text-green-400">
-                {formatCurrency(totalIncome)}
-              </dd>
-            </div>
-            <div>
-              <dt className="font-medium text-muted-foreground">
-                Total Expenses
-              </dt>
-              <dd className="mt-1 tabular-nums text-red-600 dark:text-red-400">
-                {formatCurrency(totalExpense)}
-              </dd>
-            </div>
-            <div>
-              <dt className="font-medium text-muted-foreground">Created</dt>
-              <dd className="mt-1 text-foreground">
-                {account.created_at
-                  ? new Date(account.created_at).toLocaleDateString()
-                  : "N/A"}
-              </dd>
-            </div>
-            <div>
-              <dt className="font-medium text-muted-foreground">
-                Last Updated
-              </dt>
-              <dd className="mt-1 text-foreground">
-                {account.updated_at
-                  ? new Date(account.updated_at).toLocaleDateString()
-                  : "N/A"}
-              </dd>
-            </div>
-          </dl>
+          </div>
+        </div>
+      </div>
 
-          <AccountActions account={account} orgId={orgId} />
-        </CardContent>
-      </Card>
+      {/* Status balance cards */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Current Balance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold tabular-nums text-foreground">
+              {formatCurrency(currentBalance)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Opening: {formatCurrency(account.opening_balance ?? 0)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <Circle className="h-3 w-3 text-yellow-600 dark:text-yellow-400" />
+                Uncleared
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold tabular-nums text-foreground">
+              {formatCurrency(statusNet.uncleared)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <CircleCheck className="h-3 w-3 text-green-600 dark:text-green-400" />
+                Cleared
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold tabular-nums text-foreground">
+              {formatCurrency(statusNet.cleared)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <Lock className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                Reconciled
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold tabular-nums text-foreground">
+              {formatCurrency(statusNet.reconciled)}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Account details */}
+      <div className="mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Account Details</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid gap-4 text-sm sm:grid-cols-4">
+              <div>
+                <dt className="font-medium text-muted-foreground">
+                  Total Income
+                </dt>
+                <dd className="mt-1 tabular-nums text-green-600 dark:text-green-400">
+                  {formatCurrency(totalIncome)}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-medium text-muted-foreground">
+                  Total Expenses
+                </dt>
+                <dd className="mt-1 tabular-nums text-red-600 dark:text-red-400">
+                  {formatCurrency(totalExpense)}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-medium text-muted-foreground">Created</dt>
+                <dd className="mt-1 text-foreground">
+                  {account.created_at
+                    ? new Date(account.created_at).toLocaleDateString()
+                    : "N/A"}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-medium text-muted-foreground">
+                  Last Updated
+                </dt>
+                <dd className="mt-1 text-foreground">
+                  {account.updated_at
+                    ? new Date(account.updated_at).toLocaleDateString()
+                    : "N/A"}
+                </dd>
+              </div>
+            </dl>
+
+            <AccountActions account={account} orgId={orgId} />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

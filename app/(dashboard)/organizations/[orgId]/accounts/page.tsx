@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Circle, CircleCheck, Lock, Plus } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/validations/account";
@@ -50,7 +50,7 @@ export default async function AccountsPage({
   const { data: transactions } = accountIds.length > 0
     ? await supabase
         .from("transactions")
-        .select("account_id, amount, transaction_type")
+        .select("account_id, amount, transaction_type, status")
         .in("account_id", accountIds)
     : { data: [] };
 
@@ -123,6 +123,20 @@ export default async function AccountsPage({
                         </p>
                       )}
                     </div>
+                  </div>
+                  <div className="mt-3 flex items-center gap-4 border-t border-border pt-3 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 tabular-nums">
+                      <Circle className="h-3 w-3 text-yellow-600 dark:text-yellow-400" />
+                      {formatCurrency(balanceMap.get(account.id)?.statusNet.uncleared ?? 0)}
+                    </span>
+                    <span className="inline-flex items-center gap-1 tabular-nums">
+                      <CircleCheck className="h-3 w-3 text-green-600 dark:text-green-400" />
+                      {formatCurrency(balanceMap.get(account.id)?.statusNet.cleared ?? 0)}
+                    </span>
+                    <span className="inline-flex items-center gap-1 tabular-nums">
+                      <Lock className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                      {formatCurrency(balanceMap.get(account.id)?.statusNet.reconciled ?? 0)}
+                    </span>
                   </div>
                 </CardContent>
               </Card>

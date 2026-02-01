@@ -7,12 +7,20 @@ interface TransactionInfo {
   account_id: string;
   amount: number;
   transaction_type: string;
+  status: string;
+}
+
+export interface StatusBreakdown {
+  uncleared: number;
+  cleared: number;
+  reconciled: number;
 }
 
 export interface AccountBalance {
   currentBalance: number;
   totalIncome: number;
   totalExpense: number;
+  statusNet: StatusBreakdown;
 }
 
 /**
@@ -30,6 +38,7 @@ export function getAccountBalances(
       currentBalance: account.opening_balance ?? 0,
       totalIncome: 0,
       totalExpense: 0,
+      statusNet: { uncleared: 0, cleared: 0, reconciled: 0 },
     });
   }
 
@@ -37,12 +46,19 @@ export function getAccountBalances(
     const entry = result.get(txn.account_id);
     if (!entry) continue;
 
+    const sign = txn.transaction_type === "income" ? 1 : -1;
+    const net = txn.amount * sign;
+
     if (txn.transaction_type === "income") {
       entry.totalIncome += txn.amount;
       entry.currentBalance += txn.amount;
     } else {
       entry.totalExpense += txn.amount;
       entry.currentBalance -= txn.amount;
+    }
+
+    if (txn.status === "uncleared" || txn.status === "cleared" || txn.status === "reconciled") {
+      entry.statusNet[txn.status] += net;
     }
   }
 

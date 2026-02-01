@@ -43,7 +43,7 @@ export function useAccountBalances(orgId: string) {
 
       const { data: transactions, error: txnErr } = await supabase
         .from("transactions")
-        .select("account_id, amount, transaction_type")
+        .select("account_id, amount, transaction_type, status")
         .in(
           "account_id",
           (accounts ?? []).map((a) => a.id)
