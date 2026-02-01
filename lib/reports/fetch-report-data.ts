@@ -9,6 +9,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import type { ReportParams } from "@/lib/validations/report";
 import type {
+  AccountBalanceSummary,
   ReportData,
   ReportTransaction,
   ReportLineItem,
@@ -182,6 +183,76 @@ export async function fetchReportData(
     };
   });
 
+  // Compute account balances (only when not filtering by category)
+  let accountBalances: AccountBalanceSummary[] | null = null;
+  if (!params.category_id) {
+    // Collect unique accounts from the report transactions
+    const accountIds = new Set<string>();
+    const accountNameById = new Map<string, string>();
+    const accountOpeningBalance = new Map<string, number>();
+    for (const txn of transactions) {
+      accountIds.add(txn.account_id);
+      if (txn.accounts) {
+        accountNameById.set(txn.account_id, txn.accounts.name);
+        accountOpeningBalance.set(txn.account_id, txn.accounts.opening_balance ?? 0);
+      }
+    }
+
+    // Also include the filtered account even if it has no transactions in the report
+    if (params.account_id && !accountIds.has(params.account_id)) {
+      const { data: acct } = await supabase
+        .from("accounts")
+        .select("id, name, opening_balance")
+        .eq("id", params.account_id)
+        .single();
+      if (acct) {
+        accountIds.add(acct.id);
+        accountNameById.set(acct.id, acct.name);
+        accountOpeningBalance.set(acct.id, acct.opening_balance ?? 0);
+      }
+    }
+
+    if (accountIds.size > 0) {
+      // Query pre-period cleared/reconciled transactions for starting balance
+      const { data: prePeriodTxns } = await supabase
+        .from("transactions")
+        .select("account_id, amount, transaction_type")
+        .in("account_id", Array.from(accountIds))
+        .in("status", ["cleared", "reconciled"])
+        .lt("cleared_at", params.start_date);
+
+      // Compute starting balances: opening_balance + net of pre-period cleared/reconciled
+      const prePeriodNet = new Map<string, number>();
+      for (const txn of prePeriodTxns ?? []) {
+        const current = prePeriodNet.get(txn.account_id) ?? 0;
+        const net = txn.transaction_type === "income" ? txn.amount : -txn.amount;
+        prePeriodNet.set(txn.account_id, current + net);
+      }
+
+      // Compute report-period net per account from the report transactions
+      const reportNet = new Map<string, number>();
+      for (const txn of reportTransactions) {
+        const acctId = transactions.find((t) => t.id === txn.id)?.account_id;
+        if (!acctId) continue;
+        const current = reportNet.get(acctId) ?? 0;
+        const net = txn.transactionType === "income" ? txn.amount : -txn.amount;
+        reportNet.set(acctId, current + net);
+      }
+
+      accountBalances = Array.from(accountIds).map((acctId) => {
+        const opening = accountOpeningBalance.get(acctId) ?? 0;
+        const prePeriod = prePeriodNet.get(acctId) ?? 0;
+        const startingBalance = opening + prePeriod;
+        const periodNet = reportNet.get(acctId) ?? 0;
+        return {
+          accountName: accountNameById.get(acctId) ?? "Unknown",
+          startingBalance,
+          endingBalance: startingBalance + periodNet,
+        };
+      });
+    }
+  }
+
   // Compute summary
   const summary = computeSummary(reportTransactions, categoryNameMap, categoryParentMap);
 
@@ -192,5 +263,6 @@ export async function fetchReportData(
     generatedAt: new Date().toISOString(),
     transactions: reportTransactions,
     summary,
+    accountBalances,
   };
 }

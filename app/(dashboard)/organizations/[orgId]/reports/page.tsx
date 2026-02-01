@@ -216,6 +216,49 @@ export default async function ReportsPage({
             </Card>
           </div>
 
+          {/* Account Balances */}
+          {reportData.accountBalances && reportData.accountBalances.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Account Balances</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {reportData.accountBalances.map((ab) => {
+                    const netChange = ab.endingBalance - ab.startingBalance;
+                    return (
+                      <div key={ab.accountName}>
+                        <p className="font-medium text-sm">{ab.accountName}</p>
+                        <dl className="mt-1 ml-4 grid gap-1">
+                          <div className="flex justify-between text-sm text-muted-foreground">
+                            <dt>Starting Balance</dt>
+                            <dd className="tabular-nums">{formatCurrency(ab.startingBalance)}</dd>
+                          </div>
+                          <div className="flex justify-between text-sm text-muted-foreground">
+                            <dt>Ending Balance</dt>
+                            <dd className="tabular-nums">{formatCurrency(ab.endingBalance)}</dd>
+                          </div>
+                          <div className="flex justify-between text-sm font-medium border-t border-border pt-1 mt-1">
+                            <dt>Net Change</dt>
+                            <dd
+                              className={`tabular-nums ${
+                                netChange >= 0
+                                  ? "text-green-600 dark:text-green-400"
+                                  : "text-red-600 dark:text-red-400"
+                              }`}
+                            >
+                              {formatCurrency(netChange)}
+                            </dd>
+                          </div>
+                        </dl>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Balance by Status */}
           <Card>
             <CardHeader>

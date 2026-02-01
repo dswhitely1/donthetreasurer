@@ -1,6 +1,6 @@
 import ExcelJS from "exceljs";
 
-import type { ReportData, ReportTransaction } from "@/lib/reports/types";
+import type { AccountBalanceSummary, ReportData, ReportTransaction } from "@/lib/reports/types";
 
 function formatExcelDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
@@ -202,6 +202,14 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
     accountGroups.set(txn.accountName, group);
   }
 
+  // Build lookup for account balances
+  const balanceByAccount = new Map<string, AccountBalanceSummary>();
+  if (data.accountBalances) {
+    for (const ab of data.accountBalances) {
+      balanceByAccount.set(ab.accountName, ab);
+    }
+  }
+
   let grandTotalIncome = 0;
   let grandTotalExpense = 0;
 
@@ -222,6 +230,19 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
         bottom: { style: "thin", color: { argb: "FF93C5FD" } },
       };
     });
+
+    // Starting balance row
+    const acctBalance = balanceByAccount.get(accountName);
+    if (acctBalance) {
+      const startRow = sheet.addRow([
+        "", "", "", "", "", "", "Starting Balance:",
+        null, null, "", "",
+        acctBalance.startingBalance,
+      ]);
+      startRow.font = { italic: true };
+      startRow.getCell(12).numFmt = currencyFmt;
+      startRow.getCell(12).font = { italic: true, bold: true };
+    }
 
     let accountIncome = 0;
     let accountExpense = 0;
@@ -280,6 +301,21 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
       currencyFmt,
       true
     );
+
+    // Ending balance row
+    if (acctBalance) {
+      const endRow = sheet.addRow([
+        "", "", "", "", "", "", "Ending Balance:",
+        null, null, "", "",
+        acctBalance.endingBalance,
+      ]);
+      endRow.font = { italic: true };
+      endRow.getCell(12).numFmt = currencyFmt;
+      endRow.getCell(12).font = { italic: true, bold: true };
+      endRow.getCell(12).border = {
+        top: { style: "thin", color: { argb: "FF94A3B8" } },
+      };
+    }
 
     // Blank separator between accounts
     sheet.addRow([]);
@@ -349,6 +385,28 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
     const row = addAmountRow(label, amount);
     row.font = { bold: true };
     return row;
+  }
+
+  // Account Balances
+  if (data.accountBalances && data.accountBalances.length > 0) {
+    addSectionHeader("ACCOUNT BALANCES");
+    for (const ab of data.accountBalances) {
+      const acctRow = sheet.addRow([ab.accountName]);
+      acctRow.font = { bold: true };
+      addAmountRow("Starting Balance:", ab.startingBalance, true);
+      addAmountRow("Ending Balance:", ab.endingBalance, true);
+      const changeRow = addAmountRow(
+        "Net Change:",
+        ab.endingBalance - ab.startingBalance,
+        true
+      );
+      changeRow.font = { italic: true };
+      changeRow.getCell(2).font = {
+        italic: true,
+        color: { argb: ab.endingBalance - ab.startingBalance >= 0 ? "FF16A34A" : "FFDC2626" },
+      };
+    }
+    sheet.addRow([]);
   }
 
   // Overall Summary

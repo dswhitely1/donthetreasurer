@@ -20,6 +20,12 @@ export interface ReportTransaction {
   runningBalance: number | null;
 }
 
+export interface AccountBalanceSummary {
+  accountName: string;
+  startingBalance: number;
+  endingBalance: number;
+}
+
 export interface ReportCategorySummary {
   parentName: string;
   children: { name: string; total: number }[];
@@ -46,4 +52,5 @@ export interface ReportData {
   generatedAt: string;
   transactions: ReportTransaction[];
   summary: ReportSummary;
+  accountBalances: AccountBalanceSummary[] | null;
 }
