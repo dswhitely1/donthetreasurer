@@ -64,6 +64,7 @@ export function TransactionFilters({
     } else {
       params.set(key, value);
     }
+    params.delete("page");
     const qs = params.toString();
     router.push(qs ? `${pathname}?${qs}` : pathname);
   }
@@ -75,6 +76,7 @@ export function TransactionFilters({
     params.delete("category_id");
     params.delete("start_date");
     params.delete("end_date");
+    params.delete("page");
     const qs = params.toString();
     router.push(qs ? `${pathname}?${qs}` : pathname);
   }

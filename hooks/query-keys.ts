@@ -23,6 +23,8 @@ export interface TransactionFilters {
   endDate?: string;
   sort?: string;
   order?: string;
+  page?: number;
+  limit?: number;
 }
 
 export const transactionKeys = {

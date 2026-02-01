@@ -38,11 +38,22 @@ export interface TransactionWithLineItems {
   transaction_line_items: TransactionLineItem[];
 }
 
+export interface PaginatedTransactions {
+  data: TransactionWithLineItems[];
+  totalCount: number;
+}
+
 export function useTransactions(orgId: string, filters?: TransactionFilters) {
   return useQuery({
     queryKey: transactionKeys.list(orgId, filters),
-    queryFn: async (): Promise<TransactionWithLineItems[]> => {
+    queryFn: async (): Promise<PaginatedTransactions> => {
       const supabase = createClient();
+
+      const page = Math.max(1, filters?.page ?? 1);
+      const limit = Math.min(200, Math.max(1, filters?.limit ?? 50));
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      const hasCategoryFilter = !!filters?.categoryId;
 
       let query = supabase
         .from("transactions")
@@ -57,7 +68,8 @@ export function useTransactions(orgId: string, filters?: TransactionFilters) {
             memo,
             categories(id, name, parent_id, category_type)
           )
-        `
+        `,
+          hasCategoryFilter ? undefined : { count: "exact" }
         )
         .eq("accounts.organization_id", orgId);
 
@@ -82,21 +94,32 @@ export function useTransactions(orgId: string, filters?: TransactionFilters) {
         query = query.order("created_at", { ascending });
       }
 
-      const { data, error } = await query;
+      if (!hasCategoryFilter) {
+        query = query.range(from, to);
+      }
+
+      const { data, error, count } = await query;
       if (error) throw error;
 
       let result = (data ?? []) as TransactionWithLineItems[];
 
-      // Post-fetch category filter
-      if (filters?.categoryId) {
+      if (hasCategoryFilter) {
         result = result.filter((txn) =>
           txn.transaction_line_items.some(
-            (li) => li.category_id === filters.categoryId
+            (li) => li.category_id === filters!.categoryId
           )
         );
+        const totalCount = result.length;
+        return {
+          data: result.slice(from, from + limit),
+          totalCount,
+        };
       }
 
-      return result;
+      return {
+        data: result,
+        totalCount: count ?? 0,
+      };
     },
   });
 }

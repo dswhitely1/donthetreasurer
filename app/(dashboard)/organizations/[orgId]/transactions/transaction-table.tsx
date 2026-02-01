@@ -213,6 +213,7 @@ export function TransactionTable({
       params.set("sort", field);
       params.set("order", "asc");
     }
+    params.delete("page");
     router.push(`${pathname}?${params.toString()}`);
   }
 
@@ -291,6 +292,8 @@ export function TransactionTable({
             variant="outline"
             onClick={() => {
               const params = new URLSearchParams(searchParams.toString());
+              params.delete("page");
+              params.delete("limit");
               router.push(
                 `/organizations/${orgId}/reports?${params.toString()}`
               );

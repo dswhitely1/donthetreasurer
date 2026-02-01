@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Plus } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { computeRunningBalances } from "@/lib/balances";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
 import { TransactionFilters } from "./transaction-filters";
 import { TransactionTable } from "./transaction-table";
 
@@ -18,6 +19,8 @@ interface SearchParams {
   end_date?: string;
   sort?: string;
   order?: string;
+  page?: string;
+  limit?: string;
 }
 
 const VALID_SORT_FIELDS = [
@@ -29,6 +32,9 @@ const VALID_SORT_FIELDS = [
 ] as const;
 
 type SortField = (typeof VALID_SORT_FIELDS)[number];
+
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 200;
 
 export default async function TransactionsPage({
   params,
@@ -46,9 +52,20 @@ export default async function TransactionsPage({
     end_date: filterEndDate,
     sort: sortParam,
     order: orderParam,
+    page: pageParam,
+    limit: limitParam,
   } = await searchParams;
 
   const supabase = await createClient();
+
+  // Parse pagination params
+  const page = Math.max(1, Math.floor(Number(pageParam) || 1));
+  const limit = Math.min(
+    MAX_LIMIT,
+    Math.max(1, Math.floor(Number(limitParam) || DEFAULT_LIMIT))
+  );
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
 
   // Verify org exists and user has access
   const { data: organization } = await supabase
@@ -79,50 +96,6 @@ export default async function TransactionsPage({
     ? (sortParam as SortField)
     : "transaction_date";
   const sortAscending = orderParam === "asc";
-
-  // Build transaction query with filters
-  let txnQuery = supabase
-    .from("transactions")
-    .select(
-      `
-      *,
-      accounts!inner(id, name, organization_id),
-      transaction_line_items(
-        id,
-        amount,
-        category_id,
-        memo,
-        categories(id, name, parent_id, category_type)
-      )
-    `
-    )
-    .eq("accounts.organization_id", orgId);
-
-  if (filterAccountId) {
-    txnQuery = txnQuery.eq("account_id", filterAccountId);
-  }
-
-  if (filterStartDate) {
-    txnQuery = txnQuery.gte("transaction_date", filterStartDate);
-  }
-
-  if (filterEndDate) {
-    txnQuery = txnQuery.lte("transaction_date", filterEndDate);
-  }
-
-  if (filterStatus && filterStatus !== "all") {
-    const statuses = filterStatus.split(",").filter(Boolean);
-    txnQuery = txnQuery.in("status", statuses);
-  }
-
-  // Apply sort. For running balance computation we need a separate query path.
-  txnQuery = txnQuery.order(sortField, { ascending: sortAscending });
-  // Secondary sort for stability
-  if (sortField !== "created_at") {
-    txnQuery = txnQuery.order("created_at", { ascending: sortAscending });
-  }
-
-  const { data: transactions } = await txnQuery;
 
   // Fetch all categories to resolve parent names and build filter options
   const { data: allCategories } = await supabase
@@ -171,19 +144,123 @@ export default async function TransactionsPage({
     });
   }
 
-  let allTransactions = transactions ?? [];
+  // Shared select shape for transaction queries
+  const txnSelectShape = `
+    *,
+    accounts!inner(id, name, organization_id),
+    transaction_line_items(
+      id,
+      amount,
+      category_id,
+      memo,
+      categories(id, name, parent_id, category_type)
+    )
+  `;
 
-  // Post-fetch category filter: filter transactions where any line item matches
-  if (filterCategoryId) {
-    allTransactions = allTransactions.filter((txn) => {
-      const lineItems = txn.transaction_line_items ?? [];
-      return lineItems.some(
-        (li: { category_id: string }) => li.category_id === filterCategoryId
-      );
-    });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function applyFiltersAndSort(query: any) {
+    let q = query;
+    if (filterAccountId) {
+      q = q.eq("account_id", filterAccountId);
+    }
+    if (filterStartDate) {
+      q = q.gte("transaction_date", filterStartDate);
+    }
+    if (filterEndDate) {
+      q = q.lte("transaction_date", filterEndDate);
+    }
+    if (filterStatus && filterStatus !== "all") {
+      const statuses = filterStatus.split(",").filter(Boolean);
+      q = q.in("status", statuses);
+    }
+    q = q.order(sortField, { ascending: sortAscending });
+    if (sortField !== "created_at") {
+      q = q.order("created_at", { ascending: sortAscending });
+    }
+    return q;
   }
 
-  // Compute running balance only when single account AND sorted by transaction_date ascending
+  let allTransactions: Array<{
+    id: string;
+    transaction_date: string;
+    created_at: string | null;
+    amount: number;
+    transaction_type: string;
+    description: string;
+    check_number: string | null;
+    status: string;
+    cleared_at: string | null;
+    account_id: string;
+    accounts: { id: string; name: string; organization_id: string } | null;
+    transaction_line_items: Array<{
+      id: string;
+      amount: number;
+      category_id: string;
+      memo: string | null;
+      categories: {
+        id: string;
+        name: string;
+        parent_id: string | null;
+        category_type: string;
+      } | null;
+    }>;
+  }> = [];
+  let totalCount = 0;
+
+  if (filterCategoryId) {
+    // Category filter path: fetch all, filter in memory, then slice
+    const txnQuery = applyFiltersAndSort(
+      supabase
+        .from("transactions")
+        .select(txnSelectShape)
+        .eq("accounts.organization_id", orgId)
+    );
+
+    const { data: transactions } = await txnQuery;
+    const filtered = (transactions ?? []).filter((txn: { transaction_line_items?: Array<{ category_id: string }> }) => {
+      const lineItems = txn.transaction_line_items ?? [];
+      return lineItems.some(
+        (li) => li.category_id === filterCategoryId
+      );
+    });
+
+    totalCount = filtered.length;
+    allTransactions = filtered.slice(from, from + limit);
+  } else {
+    // Standard path: use DB-level pagination with count
+    const txnQuery = applyFiltersAndSort(
+      supabase
+        .from("transactions")
+        .select(txnSelectShape, { count: "exact" })
+        .eq("accounts.organization_id", orgId)
+    ).range(from, to);
+
+    const { data: transactions, count } = await txnQuery;
+    allTransactions = transactions ?? [];
+    totalCount = count ?? 0;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / limit));
+
+  // Boundary redirect: if page exceeds total pages, redirect to last valid page
+  if (page > totalPages && totalCount > 0) {
+    const redirectParams = new URLSearchParams();
+    if (filterAccountId) redirectParams.set("account_id", filterAccountId);
+    if (filterStatus) redirectParams.set("status", filterStatus);
+    if (filterCategoryId) redirectParams.set("category_id", filterCategoryId);
+    if (filterStartDate) redirectParams.set("start_date", filterStartDate);
+    if (filterEndDate) redirectParams.set("end_date", filterEndDate);
+    if (sortParam) redirectParams.set("sort", sortParam);
+    if (orderParam) redirectParams.set("order", orderParam);
+    if (limit !== DEFAULT_LIMIT) redirectParams.set("limit", String(limit));
+    if (totalPages > 1) redirectParams.set("page", String(totalPages));
+    const qs = redirectParams.toString();
+    redirect(
+      `/organizations/${orgId}/transactions${qs ? `?${qs}` : ""}`
+    );
+  }
+
+  // Compute running balance only when single account AND sorted by transaction_date ascending AND no category filter
   const isSingleAccount = !!filterAccountId;
   const isSortedByDate =
     sortField === "transaction_date" && sortAscending;
@@ -192,16 +269,57 @@ export default async function TransactionsPage({
   let runningBalanceRecord: Record<string, number> | null = null;
 
   if (showRunningBalance) {
-    // We need all transactions for the account in ascending date order for running balance
-    // The current query already has the right order when sortField=transaction_date && ascending
     const selectedAccount = activeAccounts.find(
       (a) => a.id === filterAccountId
     );
     const openingBalance = selectedAccount?.opening_balance ?? 0;
-    const balanceMap = computeRunningBalances(openingBalance, allTransactions);
-    runningBalanceRecord = {};
-    for (const [k, v] of balanceMap.entries()) {
-      runningBalanceRecord[k] = v;
+
+    if (page > 1) {
+      // Fetch prior transactions to compute cumulative starting balance
+      let priorQuery = supabase
+        .from("transactions")
+        .select("id, amount, transaction_type")
+        .eq("account_id", filterAccountId!);
+
+      if (filterStartDate) {
+        priorQuery = priorQuery.gte("transaction_date", filterStartDate);
+      }
+      if (filterEndDate) {
+        priorQuery = priorQuery.lte("transaction_date", filterEndDate);
+      }
+      if (filterStatus && filterStatus !== "all") {
+        const statuses = filterStatus.split(",").filter(Boolean);
+        priorQuery = priorQuery.in("status", statuses);
+      }
+
+      priorQuery = priorQuery
+        .order("transaction_date", { ascending: true })
+        .order("created_at", { ascending: true })
+        .range(0, from - 1);
+
+      const { data: priorTxns } = await priorQuery;
+
+      // Sum prior transactions to get starting balance for this page
+      let startingBalance = openingBalance;
+      for (const txn of priorTxns ?? []) {
+        if (txn.transaction_type === "income") {
+          startingBalance += txn.amount;
+        } else {
+          startingBalance -= txn.amount;
+        }
+      }
+
+      const balanceMap = computeRunningBalances(startingBalance, allTransactions);
+      runningBalanceRecord = {};
+      for (const [k, v] of balanceMap.entries()) {
+        runningBalanceRecord[k] = v;
+      }
+    } else {
+      const balanceMap = computeRunningBalances(openingBalance, allTransactions);
+      runningBalanceRecord = {};
+      for (const [k, v] of balanceMap.entries()) {
+        runningBalanceRecord[k] = v;
+      }
     }
   }
 
@@ -231,7 +349,7 @@ export default async function TransactionsPage({
         />
       </div>
 
-      {allTransactions.length === 0 ? (
+      {totalCount === 0 ? (
         <div className="mt-12 flex flex-col items-center justify-center rounded-lg border border-dashed border-border p-12 text-center">
           <h3 className="text-lg font-semibold text-foreground">
             No transactions yet
@@ -256,6 +374,12 @@ export default async function TransactionsPage({
             showRunningBalance={showRunningBalance}
             currentSort={sortField}
             currentOrder={sortAscending ? "asc" : "desc"}
+          />
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            limit={limit}
           />
         </div>
       )}

@@ -47,6 +47,15 @@ export default function TransactionsLoading() {
           </div>
         ))}
       </div>
+
+      {/* Pagination skeleton */}
+      <div className="flex items-center justify-between px-2 py-4">
+        <Skeleton className="h-4 w-36" />
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-8 w-24" />
+          <Skeleton className="h-8 w-48" />
+        </div>
+      </div>
     </div>
   );
 }
