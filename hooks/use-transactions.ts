@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   bulkUpdateStatus,
   bulkDeleteTransactions,
+  inlineUpdateTransaction,
 } from "@/app/(dashboard)/organizations/[orgId]/transactions/actions";
 import { transactionKeys, accountKeys, reportKeys } from "./query-keys";
 
@@ -165,6 +166,42 @@ export function useBulkDeleteTransactions(orgId: string) {
       formData.set("org_id", orgId);
 
       const result = await bulkDeleteTransactions(null, formData);
+      if (result?.error) {
+        throw new Error(result.error);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: transactionKeys.all });
+      queryClient.invalidateQueries({
+        queryKey: accountKeys.balances(orgId),
+      });
+      queryClient.invalidateQueries({ queryKey: reportKeys.all });
+      router.refresh();
+    },
+  });
+}
+
+export function useInlineUpdateTransaction(orgId: string) {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      field,
+      value,
+    }: {
+      id: string;
+      field: string;
+      value: string;
+    }) => {
+      const formData = new FormData();
+      formData.set("id", id);
+      formData.set("org_id", orgId);
+      formData.set("field", field);
+      formData.set("value", value);
+
+      const result = await inlineUpdateTransaction(null, formData);
       if (result?.error) {
         throw new Error(result.error);
       }

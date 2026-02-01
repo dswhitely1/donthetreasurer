@@ -14,6 +14,7 @@ import {
   Lock,
   GitBranch,
   Download,
+  ExternalLink,
 } from "lucide-react";
 
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
@@ -28,7 +29,11 @@ import {
 import {
   useBulkUpdateStatus,
   useBulkDeleteTransactions,
+  useInlineUpdateTransaction,
 } from "@/hooks/use-transactions";
+import { InlineEditCell } from "./inline-edit-cell";
+
+import type { SelectOption } from "./inline-edit-cell";
 
 interface LineItem {
   id: string;
@@ -66,6 +71,7 @@ interface TransactionTableProps {
   showRunningBalance: boolean;
   currentSort: string;
   currentOrder: string;
+  accounts: { id: string; name: string }[];
 }
 
 type SortField =
@@ -74,6 +80,17 @@ type SortField =
   | "amount"
   | "description"
   | "status";
+
+interface EditingCell {
+  transactionId: string;
+  field: string;
+}
+
+const STATUS_OPTIONS: SelectOption[] = [
+  { value: "uncleared", label: "Uncleared" },
+  { value: "cleared", label: "Cleared" },
+  { value: "reconciled", label: "Reconciled" },
+];
 
 function StatusIcon({ status }: Readonly<{ status: string }>) {
   switch (status) {
@@ -153,6 +170,7 @@ export function TransactionTable({
   showRunningBalance,
   currentSort,
   currentOrder,
+  accounts,
 }: Readonly<TransactionTableProps>) {
   const router = useRouter();
   const pathname = usePathname();
@@ -160,11 +178,18 @@ export function TransactionTable({
 
   const bulkUpdateMutation = useBulkUpdateStatus(orgId);
   const bulkDeleteMutation = useBulkDeleteTransactions(orgId);
+  const inlineUpdateMutation = useInlineUpdateTransaction(orgId);
   const isMutating = bulkUpdateMutation.isPending || bulkDeleteMutation.isPending;
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkError, setBulkError] = useState<string | null>(null);
+  const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
+
+  const accountOptions: SelectOption[] = accounts.map((a) => ({
+    value: a.id,
+    label: a.name,
+  }));
 
   const selectableTransactions = transactions.filter(
     (t) => t.status !== "reconciled"
@@ -204,6 +229,28 @@ export function TransactionTable({
       setSelectedIds(new Set(selectableTransactions.map((t) => t.id)));
     }
   }, [allSelectableSelected, selectableTransactions]);
+
+  const handleStartEdit = useCallback(
+    (transactionId: string, field: string) => {
+      setEditingCell({ transactionId, field });
+    },
+    []
+  );
+
+  const handleEndEdit = useCallback(() => {
+    setEditingCell(null);
+  }, []);
+
+  const handleSave = useCallback(
+    async (transactionId: string, field: string, value: string) => {
+      await inlineUpdateMutation.mutateAsync({
+        id: transactionId,
+        field,
+        value,
+      });
+    },
+    [inlineUpdateMutation]
+  );
 
   function handleSort(field: SortField) {
     const params = new URLSearchParams(searchParams.toString());
@@ -423,6 +470,11 @@ export function TransactionTable({
                     categoryNameMap={categoryNameMap}
                     onToggleExpand={toggleExpand}
                     onToggleSelect={toggleSelect}
+                    editingCell={editingCell}
+                    onStartEdit={handleStartEdit}
+                    onEndEdit={handleEndEdit}
+                    onSave={handleSave}
+                    accountOptions={accountOptions}
                   />
                 );
               })}
@@ -451,6 +503,11 @@ function TransactionRow({
   categoryNameMap,
   onToggleExpand,
   onToggleSelect,
+  editingCell,
+  onStartEdit,
+  onEndEdit,
+  onSave,
+  accountOptions,
 }: Readonly<{
   txn: Transaction;
   orgId: string;
@@ -468,9 +525,17 @@ function TransactionRow({
   categoryNameMap: Record<string, string>;
   onToggleExpand: (id: string) => void;
   onToggleSelect: (id: string) => void;
+  editingCell: EditingCell | null;
+  onStartEdit: (transactionId: string, field: string) => void;
+  onEndEdit: () => void;
+  onSave: (transactionId: string, field: string, value: string) => Promise<void>;
+  accountOptions: SelectOption[];
 }>) {
   // Count total columns for expanded row colspan
   const totalCols = showRunningBalance ? 12 : 11;
+
+  const isEditingField = (field: string) =>
+    editingCell?.transactionId === txn.id && editingCell?.field === field;
 
   return (
     <>
@@ -500,32 +565,87 @@ function TransactionRow({
             aria-label={`Select transaction ${txn.description}`}
           />
         </td>
-        {/* Txn Date */}
-        <td className="px-3 py-3 whitespace-nowrap">
-          {formatDate(txn.transaction_date)}
-        </td>
-        {/* Created Date */}
+        {/* Txn Date - inline editable */}
+        <InlineEditCell
+          transactionId={txn.id}
+          field="transaction_date"
+          value={txn.transaction_date}
+          displayValue={formatDate(txn.transaction_date)}
+          fieldType="date"
+          isEditable={!isReconciled}
+          isEditing={isEditingField("transaction_date")}
+          onStartEdit={() => onStartEdit(txn.id, "transaction_date")}
+          onEndEdit={onEndEdit}
+          onSave={(val) => onSave(txn.id, "transaction_date", val)}
+          className="px-3 py-3 whitespace-nowrap"
+        />
+        {/* Created Date - not editable */}
         <td className="px-3 py-3 whitespace-nowrap text-muted-foreground">
           {txn.created_at ? formatDateTime(txn.created_at) : "\u2014"}
         </td>
-        {/* Account */}
-        <td className="px-3 py-3 whitespace-nowrap text-muted-foreground">
-          {txn.accounts?.name ?? "Unknown"}
-        </td>
-        {/* Check # */}
-        <td className="px-3 py-3 whitespace-nowrap text-muted-foreground">
-          {txn.check_number || "\u2014"}
-        </td>
-        {/* Description */}
-        <td className="px-3 py-3">
-          <Link
-            href={`/organizations/${orgId}/transactions/${txn.id}`}
-            className="font-medium hover:underline"
-          >
-            {txn.description}
-          </Link>
-        </td>
-        {/* Categories */}
+        {/* Account - inline editable */}
+        <InlineEditCell
+          transactionId={txn.id}
+          field="account_id"
+          value={txn.account_id}
+          displayValue={
+            <span className="text-muted-foreground">
+              {txn.accounts?.name ?? "Unknown"}
+            </span>
+          }
+          fieldType="select"
+          isEditable={!isReconciled}
+          isEditing={isEditingField("account_id")}
+          onStartEdit={() => onStartEdit(txn.id, "account_id")}
+          onEndEdit={onEndEdit}
+          onSave={(val) => onSave(txn.id, "account_id", val)}
+          selectOptions={accountOptions}
+          className="px-3 py-3 whitespace-nowrap"
+        />
+        {/* Check # - inline editable */}
+        <InlineEditCell
+          transactionId={txn.id}
+          field="check_number"
+          value={txn.check_number ?? ""}
+          displayValue={
+            <span className="text-muted-foreground">
+              {txn.check_number || "\u2014"}
+            </span>
+          }
+          fieldType="text"
+          isEditable={!isReconciled}
+          isEditing={isEditingField("check_number")}
+          onStartEdit={() => onStartEdit(txn.id, "check_number")}
+          onEndEdit={onEndEdit}
+          onSave={(val) => onSave(txn.id, "check_number", val)}
+          className="px-3 py-3 whitespace-nowrap"
+        />
+        {/* Description - inline editable */}
+        <InlineEditCell
+          transactionId={txn.id}
+          field="description"
+          value={txn.description}
+          displayValue={
+            <span className="inline-flex items-center gap-1.5">
+              <span className="font-medium">{txn.description}</span>
+              <Link
+                href={`/organizations/${orgId}/transactions/${txn.id}`}
+                className="text-muted-foreground hover:text-foreground"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ExternalLink className="h-3 w-3" />
+              </Link>
+            </span>
+          }
+          fieldType="text"
+          isEditable={!isReconciled}
+          isEditing={isEditingField("description")}
+          onStartEdit={() => onStartEdit(txn.id, "description")}
+          onEndEdit={onEndEdit}
+          onSave={(val) => onSave(txn.id, "description", val)}
+          className="px-3 py-3"
+        />
+        {/* Categories - not editable */}
         <td className="px-3 py-3 whitespace-nowrap text-muted-foreground">
           {isSplit ? (
             <Tooltip>
@@ -547,22 +667,47 @@ function TransactionRow({
             categoryText
           )}
         </td>
-        {/* Amount */}
-        <td
-          className={`px-3 py-3 whitespace-nowrap text-right font-medium tabular-nums ${
-            isIncome
-              ? "text-green-600 dark:text-green-400"
-              : "text-red-600 dark:text-red-400"
-          }`}
-        >
-          {isIncome ? "+" : "-"}
-          {formatCurrency(txn.amount)}
-        </td>
-        {/* Status */}
-        <td className="px-3 py-3 whitespace-nowrap">
-          <StatusIcon status={txn.status} />
-        </td>
-        {/* Cleared Date */}
+        {/* Amount - inline editable (only for single line item) */}
+        <InlineEditCell
+          transactionId={txn.id}
+          field="amount"
+          value={String(txn.amount)}
+          displayValue={
+            <span
+              className={`font-medium tabular-nums ${
+                isIncome
+                  ? "text-green-600 dark:text-green-400"
+                  : "text-red-600 dark:text-red-400"
+              }`}
+            >
+              {isIncome ? "+" : "-"}
+              {formatCurrency(txn.amount)}
+            </span>
+          }
+          fieldType="number"
+          isEditable={!isReconciled && !hasSplit}
+          isEditing={isEditingField("amount")}
+          onStartEdit={() => onStartEdit(txn.id, "amount")}
+          onEndEdit={onEndEdit}
+          onSave={(val) => onSave(txn.id, "amount", val)}
+          className="px-3 py-3 whitespace-nowrap text-right"
+        />
+        {/* Status - inline editable */}
+        <InlineEditCell
+          transactionId={txn.id}
+          field="status"
+          value={txn.status}
+          displayValue={<StatusIcon status={txn.status} />}
+          fieldType="select"
+          isEditable={!isReconciled}
+          isEditing={isEditingField("status")}
+          onStartEdit={() => onStartEdit(txn.id, "status")}
+          onEndEdit={onEndEdit}
+          onSave={(val) => onSave(txn.id, "status", val)}
+          selectOptions={STATUS_OPTIONS}
+          className="px-3 py-3 whitespace-nowrap"
+        />
+        {/* Cleared Date - not editable */}
         <td className="px-3 py-3 whitespace-nowrap text-muted-foreground">
           {txn.cleared_at ? formatDateTime(txn.cleared_at) : "\u2014"}
         </td>

@@ -65,6 +65,27 @@ export const updateTransactionSchema = createTransactionSchema.extend({
   id: z.string().uuid("Invalid transaction ID."),
 });
 
+export const INLINE_EDITABLE_FIELDS = [
+  "transaction_date",
+  "description",
+  "check_number",
+  "status",
+  "amount",
+  "account_id",
+] as const;
+
+export const inlineUpdateTransactionSchema = z.object({
+  id: z.string().uuid("Invalid transaction ID."),
+  org_id: z.string().uuid("Invalid organization ID."),
+  field: z.enum(INLINE_EDITABLE_FIELDS, {
+    message: "Invalid editable field.",
+  }),
+  value: z.string(),
+});
+
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>;
 export type UpdateTransactionInput = z.infer<typeof updateTransactionSchema>;
 export type LineItemInput = z.infer<typeof lineItemSchema>;
+export type InlineUpdateTransactionInput = z.infer<
+  typeof inlineUpdateTransactionSchema
+>;

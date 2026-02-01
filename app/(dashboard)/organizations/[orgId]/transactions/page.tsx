@@ -374,6 +374,7 @@ export default async function TransactionsPage({
             showRunningBalance={showRunningBalance}
             currentSort={sortField}
             currentOrder={sortAscending ? "asc" : "desc"}
+            accounts={activeAccounts.map((a) => ({ id: a.id, name: a.name }))}
           />
           <Pagination
             currentPage={page}

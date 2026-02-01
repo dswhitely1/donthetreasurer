@@ -8,6 +8,8 @@ import {
   createTransactionSchema,
   updateTransactionSchema,
   lineItemsArraySchema,
+  inlineUpdateTransactionSchema,
+  TRANSACTION_STATUSES,
 } from "@/lib/validations/transaction";
 
 export async function createTransaction(
@@ -584,6 +586,196 @@ export async function bulkDeleteTransactions(
 
   if (error) {
     return { error: "Failed to delete transactions. Please try again." };
+  }
+
+  revalidatePath("/dashboard", "layout");
+  return null;
+}
+
+export async function inlineUpdateTransaction(
+  _prevState: { error: string } | null,
+  formData: FormData
+) {
+  const raw = {
+    id: formData.get("id") as string,
+    org_id: formData.get("org_id") as string,
+    field: formData.get("field") as string,
+    value: formData.get("value") as string,
+  };
+
+  const parsed = inlineUpdateTransactionSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const { id, org_id, field, value } = parsed.data;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be signed in." };
+  }
+
+  // Verify org belongs to user
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("id")
+    .eq("id", org_id)
+    .single();
+
+  if (!org) {
+    return { error: "Organization not found." };
+  }
+
+  // Fetch existing transaction with line items count
+  const { data: existing } = await supabase
+    .from("transactions")
+    .select("id, status, account_id, cleared_at, amount, transaction_line_items(id)")
+    .eq("id", id)
+    .single();
+
+  if (!existing) {
+    return { error: "Transaction not found." };
+  }
+
+  if (existing.status === "reconciled") {
+    return { error: "Reconciled transactions cannot be edited." };
+  }
+
+  // Verify account belongs to the org
+  const { data: currentAccount } = await supabase
+    .from("accounts")
+    .select("id, organization_id")
+    .eq("id", existing.account_id)
+    .single();
+
+  if (!currentAccount || currentAccount.organization_id !== org_id) {
+    return { error: "Transaction does not belong to this organization." };
+  }
+
+  // Build partial update based on field
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const update: Record<string, any> = {};
+
+  switch (field) {
+    case "transaction_date": {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return { error: "Invalid date format. Use YYYY-MM-DD." };
+      }
+      const dateObj = new Date(value + "T00:00:00");
+      if (isNaN(dateObj.getTime())) {
+        return { error: "Invalid date." };
+      }
+      update.transaction_date = value;
+      break;
+    }
+    case "description": {
+      const trimmed = value.trim();
+      if (trimmed.length === 0) {
+        return { error: "Description is required." };
+      }
+      if (trimmed.length > 255) {
+        return { error: "Description must be 255 characters or fewer." };
+      }
+      update.description = trimmed;
+      break;
+    }
+    case "check_number": {
+      const trimmed = value.trim();
+      if (trimmed.length > 20) {
+        return { error: "Check number must be 20 characters or fewer." };
+      }
+      update.check_number = trimmed || null;
+      break;
+    }
+    case "status": {
+      if (
+        !TRANSACTION_STATUSES.includes(
+          value as (typeof TRANSACTION_STATUSES)[number]
+        )
+      ) {
+        return { error: "Invalid status." };
+      }
+
+      const oldStatus = existing.status;
+      const newStatus = value;
+
+      let clearedAt: string | null = existing.cleared_at;
+
+      if (
+        oldStatus === "uncleared" &&
+        (newStatus === "cleared" || newStatus === "reconciled")
+      ) {
+        clearedAt = new Date().toISOString();
+      } else if (newStatus === "uncleared") {
+        clearedAt = null;
+      }
+
+      update.status = newStatus;
+      update.cleared_at = clearedAt;
+      break;
+    }
+    case "amount": {
+      const lineItemCount = existing.transaction_line_items?.length ?? 0;
+      if (lineItemCount > 1) {
+        return {
+          error:
+            "Cannot edit amount for split transactions. Edit on the detail page.",
+        };
+      }
+
+      const numValue = parseFloat(value);
+      if (isNaN(numValue) || numValue <= 0) {
+        return { error: "Amount must be greater than zero." };
+      }
+
+      update.amount = numValue;
+
+      // Also update the single line item amount
+      if (lineItemCount === 1) {
+        const { error: liError } = await supabase
+          .from("transaction_line_items")
+          .update({ amount: numValue })
+          .eq("transaction_id", id);
+
+        if (liError) {
+          return { error: "Failed to update line item amount." };
+        }
+      }
+      break;
+    }
+    case "account_id": {
+      const { data: newAccount } = await supabase
+        .from("accounts")
+        .select("id, organization_id, is_active")
+        .eq("id", value)
+        .single();
+
+      if (!newAccount) {
+        return { error: "Account not found." };
+      }
+      if (!newAccount.is_active) {
+        return { error: "Account is inactive." };
+      }
+      if (newAccount.organization_id !== org_id) {
+        return { error: "Account does not belong to this organization." };
+      }
+
+      update.account_id = value;
+      break;
+    }
+  }
+
+  const { error: updateError } = await supabase
+    .from("transactions")
+    .update(update)
+    .eq("id", id);
+
+  if (updateError) {
+    return { error: "Failed to update transaction. Please try again." };
   }
 
   revalidatePath("/dashboard", "layout");
