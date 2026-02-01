@@ -12,10 +12,30 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL = "https://www.donthetreasurer.com";
+const SITE_NAME = "Treasurer";
+const SITE_DESCRIPTION =
+  "Financial management for 501(c)(3) treasurers. Track transactions, manage accounts, and generate reports across multiple organizations.";
+
 export const metadata: Metadata = {
-  title: "Treasurer - Nonprofit Financial Management",
-  description:
-    "Financial management for 501(c)(3) treasurers. Track transactions, manage accounts, and generate reports across multiple organizations.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "Treasurer - Nonprofit Financial Management",
+    template: "%s | Treasurer",
+  },
+  description: SITE_DESCRIPTION,
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: "Treasurer - Nonprofit Financial Management",
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+  },
+  twitter: {
+    card: "summary",
+    title: "Treasurer - Nonprofit Financial Management",
+    description: SITE_DESCRIPTION,
+  },
 };
 
 export default function RootLayout({
