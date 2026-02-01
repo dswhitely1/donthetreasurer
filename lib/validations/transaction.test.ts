@@ -48,6 +48,7 @@ describe("constants", () => {
     expect(INLINE_EDITABLE_FIELDS).toContain("status");
     expect(INLINE_EDITABLE_FIELDS).toContain("amount");
     expect(INLINE_EDITABLE_FIELDS).toContain("account_id");
+    expect(INLINE_EDITABLE_FIELDS).toContain("cleared_at");
   });
 });
 
@@ -259,6 +260,28 @@ describe("createTransactionSchema", () => {
       vendor: "A".repeat(256),
     });
     expect(result.success).toBe(false);
+  });
+
+  it("accepts optional cleared_at date", () => {
+    const result = createTransactionSchema.safeParse({
+      ...validInput,
+      cleared_at: "2025-01-20",
+      status: "cleared",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts empty string for cleared_at", () => {
+    const result = createTransactionSchema.safeParse({
+      ...validInput,
+      cleared_at: "",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts missing cleared_at", () => {
+    const result = createTransactionSchema.safeParse(validInput);
+    expect(result.success).toBe(true);
   });
 
   it("line_items is treated as a string (JSON)", () => {

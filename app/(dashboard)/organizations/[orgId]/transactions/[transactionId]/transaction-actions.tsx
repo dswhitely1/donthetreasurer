@@ -25,6 +25,7 @@ interface TransactionData {
   check_number: string | null;
   vendor: string | null;
   status: string;
+  cleared_at: string | null;
 }
 
 interface LineItemData {
@@ -73,6 +74,7 @@ export function TransactionActions({
             check_number: transaction.check_number,
             vendor: transaction.vendor,
             status: transaction.status,
+            cleared_at: transaction.cleared_at,
             line_items: lineItems,
           }}
         />

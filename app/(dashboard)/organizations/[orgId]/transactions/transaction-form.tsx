@@ -58,6 +58,7 @@ interface TransactionDefaultValues {
   check_number: string | null;
   vendor: string | null;
   status: string;
+  cleared_at: string | null;
   line_items: Array<{
     category_id: string;
     amount: number;
@@ -88,6 +89,9 @@ export function TransactionForm({
 
   const [transactionType, setTransactionType] = useState<string>(
     defaultValues?.transaction_type ?? "expense"
+  );
+  const [selectedStatus, setSelectedStatus] = useState<string>(
+    defaultValues?.status ?? "uncleared"
   );
   const [selectedAccountId, setSelectedAccountId] = useState<string>(
     defaultValues?.account_id ?? ""
@@ -315,7 +319,8 @@ export function TransactionForm({
               <Label htmlFor={`${formId}-status`}>Status</Label>
               <Select
                 name="status"
-                defaultValue={defaultValues?.status ?? "uncleared"}
+                value={selectedStatus}
+                onValueChange={setSelectedStatus}
               >
                 <SelectTrigger id={`${formId}-status`}>
                   <SelectValue />
@@ -329,6 +334,28 @@ export function TransactionForm({
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Cleared Date (shown when status is cleared or reconciled) */}
+            {(selectedStatus === "cleared" || selectedStatus === "reconciled") && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor={`${formId}-cleared-at`}>
+                  Cleared Date (optional)
+                </Label>
+                <Input
+                  id={`${formId}-cleared-at`}
+                  name="cleared_at"
+                  type="date"
+                  defaultValue={
+                    defaultValues?.cleared_at
+                      ? defaultValues.cleared_at.slice(0, 10)
+                      : ""
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  Defaults to today if left blank.
+                </p>
+              </div>
+            )}
 
             {/* Line Items */}
             <div className="flex flex-col gap-3 rounded-lg border border-border p-4">

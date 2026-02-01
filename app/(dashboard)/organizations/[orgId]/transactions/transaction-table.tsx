@@ -730,10 +730,24 @@ function TransactionRow({
           selectOptions={STATUS_OPTIONS}
           className="px-3 py-3 whitespace-nowrap"
         />
-        {/* Cleared Date - not editable */}
-        <td className="px-3 py-3 whitespace-nowrap text-muted-foreground">
-          {txn.cleared_at ? formatDateTime(txn.cleared_at) : "\u2014"}
-        </td>
+        {/* Cleared Date - inline editable when cleared */}
+        <InlineEditCell
+          transactionId={txn.id}
+          field="cleared_at"
+          value={txn.cleared_at ? txn.cleared_at.slice(0, 10) : ""}
+          displayValue={
+            <span className="text-muted-foreground">
+              {txn.cleared_at ? formatDateTime(txn.cleared_at) : "\u2014"}
+            </span>
+          }
+          fieldType="date"
+          isEditable={!isReconciled && txn.status !== "uncleared"}
+          isEditing={isEditingField("cleared_at")}
+          onStartEdit={() => onStartEdit(txn.id, "cleared_at")}
+          onEndEdit={onEndEdit}
+          onSave={(val) => onSave(txn.id, "cleared_at", val)}
+          className="px-3 py-3 whitespace-nowrap"
+        />
         {/* Running Balance */}
         {showRunningBalance && (
           <td className="px-3 py-3 whitespace-nowrap text-right tabular-nums font-medium">

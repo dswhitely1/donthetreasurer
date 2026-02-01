@@ -905,6 +905,53 @@ describe("transaction actions", () => {
       expect(result).toBeNull();
     });
 
+    it("accepts valid cleared_at date on cleared transaction", async () => {
+      setupInlineEdit({
+        ...existingTxn,
+        status: "cleared",
+        cleared_at: "2025-01-01T00:00:00Z",
+      });
+
+      const fd = makeFormData({
+        id: txnId,
+        org_id: orgId,
+        field: "cleared_at",
+        value: "2025-02-15",
+      });
+      const result = await inlineUpdateTransaction(null, fd);
+      expect(result).toBeNull();
+    });
+
+    it("rejects cleared_at on uncleared transaction", async () => {
+      setupInlineEdit(existingTxn);
+
+      const fd = makeFormData({
+        id: txnId,
+        org_id: orgId,
+        field: "cleared_at",
+        value: "2025-02-15",
+      });
+      const result = await inlineUpdateTransaction(null, fd);
+      expect(result?.error).toContain("uncleared transaction");
+    });
+
+    it("rejects invalid cleared_at format", async () => {
+      setupInlineEdit({
+        ...existingTxn,
+        status: "cleared",
+        cleared_at: "2025-01-01T00:00:00Z",
+      });
+
+      const fd = makeFormData({
+        id: txnId,
+        org_id: orgId,
+        field: "cleared_at",
+        value: "02/15/2025",
+      });
+      const result = await inlineUpdateTransaction(null, fd);
+      expect(result?.error).toContain("Invalid date format");
+    });
+
     it("clears cleared_at when changing status to uncleared", async () => {
       setupInlineEdit({
         ...existingTxn,

@@ -25,6 +25,7 @@ export async function createTransaction(
     check_number: (formData.get("check_number") as string) ?? "",
     vendor: formData.get("vendor") as string,
     status: formData.get("status") as string,
+    cleared_at: (formData.get("cleared_at") as string) ?? "",
     line_items: formData.get("line_items") as string,
   };
 
@@ -117,10 +118,14 @@ export async function createTransaction(
   }
 
   // Set cleared_at if status is cleared or reconciled
-  const clearedAt =
-    parsed.data.status === "cleared" || parsed.data.status === "reconciled"
-      ? new Date().toISOString()
-      : null;
+  let clearedAt: string | null = null;
+  if (parsed.data.status === "cleared" || parsed.data.status === "reconciled") {
+    if (parsed.data.cleared_at) {
+      clearedAt = parsed.data.cleared_at + "T00:00:00.000Z";
+    } else {
+      clearedAt = new Date().toISOString();
+    }
+  }
 
   const { data: transaction, error: txnError } = await supabase
     .from("transactions")
@@ -182,6 +187,7 @@ export async function updateTransaction(
     check_number: (formData.get("check_number") as string) ?? "",
     vendor: formData.get("vendor") as string,
     status: formData.get("status") as string,
+    cleared_at: (formData.get("cleared_at") as string) ?? "",
     line_items: formData.get("line_items") as string,
   };
 
@@ -294,10 +300,14 @@ export async function updateTransaction(
   const oldStatus = existing.status;
   const newStatus = parsed.data.status;
 
-  if (oldStatus === "uncleared" && (newStatus === "cleared" || newStatus === "reconciled")) {
-    clearedAt = new Date().toISOString();
-  } else if (newStatus === "uncleared") {
+  if (newStatus === "uncleared") {
     clearedAt = null;
+  } else if (newStatus === "cleared" || newStatus === "reconciled") {
+    if (parsed.data.cleared_at) {
+      clearedAt = parsed.data.cleared_at + "T00:00:00.000Z";
+    } else if (oldStatus === "uncleared") {
+      clearedAt = new Date().toISOString();
+    }
   }
 
   const { error: txnError } = await supabase
@@ -777,6 +787,20 @@ export async function inlineUpdateTransaction(
       }
 
       update.account_id = value;
+      break;
+    }
+    case "cleared_at": {
+      if (existing.status === "uncleared") {
+        return { error: "Cannot set cleared date on an uncleared transaction." };
+      }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return { error: "Invalid date format. Use YYYY-MM-DD." };
+      }
+      const dateObj = new Date(value + "T00:00:00");
+      if (isNaN(dateObj.getTime())) {
+        return { error: "Invalid date." };
+      }
+      update.cleared_at = value + "T00:00:00.000Z";
       break;
     }
   }

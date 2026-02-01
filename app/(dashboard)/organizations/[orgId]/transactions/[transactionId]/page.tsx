@@ -296,6 +296,7 @@ export default async function TransactionDetailPage({
               check_number: transaction.check_number,
               vendor: transaction.vendor,
               status: transaction.status,
+              cleared_at: transaction.cleared_at,
             }}
             lineItems={lineItems.map((li) => ({
               category_id: li.category_id,

@@ -63,6 +63,7 @@ export const createTransactionSchema = z.object({
   status: z
     .enum(TRANSACTION_STATUSES, { message: "Invalid status." })
     .default("uncleared"),
+  cleared_at: z.string().optional().or(z.literal("")),
   line_items: z.string().min(1, "Line items are required."),
 });
 
@@ -78,6 +79,7 @@ export const INLINE_EDITABLE_FIELDS = [
   "status",
   "amount",
   "account_id",
+  "cleared_at",
 ] as const;
 
 export const inlineUpdateTransactionSchema = z.object({
