@@ -22,9 +22,11 @@ import type { ExpenseCategory } from "../fee-config-fields";
 export function NewAccountForm({
   orgId,
   expenseCategories,
+  showSaved,
 }: Readonly<{
   orgId: string;
   expenseCategories: ExpenseCategory[];
+  showSaved?: boolean;
 }>) {
   const [state, formAction, pending] = useActionState(createAccount, null);
 
@@ -35,6 +37,12 @@ export function NewAccountForm({
       {state?.error && (
         <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {state.error}
+        </div>
+      )}
+
+      {showSaved && !state?.error && (
+        <div className="rounded-md bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+          Account saved successfully. Add another below.
         </div>
       )}
 
@@ -90,8 +98,17 @@ export function NewAccountForm({
       <FeeConfigFields expenseCategories={expenseCategories} />
 
       <div className="mt-2 flex gap-3">
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" name="_intent" value="save" disabled={pending}>
           {pending ? "Creating\u2026" : "Create Account"}
+        </Button>
+        <Button
+          type="submit"
+          name="_intent"
+          value="save_and_add_another"
+          variant="secondary"
+          disabled={pending}
+        >
+          {pending ? "Saving\u2026" : "Save & Add Another"}
         </Button>
         <Button variant="outline" asChild>
           <Link href={`/organizations/${orgId}/accounts`}>Cancel</Link>

@@ -216,7 +216,11 @@ export async function createTransaction(
     }
   }
 
+  const intent = formData.get("_intent") as string;
   revalidatePath("/dashboard", "layout");
+  if (intent === "save_and_add_another") {
+    redirect(`/organizations/${account.organization_id}/transactions/new?saved=true`);
+  }
   redirect(
     `/organizations/${account.organization_id}/transactions/${transaction.id}`
   );

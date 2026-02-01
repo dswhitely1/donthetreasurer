@@ -7,10 +7,13 @@ import { TransactionForm } from "../transaction-form";
 
 export default async function NewTransactionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ orgId: string }>;
+  searchParams: Promise<{ saved?: string }>;
 }) {
   const { orgId } = await params;
+  const { saved } = await searchParams;
   const supabase = await createClient();
 
   // Verify org exists and user has access
@@ -66,6 +69,7 @@ export default async function NewTransactionPage({
       mode="create"
       accounts={accounts}
       categories={categories ?? []}
+      showSaved={saved === "true"}
     />
   );
 }

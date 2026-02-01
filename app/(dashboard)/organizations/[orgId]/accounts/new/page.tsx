@@ -14,10 +14,13 @@ import { NewAccountForm } from "./new-account-form";
 
 export default async function NewAccountPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ orgId: string }>;
+  searchParams: Promise<{ saved?: string }>;
 }) {
   const { orgId } = await params;
+  const { saved } = await searchParams;
   const supabase = await createClient();
 
   // Verify org exists and user has access
@@ -62,6 +65,7 @@ export default async function NewAccountPage({
           <NewAccountForm
             orgId={orgId}
             expenseCategories={expenseCategories ?? []}
+            showSaved={saved === "true"}
           />
         </CardContent>
       </Card>

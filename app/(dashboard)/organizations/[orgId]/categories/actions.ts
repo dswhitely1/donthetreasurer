@@ -84,7 +84,11 @@ export async function createCategory(
     return { error: "Failed to create category. Please try again." };
   }
 
+  const intent = formData.get("_intent") as string;
   revalidatePath("/dashboard", "layout");
+  if (intent === "save_and_add_another") {
+    redirect(`/organizations/${parsed.data.organization_id}/categories/new?saved=true`);
+  }
   redirect(
     `/organizations/${parsed.data.organization_id}/categories/${data.id}`
   );

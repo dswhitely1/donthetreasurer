@@ -90,7 +90,11 @@ export async function createAccount(
     return { error: "Failed to create account. Please try again." };
   }
 
+  const intent = formData.get("_intent") as string;
   revalidatePath("/dashboard", "layout");
+  if (intent === "save_and_add_another") {
+    redirect(`/organizations/${parsed.data.organization_id}/accounts/new?saved=true`);
+  }
   redirect(
     `/organizations/${parsed.data.organization_id}/accounts/${data.id}`
   );

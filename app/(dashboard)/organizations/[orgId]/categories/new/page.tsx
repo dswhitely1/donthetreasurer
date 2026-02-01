@@ -5,10 +5,13 @@ import { CategoryForm } from "../category-form";
 
 export default async function NewCategoryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ orgId: string }>;
+  searchParams: Promise<{ saved?: string }>;
 }) {
   const { orgId } = await params;
+  const { saved } = await searchParams;
   const supabase = await createClient();
 
   // Verify org exists and user has access
@@ -32,5 +35,5 @@ export default async function NewCategoryPage({
     .eq("is_active", true)
     .order("name");
 
-  return <CategoryForm parentCategories={parentCategories ?? []} />;
+  return <CategoryForm parentCategories={parentCategories ?? []} showSaved={saved === "true"} />;
 }
