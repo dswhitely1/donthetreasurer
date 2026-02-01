@@ -65,6 +65,7 @@ export const createTransactionSchema = z.object({
     .default("uncleared"),
   cleared_at: z.string().optional().or(z.literal("")),
   line_items: z.string().min(1, "Line items are required."),
+  apply_fee: z.string().optional(),
 });
 
 export const updateTransactionSchema = createTransactionSchema.extend({

@@ -12,8 +12,10 @@ import {
   TRANSACTION_STATUSES,
   TRANSACTION_STATUS_LABELS,
 } from "@/lib/validations/transaction";
+import { calculateFee } from "@/lib/validations/account";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -35,7 +37,10 @@ import {
 
 import type { Tables } from "@/types/database";
 
-type Account = Pick<Tables<"accounts">, "id" | "name" | "account_type">;
+type Account = Pick<
+  Tables<"accounts">,
+  "id" | "name" | "account_type" | "fee_percentage" | "fee_flat_amount" | "fee_category_id"
+>;
 type Category = Pick<
   Tables<"categories">,
   "id" | "name" | "category_type" | "parent_id"
@@ -108,8 +113,32 @@ export function TransactionForm({
     return [{ key: generateKey(), category_id: "", amount: "", memo: "" }];
   });
 
+  const [applyFee, setApplyFee] = useState(true);
+  const [amountValue, setAmountValue] = useState<string>(
+    defaultValues?.amount?.toString() ?? ""
+  );
+
   const selectedAccount = accounts.find((a) => a.id === selectedAccountId);
   const isCheckingAccount = selectedAccount?.account_type === "checking";
+
+  // Determine if fee config is available for the selected account
+  const accountHasFeeConfig =
+    selectedAccount != null &&
+    selectedAccount.fee_category_id != null &&
+    ((selectedAccount.fee_percentage != null && selectedAccount.fee_percentage > 0) ||
+      (selectedAccount.fee_flat_amount != null && selectedAccount.fee_flat_amount > 0));
+  const showFeeCheckbox =
+    mode === "create" && transactionType === "income" && accountHasFeeConfig;
+
+  const parsedAmount = parseFloat(amountValue);
+  const feeAmount =
+    showFeeCheckbox && applyFee && !isNaN(parsedAmount) && parsedAmount > 0
+      ? calculateFee(
+          parsedAmount,
+          selectedAccount?.fee_percentage,
+          selectedAccount?.fee_flat_amount
+        )
+      : 0;
 
   // Filter categories by transaction type
   const filteredCategories = categories.filter(
@@ -199,6 +228,11 @@ export function TransactionForm({
             )}
             <input type="hidden" name="transaction_type" value={transactionType} />
             <input type="hidden" name="line_items" value={lineItemsJson} />
+            <input
+              type="hidden"
+              name="apply_fee"
+              value={showFeeCheckbox && applyFee ? "true" : "false"}
+            />
 
             {state?.error && (
               <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -271,7 +305,8 @@ export function TransactionForm({
                 min="0.01"
                 required
                 placeholder="0.00"
-                defaultValue={defaultValues?.amount ?? ""}
+                value={amountValue}
+                onChange={(e) => setAmountValue(e.target.value)}
               />
             </div>
 
@@ -354,6 +389,47 @@ export function TransactionForm({
                 <p className="text-xs text-muted-foreground">
                   Defaults to today if left blank.
                 </p>
+              </div>
+            )}
+
+            {/* Processing Fee */}
+            {showFeeCheckbox && (
+              <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/30 p-3">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id={`${formId}-apply-fee`}
+                    checked={applyFee}
+                    onCheckedChange={(checked) =>
+                      setApplyFee(checked === true)
+                    }
+                  />
+                  <Label
+                    htmlFor={`${formId}-apply-fee`}
+                    className="text-sm font-medium"
+                  >
+                    Apply processing fee
+                  </Label>
+                </div>
+                {applyFee && feeAmount > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Estimated fee: {formatCurrency(feeAmount)}
+                    {selectedAccount?.fee_percentage != null &&
+                      selectedAccount.fee_percentage > 0 &&
+                      ` (${selectedAccount.fee_percentage}%`}
+                    {selectedAccount?.fee_percentage != null &&
+                      selectedAccount.fee_percentage > 0 &&
+                      selectedAccount?.fee_flat_amount != null &&
+                      selectedAccount.fee_flat_amount > 0 &&
+                      ` + ${formatCurrency(selectedAccount.fee_flat_amount)}`}
+                    {selectedAccount?.fee_percentage != null &&
+                      selectedAccount.fee_percentage > 0
+                      ? ")"
+                      : selectedAccount?.fee_flat_amount != null &&
+                          selectedAccount.fee_flat_amount > 0
+                        ? ` (${formatCurrency(selectedAccount.fee_flat_amount)} flat)`
+                        : ""}
+                  </p>
+                )}
               </div>
             )}
 

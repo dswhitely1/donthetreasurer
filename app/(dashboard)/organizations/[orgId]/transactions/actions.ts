@@ -11,6 +11,7 @@ import {
   inlineUpdateTransactionSchema,
   TRANSACTION_STATUSES,
 } from "@/lib/validations/transaction";
+import { calculateFee } from "@/lib/validations/account";
 
 export async function createTransaction(
   _prevState: { error: string } | null,
@@ -27,6 +28,7 @@ export async function createTransaction(
     status: formData.get("status") as string,
     cleared_at: (formData.get("cleared_at") as string) ?? "",
     line_items: formData.get("line_items") as string,
+    apply_fee: (formData.get("apply_fee") as string) ?? "",
   };
 
   const parsed = createTransactionSchema.safeParse(raw);
@@ -70,7 +72,7 @@ export async function createTransaction(
   // Verify the account exists and get its organization
   const { data: account } = await supabase
     .from("accounts")
-    .select("id, organization_id, account_type")
+    .select("id, organization_id, account_type, fee_percentage, fee_flat_amount, fee_category_id")
     .eq("id", parsed.data.account_id)
     .eq("is_active", true)
     .single();
@@ -165,6 +167,53 @@ export async function createTransaction(
     return {
       error: "Failed to create line items. Please try again.",
     };
+  }
+
+  // Auto-create processing fee transaction if requested
+  if (
+    parsed.data.apply_fee === "true" &&
+    parsed.data.transaction_type === "income" &&
+    account.fee_category_id &&
+    (account.fee_percentage || account.fee_flat_amount)
+  ) {
+    const feeAmount = calculateFee(
+      parsed.data.amount,
+      account.fee_percentage,
+      account.fee_flat_amount
+    );
+
+    if (feeAmount > 0) {
+      // Verify fee category still exists and is active
+      const { data: feeCat } = await supabase
+        .from("categories")
+        .select("id, is_active")
+        .eq("id", account.fee_category_id)
+        .single();
+
+      if (feeCat?.is_active) {
+        const { data: feeTxn } = await supabase
+          .from("transactions")
+          .insert({
+            account_id: parsed.data.account_id,
+            transaction_date: parsed.data.transaction_date,
+            amount: feeAmount,
+            transaction_type: "expense",
+            description: `Processing fee: ${parsed.data.description}`,
+            status: parsed.data.status,
+            cleared_at: clearedAt,
+          })
+          .select("id")
+          .single();
+
+        if (feeTxn) {
+          await supabase.from("transaction_line_items").insert({
+            transaction_id: feeTxn.id,
+            category_id: account.fee_category_id,
+            amount: feeAmount,
+          });
+        }
+      }
+    }
   }
 
   revalidatePath("/dashboard", "layout");

@@ -9,7 +9,10 @@ import { Button } from "@/components/ui/button";
 
 import type { Tables } from "@/types/database";
 
-type Account = Pick<Tables<"accounts">, "id" | "name" | "account_type">;
+type Account = Pick<
+  Tables<"accounts">,
+  "id" | "name" | "account_type" | "fee_percentage" | "fee_flat_amount" | "fee_category_id"
+>;
 type Category = Pick<
   Tables<"categories">,
   "id" | "name" | "category_type" | "parent_id"

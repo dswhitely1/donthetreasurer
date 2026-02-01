@@ -8,6 +8,7 @@ import {
   ACCOUNT_TYPE_LABELS,
   ACCOUNT_TYPES,
 } from "@/lib/validations/account";
+import { FeeConfigFields } from "../fee-config-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,12 +20,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import type { ExpenseCategory } from "../fee-config-fields";
+
 export function AccountActions({
   account,
   orgId,
+  expenseCategories,
 }: Readonly<{
   account: Tables<"accounts">;
   orgId: string;
+  expenseCategories: ExpenseCategory[];
 }>) {
   const [isEditing, setIsEditing] = useState(false);
   const [isConfirmingDeactivate, setIsConfirmingDeactivate] = useState(false);
@@ -100,6 +105,15 @@ export function AccountActions({
               defaultValue={account.opening_balance ?? 0}
             />
           </div>
+
+          <FeeConfigFields
+            expenseCategories={expenseCategories}
+            defaultValues={{
+              fee_percentage: account.fee_percentage,
+              fee_flat_amount: account.fee_flat_amount,
+              fee_category_id: account.fee_category_id,
+            }}
+          />
 
           <div className="flex gap-3">
             <Button type="submit" disabled={updatePending}>

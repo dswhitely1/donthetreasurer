@@ -44,6 +44,9 @@ export type Database = {
           account_type: string
           created_at: string | null
           description: string | null
+          fee_category_id: string | null
+          fee_flat_amount: number | null
+          fee_percentage: number | null
           id: string
           is_active: boolean | null
           name: string
@@ -55,6 +58,9 @@ export type Database = {
           account_type: string
           created_at?: string | null
           description?: string | null
+          fee_category_id?: string | null
+          fee_flat_amount?: number | null
+          fee_percentage?: number | null
           id?: string
           is_active?: boolean | null
           name: string
@@ -66,6 +72,9 @@ export type Database = {
           account_type?: string
           created_at?: string | null
           description?: string | null
+          fee_category_id?: string | null
+          fee_flat_amount?: number | null
+          fee_percentage?: number | null
           id?: string
           is_active?: boolean | null
           name?: string
@@ -79,6 +88,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounts_fee_category_id_fkey"
+            columns: ["fee_category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
             referencedColumns: ["id"]
           },
         ]

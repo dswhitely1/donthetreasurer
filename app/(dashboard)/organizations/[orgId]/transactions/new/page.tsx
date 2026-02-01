@@ -28,7 +28,7 @@ export default async function NewTransactionPage({
   // Fetch active accounts for this org
   const { data: accounts } = await supabase
     .from("accounts")
-    .select("id, name, account_type")
+    .select("id, name, account_type, fee_percentage, fee_flat_amount, fee_category_id")
     .eq("organization_id", orgId)
     .eq("is_active", true)
     .order("name");

@@ -46,6 +46,15 @@ export default async function AccountDetailPage({
     notFound();
   }
 
+  // Fetch active expense categories for fee config
+  const { data: expenseCategories } = await supabase
+    .from("categories")
+    .select("id, name, parent_id")
+    .eq("organization_id", orgId)
+    .eq("category_type", "expense")
+    .eq("is_active", true)
+    .order("name");
+
   // Fetch transactions to compute balance
   const { data: transactions } = await supabase
     .from("transactions")
@@ -199,7 +208,50 @@ export default async function AccountDetailPage({
               </div>
             </dl>
 
-            <AccountActions account={account} orgId={orgId} />
+            {/* Fee configuration */}
+            {(account.fee_percentage || account.fee_flat_amount) && (
+              <div className="mt-4 border-t border-border pt-4">
+                <h4 className="mb-2 text-sm font-medium text-muted-foreground">
+                  Processing Fee Configuration
+                </h4>
+                <dl className="grid gap-4 text-sm sm:grid-cols-3">
+                  {account.fee_percentage != null && account.fee_percentage > 0 && (
+                    <div>
+                      <dt className="font-medium text-muted-foreground">Percentage</dt>
+                      <dd className="mt-1 text-foreground">{account.fee_percentage}%</dd>
+                    </div>
+                  )}
+                  {account.fee_flat_amount != null && account.fee_flat_amount > 0 && (
+                    <div>
+                      <dt className="font-medium text-muted-foreground">Flat Amount</dt>
+                      <dd className="mt-1 text-foreground">{formatCurrency(account.fee_flat_amount)}</dd>
+                    </div>
+                  )}
+                  {account.fee_category_id && (
+                    <div>
+                      <dt className="font-medium text-muted-foreground">Fee Category</dt>
+                      <dd className="mt-1 text-foreground">
+                        {(() => {
+                          const cat = (expenseCategories ?? []).find((c) => c.id === account.fee_category_id);
+                          if (!cat) return "Unknown";
+                          if (cat.parent_id) {
+                            const parent = (expenseCategories ?? []).find((c) => c.id === cat.parent_id);
+                            return parent ? `${parent.name} → ${cat.name}` : cat.name;
+                          }
+                          return cat.name;
+                        })()}
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+            )}
+
+            <AccountActions
+              account={account}
+              orgId={orgId}
+              expenseCategories={expenseCategories ?? []}
+            />
           </CardContent>
         </Card>
       </div>

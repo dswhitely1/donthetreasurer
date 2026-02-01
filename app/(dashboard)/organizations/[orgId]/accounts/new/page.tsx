@@ -1,22 +1,8 @@
-"use client";
-
-import { useActionState } from "react";
-import { useParams } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-import { createAccount } from "../actions";
-import { ACCOUNT_TYPE_LABELS, ACCOUNT_TYPES } from "@/lib/validations/account";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { createClient } from "@/lib/supabase/server";
 import {
   Card,
   CardContent,
@@ -24,10 +10,36 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { NewAccountForm } from "./new-account-form";
 
-export default function NewAccountPage() {
-  const { orgId } = useParams<{ orgId: string }>();
-  const [state, formAction, pending] = useActionState(createAccount, null);
+export default async function NewAccountPage({
+  params,
+}: {
+  params: Promise<{ orgId: string }>;
+}) {
+  const { orgId } = await params;
+  const supabase = await createClient();
+
+  // Verify org exists and user has access
+  const { data: organization } = await supabase
+    .from("organizations")
+    .select("id")
+    .eq("id", orgId)
+    .eq("is_active", true)
+    .single();
+
+  if (!organization) {
+    notFound();
+  }
+
+  // Fetch active expense categories for fee category dropdown
+  const { data: expenseCategories } = await supabase
+    .from("categories")
+    .select("id, name, parent_id")
+    .eq("organization_id", orgId)
+    .eq("category_type", "expense")
+    .eq("is_active", true)
+    .order("name");
 
   return (
     <div className="mx-auto max-w-lg">
@@ -47,73 +59,10 @@ export default function NewAccountPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={formAction} className="flex flex-col gap-4">
-            <input type="hidden" name="organization_id" value={orgId} />
-
-            {state?.error && (
-              <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {state.error}
-              </div>
-            )}
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="name">Account Name</Label>
-              <Input
-                id="name"
-                name="name"
-                required
-                maxLength={100}
-                placeholder="e.g. Main Checking"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="account_type">Account Type</Label>
-              <Select name="account_type" defaultValue="checking">
-                <SelectTrigger id="account_type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ACCOUNT_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {ACCOUNT_TYPE_LABELS[type]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="description">Description (optional)</Label>
-              <Input
-                id="description"
-                name="description"
-                maxLength={500}
-                placeholder="e.g. Primary operating account"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="opening_balance">Opening Balance</Label>
-              <Input
-                id="opening_balance"
-                name="opening_balance"
-                type="number"
-                step="0.01"
-                min="0"
-                defaultValue="0.00"
-              />
-            </div>
-
-            <div className="mt-2 flex gap-3">
-              <Button type="submit" disabled={pending}>
-                {pending ? "Creating\u2026" : "Create Account"}
-              </Button>
-              <Button variant="outline" asChild>
-                <Link href={`/organizations/${orgId}/accounts`}>Cancel</Link>
-              </Button>
-            </div>
-          </form>
+          <NewAccountForm
+            orgId={orgId}
+            expenseCategories={expenseCategories ?? []}
+          />
         </CardContent>
       </Card>
     </div>

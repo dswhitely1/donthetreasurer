@@ -75,7 +75,7 @@ export default async function TransactionDetailPage({
   // Fetch active accounts and categories for edit form
   const { data: accounts } = await supabase
     .from("accounts")
-    .select("id, name, account_type")
+    .select("id, name, account_type, fee_percentage, fee_flat_amount, fee_category_id")
     .eq("organization_id", orgId)
     .eq("is_active", true)
     .order("name");
