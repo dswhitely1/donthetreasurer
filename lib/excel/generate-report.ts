@@ -7,11 +7,6 @@ function formatExcelDate(dateStr: string): string {
   return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
-function formatExcelDateTime(isoStr: string): string {
-  const d = new Date(isoStr);
-  return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}/${d.getFullYear()}`;
-}
-
 export async function generateReportWorkbook(
   data: ReportData
 ): Promise<Buffer> {
@@ -46,7 +41,7 @@ function addTransactionRows(
       isFirst
         ? txn.status.charAt(0).toUpperCase() + txn.status.slice(1)
         : "",
-      isFirst && txn.clearedAt ? formatExcelDateTime(txn.clearedAt) : "",
+      isFirst && txn.clearedAt ? formatExcelDate(txn.clearedAt.slice(0, 10)) : "",
       null, // Running balance left blank in grouped view
     ]);
 

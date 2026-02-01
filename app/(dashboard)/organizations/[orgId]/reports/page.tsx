@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { reportParamsSchema } from "@/lib/validations/report";
 import { fetchReportData } from "@/lib/reports/fetch-report-data";
-import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -428,7 +428,7 @@ export default async function ReportsPage({
                               </td>
                               <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
                                 {isFirst && txn.clearedAt
-                                  ? formatDateTime(txn.clearedAt)
+                                  ? formatDate(txn.clearedAt.slice(0, 10))
                                   : ""}
                               </td>
                               {showBalance && (
