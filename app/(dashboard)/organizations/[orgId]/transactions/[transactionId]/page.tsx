@@ -8,7 +8,7 @@ import {
   TRANSACTION_STATUS_LABELS,
 } from "@/lib/validations/transaction";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/validations/account";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -198,7 +198,7 @@ export default async function TransactionDetailPage({
                   Cleared Date
                 </dt>
                 <dd className="mt-1 text-foreground">
-                  {new Date(transaction.cleared_at).toLocaleDateString()}
+                  {formatDate(transaction.cleared_at.slice(0, 10))}
                 </dd>
               </div>
             )}

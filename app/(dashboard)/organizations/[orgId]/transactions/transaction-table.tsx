@@ -737,7 +737,7 @@ function TransactionRow({
           value={txn.cleared_at ? txn.cleared_at.slice(0, 10) : ""}
           displayValue={
             <span className="text-muted-foreground">
-              {txn.cleared_at ? formatDateTime(txn.cleared_at) : "\u2014"}
+              {txn.cleared_at ? formatDate(txn.cleared_at.slice(0, 10)) : "\u2014"}
             </span>
           }
           fieldType="date"
