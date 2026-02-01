@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 
 import type { Tables } from "@/types/database";
-import { updateCategory, deactivateCategory } from "../actions";
+import { updateCategory, deactivateCategory, mergeCategory } from "../actions";
 import {
   CATEGORY_TYPES,
   CATEGORY_TYPE_LABELS,
@@ -18,6 +18,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export function CategoryActions({
   category,
@@ -25,15 +34,19 @@ export function CategoryActions({
   parentCategory,
   subcategoryCount,
   lineItemCount,
+  mergeTargets,
 }: Readonly<{
   category: Tables<"categories">;
   orgId: string;
   parentCategory: Pick<Tables<"categories">, "id" | "name" | "category_type"> | null;
   subcategoryCount: number;
   lineItemCount: number;
+  mergeTargets: Array<{ id: string; name: string }>;
 }>) {
   const [isEditing, setIsEditing] = useState(false);
   const [isConfirmingDeactivate, setIsConfirmingDeactivate] = useState(false);
+  const [isMergeOpen, setIsMergeOpen] = useState(false);
+  const [selectedTargetId, setSelectedTargetId] = useState("");
 
   const [updateState, updateAction, updatePending] = useActionState(
     updateCategory,
@@ -41,6 +54,10 @@ export function CategoryActions({
   );
   const [deactivateState, deactivateAction, deactivatePending] =
     useActionState(deactivateCategory, null);
+  const [mergeState, mergeAction, mergePending] = useActionState(
+    mergeCategory,
+    null
+  );
 
   const isSubcategory = !!category.parent_id;
   const canDeactivate = lineItemCount === 0 && subcategoryCount === 0;
@@ -138,6 +155,92 @@ export function CategoryActions({
               Edit
             </Button>
 
+            {mergeTargets.length > 0 && (
+              <Dialog open={isMergeOpen} onOpenChange={(open) => {
+                setIsMergeOpen(open);
+                if (!open) setSelectedTargetId("");
+              }}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">Merge</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>
+                      Merge &ldquo;{category.name}&rdquo;
+                    </DialogTitle>
+                    <DialogDescription>
+                      Merge this category into another. All transaction line
+                      items will be reassigned to the target category, and this
+                      category will be deactivated.
+                      {!isSubcategory && subcategoryCount > 0 && (
+                        <span className="mt-2 block">
+                          This is a parent category with {subcategoryCount} active
+                          subcategor{subcategoryCount === 1 ? "y" : "ies"}. They
+                          will be moved under the target parent.
+                        </span>
+                      )}
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <form action={mergeAction} className="flex flex-col gap-4">
+                    <input type="hidden" name="source_id" value={category.id} />
+                    <input
+                      type="hidden"
+                      name="organization_id"
+                      value={orgId}
+                    />
+                    <input
+                      type="hidden"
+                      name="target_id"
+                      value={selectedTargetId}
+                    />
+
+                    {mergeState?.error && (
+                      <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                        {mergeState.error}
+                      </div>
+                    )}
+
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="merge-target">Merge into</Label>
+                      <Select
+                        value={selectedTargetId}
+                        onValueChange={setSelectedTargetId}
+                      >
+                        <SelectTrigger id="merge-target">
+                          <SelectValue placeholder="Select a category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {mergeTargets.map((target) => (
+                            <SelectItem key={target.id} value={target.id}>
+                              {target.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <DialogFooter>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsMergeOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        variant="destructive"
+                        disabled={mergePending || !selectedTargetId}
+                      >
+                        {mergePending ? "Merging\u2026" : "Confirm Merge"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            )}
+
             {isConfirmingDeactivate ? (
               <>
                 <form action={deactivateAction}>
@@ -182,7 +285,7 @@ export function CategoryActions({
           {!canDeactivate && (
             <p className="text-xs text-muted-foreground">
               {lineItemCount > 0
-                ? `Cannot deactivate: ${lineItemCount} transaction line item${lineItemCount === 1 ? "" : "s"} use this category.`
+                ? `Cannot deactivate: ${lineItemCount} transaction line item${lineItemCount === 1 ? "" : "s"} use this category. Use Merge to move them to another category.`
                 : `Cannot deactivate: ${subcategoryCount} active subcategor${subcategoryCount === 1 ? "y" : "ies"} must be deactivated first.`}
             </p>
           )}

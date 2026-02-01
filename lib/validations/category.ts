@@ -30,5 +30,16 @@ export const updateCategorySchema = createCategorySchema.extend({
   id: z.string().uuid("Invalid category ID."),
 });
 
+export const mergeCategorySchema = z
+  .object({
+    source_id: z.string().uuid("Invalid source category ID."),
+    target_id: z.string().uuid("Invalid target category ID."),
+    organization_id: z.string().uuid("Invalid organization ID."),
+  })
+  .refine((data) => data.source_id !== data.target_id, {
+    message: "Cannot merge a category into itself.",
+  });
+
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
+export type MergeCategoryInput = z.infer<typeof mergeCategorySchema>;

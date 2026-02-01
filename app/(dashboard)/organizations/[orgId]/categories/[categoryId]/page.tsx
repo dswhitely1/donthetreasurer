@@ -79,6 +79,27 @@ export default async function CategoryDetailPage({
     .select("id", { count: "exact", head: true })
     .eq("category_id", categoryId);
 
+  // Fetch eligible merge targets: same org, same type, same level, active, not self
+  let mergeTargetQuery = supabase
+    .from("categories")
+    .select("id, name")
+    .eq("organization_id", orgId)
+    .eq("category_type", category.category_type)
+    .eq("is_active", true)
+    .neq("id", categoryId)
+    .order("name");
+
+  if (category.parent_id) {
+    // Subcategory: only other subcategories (has parent_id)
+    mergeTargetQuery = mergeTargetQuery.not("parent_id", "is", null);
+  } else {
+    // Parent: only other parents (no parent_id)
+    mergeTargetQuery = mergeTargetQuery.is("parent_id", null);
+  }
+
+  const { data: mergeTargets } = await mergeTargetQuery;
+
+
   const typeLabel =
     CATEGORY_TYPE_LABELS[
       category.category_type as keyof typeof CATEGORY_TYPE_LABELS
@@ -184,6 +205,7 @@ export default async function CategoryDetailPage({
             parentCategory={parentCategory}
             subcategoryCount={subcategoryCount}
             lineItemCount={lineItemCount ?? 0}
+            mergeTargets={mergeTargets ?? []}
           />
         </CardContent>
       </Card>
