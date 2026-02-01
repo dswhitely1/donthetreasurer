@@ -1,6 +1,6 @@
 import ExcelJS from "exceljs";
 
-import type { ReportData } from "@/lib/reports/types";
+import type { ReportData, ReportTransaction } from "@/lib/reports/types";
 
 function formatExcelDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
@@ -24,13 +24,103 @@ export async function generateReportWorkbook(
   return Buffer.from(buffer);
 }
 
+function addTransactionRows(
+  sheet: ExcelJS.Worksheet,
+  txn: ReportTransaction,
+  currencyFmt: string
+) {
+  for (let i = 0; i < txn.lineItems.length; i++) {
+    const li = txn.lineItems[i];
+    const isFirst = i === 0;
+
+    const row = sheet.addRow([
+      isFirst ? formatExcelDate(txn.transactionDate) : "",
+      isFirst ? txn.accountName : "",
+      isFirst ? txn.checkNumber ?? "" : "",
+      isFirst ? txn.vendor ?? "" : "",
+      isFirst ? txn.description : "",
+      li.categoryLabel,
+      li.memo ?? "",
+      txn.transactionType === "income" ? li.amount : null,
+      txn.transactionType === "expense" ? li.amount : null,
+      isFirst
+        ? txn.status.charAt(0).toUpperCase() + txn.status.slice(1)
+        : "",
+      isFirst && txn.clearedAt ? formatExcelDateTime(txn.clearedAt) : "",
+      null, // Running balance left blank in grouped view
+    ]);
+
+    const incomeCell = row.getCell(8);
+    const expenseCell = row.getCell(9);
+
+    if (incomeCell.value !== null) {
+      incomeCell.numFmt = currencyFmt;
+    }
+    if (expenseCell.value !== null) {
+      expenseCell.numFmt = currencyFmt;
+    }
+
+    if (txn.transactionType === "income" && incomeCell.value !== null) {
+      incomeCell.font = { color: { argb: "FF16A34A" } };
+    }
+    if (txn.transactionType === "expense" && expenseCell.value !== null) {
+      expenseCell.font = { color: { argb: "FFDC2626" } };
+    }
+  }
+}
+
+function addSubtotalRow(
+  sheet: ExcelJS.Worksheet,
+  label: string,
+  income: number,
+  expense: number,
+  currencyFmt: string,
+  bold: boolean
+) {
+  const row = sheet.addRow([
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    label,
+    income || null,
+    expense || null,
+    "",
+    "",
+    null,
+  ]);
+  row.font = { bold };
+  const incomeCell = row.getCell(8);
+  const expenseCell = row.getCell(9);
+  if (incomeCell.value !== null) {
+    incomeCell.numFmt = currencyFmt;
+    incomeCell.font = { bold, color: { argb: "FF16A34A" } };
+  }
+  if (expenseCell.value !== null) {
+    expenseCell.numFmt = currencyFmt;
+    expenseCell.font = { bold, color: { argb: "FFDC2626" } };
+  }
+}
+
+const STATUS_ORDER: ReportTransaction["status"][] = [
+  "uncleared",
+  "cleared",
+  "reconciled",
+];
+const STATUS_LABELS: Record<string, string> = {
+  uncleared: "Uncleared",
+  cleared: "Cleared",
+  reconciled: "Reconciled",
+};
+
 function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
   const sheet = workbook.addWorksheet("Transactions");
 
   // Column widths
   sheet.columns = [
     { key: "txnDate", width: 15 },
-    { key: "createdDate", width: 15 },
     { key: "account", width: 20 },
     { key: "checkNum", width: 10 },
     { key: "vendor", width: 20 },
@@ -47,23 +137,23 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
   // Header section
   const titleRow = sheet.addRow([data.organizationName]);
   titleRow.font = { size: 14, bold: true };
-  sheet.mergeCells("A1:M1");
+  sheet.mergeCells("A1:L1");
 
   const subtitleRow = sheet.addRow(["Transaction Report"]);
   subtitleRow.font = { size: 12 };
-  sheet.mergeCells("A2:M2");
+  sheet.mergeCells("A2:L2");
 
   const dateRangeRow = sheet.addRow([
     `Cleared: ${formatExcelDate(data.startDate)} to ${formatExcelDate(data.endDate)} (includes all uncleared)`,
   ]);
   dateRangeRow.font = { italic: true };
-  sheet.mergeCells("A3:M3");
+  sheet.mergeCells("A3:L3");
 
   const generatedRow = sheet.addRow([
     `Generated: ${new Date(data.generatedAt).toLocaleString()}`,
   ]);
   generatedRow.font = { italic: true, color: { argb: "FF666666" } };
-  sheet.mergeCells("A4:M4");
+  sheet.mergeCells("A4:L4");
 
   // Blank row
   sheet.addRow([]);
@@ -71,7 +161,6 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
   // Column headers
   const headerRow = sheet.addRow([
     "Transaction Date",
-    "Created Date",
     "Account",
     "Check #",
     "Vendor",
@@ -99,68 +188,142 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
   // Freeze panes: rows 1-6 frozen, columns not frozen
   sheet.views = [{ state: "frozen", ySplit: 6, xSplit: 0 }];
 
-  // Currency format
   const currencyFmt = "$#,##0.00";
 
-  // Data rows
-  for (const txn of data.transactions) {
-    const lineItems = txn.lineItems;
-    const isLastLineItem = (idx: number) => idx === lineItems.length - 1;
-
-    for (let i = 0; i < lineItems.length; i++) {
-      const li = lineItems[i];
-      const isFirst = i === 0;
-      const isLast = isLastLineItem(i);
-
-      const row = sheet.addRow([
-        isFirst ? formatExcelDate(txn.transactionDate) : "",
-        isFirst && txn.createdAt ? formatExcelDateTime(txn.createdAt) : "",
-        isFirst ? txn.accountName : "",
-        isFirst ? txn.checkNumber ?? "" : "",
-        isFirst ? txn.vendor ?? "" : "",
-        isFirst ? txn.description : "",
-        li.categoryLabel,
-        li.memo ?? "",
-        txn.transactionType === "income" ? li.amount : null,
-        txn.transactionType === "expense" ? li.amount : null,
-        isFirst
-          ? txn.status.charAt(0).toUpperCase() + txn.status.slice(1)
-          : "",
-        isFirst && txn.clearedAt ? formatExcelDateTime(txn.clearedAt) : "",
-        isLast && txn.runningBalance !== null ? txn.runningBalance : null,
-      ]);
-
-      // Format currency cells
-      const incomeCell = row.getCell(9);
-      const expenseCell = row.getCell(10);
-      const balanceCell = row.getCell(13);
-
-      if (incomeCell.value !== null) {
-        incomeCell.numFmt = currencyFmt;
-      }
-      if (expenseCell.value !== null) {
-        expenseCell.numFmt = currencyFmt;
-      }
-      if (balanceCell.value !== null) {
-        balanceCell.numFmt = currencyFmt;
-      }
-
-      // Color income green, expense red
-      if (txn.transactionType === "income" && incomeCell.value !== null) {
-        incomeCell.font = { color: { argb: "FF16A34A" } };
-      }
-      if (txn.transactionType === "expense" && expenseCell.value !== null) {
-        expenseCell.font = { color: { argb: "FFDC2626" } };
-      }
-    }
-  }
-
-  // If no transactions, add a note
   if (data.transactions.length === 0) {
-    const emptyRow = sheet.addRow(["No transactions found matching these filters."]);
-    sheet.mergeCells(`A${emptyRow.number}:M${emptyRow.number}`);
+    const emptyRow = sheet.addRow([
+      "No transactions found matching these filters.",
+    ]);
+    sheet.mergeCells(`A${emptyRow.number}:L${emptyRow.number}`);
     emptyRow.font = { italic: true, color: { argb: "FF666666" } };
+    return;
   }
+
+  // Group transactions by account (preserving encounter order)
+  const accountGroups = new Map<string, ReportTransaction[]>();
+  for (const txn of data.transactions) {
+    const group = accountGroups.get(txn.accountName) ?? [];
+    group.push(txn);
+    accountGroups.set(txn.accountName, group);
+  }
+
+  let grandTotalIncome = 0;
+  let grandTotalExpense = 0;
+
+  for (const [accountName, txns] of accountGroups) {
+    // Account header row
+    const acctRow = sheet.addRow([`Account: ${accountName}`]);
+    sheet.mergeCells(
+      `A${acctRow.number}:L${acctRow.number}`
+    );
+    acctRow.font = { size: 12, bold: true };
+    acctRow.eachCell((cell) => {
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFDBEAFE" },
+      };
+      cell.border = {
+        bottom: { style: "thin", color: { argb: "FF93C5FD" } },
+      };
+    });
+
+    let accountIncome = 0;
+    let accountExpense = 0;
+
+    for (const status of STATUS_ORDER) {
+      const statusTxns = txns.filter((t) => t.status === status);
+      if (statusTxns.length === 0) continue;
+
+      // Status sub-header row
+      const statusRow = sheet.addRow([`  ${STATUS_LABELS[status]}`]);
+      sheet.mergeCells(
+        `A${statusRow.number}:L${statusRow.number}`
+      );
+      statusRow.font = { italic: true, bold: true };
+      statusRow.eachCell((cell) => {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFF1F5F9" },
+        };
+      });
+
+      let statusIncome = 0;
+      let statusExpense = 0;
+
+      for (const txn of statusTxns) {
+        addTransactionRows(sheet, txn, currencyFmt);
+
+        if (txn.transactionType === "income") {
+          statusIncome += txn.amount;
+        } else {
+          statusExpense += txn.amount;
+        }
+      }
+
+      // Status subtotal
+      addSubtotalRow(
+        sheet,
+        `${STATUS_LABELS[status]} Subtotal:`,
+        statusIncome,
+        statusExpense,
+        currencyFmt,
+        false
+      );
+
+      accountIncome += statusIncome;
+      accountExpense += statusExpense;
+    }
+
+    // Account total
+    addSubtotalRow(
+      sheet,
+      `${accountName} Total:`,
+      accountIncome,
+      accountExpense,
+      currencyFmt,
+      true
+    );
+
+    // Blank separator between accounts
+    sheet.addRow([]);
+
+    grandTotalIncome += accountIncome;
+    grandTotalExpense += accountExpense;
+  }
+
+  // Grand total row
+  const grandRow = sheet.addRow([
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "GRAND TOTAL:",
+    grandTotalIncome || null,
+    grandTotalExpense || null,
+    "",
+    "",
+    null,
+  ]);
+  grandRow.font = { size: 12, bold: true };
+  const grandIncomeCell = grandRow.getCell(8);
+  const grandExpenseCell = grandRow.getCell(9);
+  if (grandIncomeCell.value !== null) {
+    grandIncomeCell.numFmt = currencyFmt;
+    grandIncomeCell.font = { size: 12, bold: true, color: { argb: "FF16A34A" } };
+  }
+  if (grandExpenseCell.value !== null) {
+    grandExpenseCell.numFmt = currencyFmt;
+    grandExpenseCell.font = { size: 12, bold: true, color: { argb: "FFDC2626" } };
+  }
+  grandRow.eachCell((cell) => {
+    cell.border = {
+      top: { style: "double", color: { argb: "FF1E293B" } },
+    };
+  });
 }
 
 function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
