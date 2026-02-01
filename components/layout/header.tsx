@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Menu } from "lucide-react";
+import { Menu, Settings } from "lucide-react";
 
 import { signOut } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,11 @@ export function Header({
           <span className="hidden text-sm text-muted-foreground sm:inline">
             {displayName}
           </span>
+          <Button variant="ghost" size="icon-sm" asChild>
+            <Link href="/settings" aria-label="Settings">
+              <Settings className="size-4" />
+            </Link>
+          </Button>
           <form action={signOut}>
             <Button variant="ghost" size="sm" type="submit">
               Sign out
