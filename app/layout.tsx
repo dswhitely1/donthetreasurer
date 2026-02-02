@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 const SITE_URL = "https://www.donthetreasurer.com";
 const SITE_NAME = "Treasurer";
 const SITE_DESCRIPTION =
-  "Financial management for 501(c)(3) treasurers. Track transactions, manage accounts, and generate reports across multiple organizations.";
+  "Financial management for 501(c)(3) treasurers. Track transactions, reconcile bank statements, manage recurring templates, attach receipts, and generate Excel & PDF reports across multiple organizations.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Treasurer - Nonprofit Financial Management",
     short_name: "Treasurer",
     description:
-      "Financial management for 501(c)(3) treasurers. Track transactions, manage accounts, and generate reports across multiple organizations.",
+      "Financial management for 501(c)(3) treasurers. Track transactions, reconcile bank statements, manage recurring templates, attach receipts, and generate Excel & PDF reports across multiple organizations.",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",

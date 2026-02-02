@@ -15,9 +15,9 @@ const features = [
       "Define your own two-level income and expense categories for each organization.",
   },
   {
-    title: "Excel Reports",
+    title: "Excel & PDF Reports",
     description:
-      "Generate and export detailed transaction reports for board meetings and audits.",
+      "Generate and export detailed transaction reports in Excel or PDF for board meetings and audits.",
   },
   {
     title: "Account Tracking",
@@ -25,9 +25,24 @@ const features = [
       "Track checking, savings, PayPal, and cash accounts with running balances.",
   },
   {
-    title: "Reconciliation",
+    title: "Bank Reconciliation",
     description:
-      "Mark transactions as uncleared, cleared, or reconciled to match bank statements.",
+      "Reconcile accounts against bank statements with a guided workflow to match and verify transactions.",
+  },
+  {
+    title: "Recurring Templates",
+    description:
+      "Set up templates for regular transactions like rent or donations and generate them on schedule.",
+  },
+  {
+    title: "Receipt Attachments",
+    description:
+      "Attach receipt images or PDFs to any transaction for easy reference during audits.",
+  },
+  {
+    title: "Processing Fees",
+    description:
+      "Automatically track payment processor fees as companion expense transactions on income.",
   },
 ] as const;
 
@@ -64,8 +79,8 @@ export default function Home() {
             Financial management built for nonprofit treasurers
           </h1>
           <p className="mt-6 max-w-xl text-lg leading-8 text-zinc-600">
-            Track transactions, manage accounts, and generate reports across all
-            your 501(c)(3) organizations — in one place.
+            Track transactions, reconcile bank statements, and generate reports
+            across all your 501(c)(3) organizations — in one place.
           </p>
           <div className="mt-10 flex gap-4">
             <a
