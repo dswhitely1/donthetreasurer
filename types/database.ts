@@ -188,6 +188,47 @@ export type Database = {
           },
         ]
       }
+      receipts: {
+        Row: {
+          created_at: string | null
+          file_name: string
+          file_size: number
+          id: string
+          mime_type: string
+          storage_path: string
+          transaction_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          file_name: string
+          file_size: number
+          id?: string
+          mime_type: string
+          storage_path: string
+          transaction_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          file_name?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          storage_path?: string
+          transaction_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipts_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recurring_template_line_items: {
         Row: {
           amount: number

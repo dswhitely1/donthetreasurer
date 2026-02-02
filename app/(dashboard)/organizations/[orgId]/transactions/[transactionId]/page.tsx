@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TransactionActions } from "./transaction-actions";
+import { ReceiptSection } from "./receipt-section";
 
 export default async function TransactionDetailPage({
   params,
@@ -284,6 +285,12 @@ export default async function TransactionDetailPage({
               </table>
             </div>
           </div>
+
+          <ReceiptSection
+            transactionId={transactionId}
+            orgId={orgId}
+            isReconciled={transaction.status === "reconciled"}
+          />
 
           <TransactionActions
             transaction={{
