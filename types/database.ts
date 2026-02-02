@@ -188,6 +188,53 @@ export type Database = {
           },
         ]
       }
+      reconciliation_sessions: {
+        Row: {
+          account_id: string
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          starting_balance: number
+          statement_date: string
+          statement_ending_balance: number
+          status: string
+          transaction_count: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_id: string
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          starting_balance: number
+          statement_date: string
+          statement_ending_balance: number
+          status?: string
+          transaction_count?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_id?: string
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          starting_balance?: number
+          statement_date?: string
+          statement_ending_balance?: number
+          status?: string
+          transaction_count?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reconciliation_sessions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transaction_line_items: {
         Row: {
           amount: number

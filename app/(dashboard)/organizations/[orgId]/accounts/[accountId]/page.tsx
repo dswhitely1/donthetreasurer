@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Circle, CircleCheck, Lock } from "lucide-react";
+import { ArrowLeft, Circle, CircleCheck, Lock, Scale } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/validations/account";
 import { getAccountBalances } from "@/lib/balances";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -98,6 +99,12 @@ export default async function AccountDetailPage({
             )}
           </div>
         </div>
+        <Button asChild variant="outline">
+          <Link href={`/organizations/${orgId}/accounts/${accountId}/reconcile`}>
+            <Scale className="mr-1.5 h-4 w-4" />
+            Reconcile
+          </Link>
+        </Button>
       </div>
 
       {/* Status balance cards */}
@@ -255,6 +262,79 @@ export default async function AccountDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* Reconciliation history */}
+      <ReconciliationHistory accountId={accountId} />
+    </div>
+  );
+}
+
+async function ReconciliationHistory({
+  accountId,
+}: {
+  accountId: string;
+}) {
+  const supabase = await createClient();
+
+  const { data: sessions } = await supabase
+    .from("reconciliation_sessions")
+    .select("id, statement_date, statement_ending_balance, transaction_count, completed_at")
+    .eq("account_id", accountId)
+    .eq("status", "completed")
+    .order("completed_at", { ascending: false })
+    .limit(10);
+
+  if (!sessions || sessions.length === 0) return null;
+
+  return (
+    <div className="mt-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Reconciliation History</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left">
+                  <th className="pb-2 pr-4 font-medium text-muted-foreground">
+                    Statement Date
+                  </th>
+                  <th className="pb-2 pr-4 font-medium text-muted-foreground">
+                    Ending Balance
+                  </th>
+                  <th className="pb-2 pr-4 font-medium text-muted-foreground">
+                    Transactions
+                  </th>
+                  <th className="pb-2 font-medium text-muted-foreground">
+                    Completed
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {sessions.map((s) => (
+                  <tr key={s.id}>
+                    <td className="py-2 pr-4 tabular-nums text-foreground">
+                      {formatDate(s.statement_date)}
+                    </td>
+                    <td className="py-2 pr-4 tabular-nums text-foreground">
+                      {formatCurrency(Number(s.statement_ending_balance))}
+                    </td>
+                    <td className="py-2 pr-4 text-foreground">
+                      {s.transaction_count}
+                    </td>
+                    <td className="py-2 text-muted-foreground">
+                      {s.completed_at
+                        ? formatDateTime(s.completed_at)
+                        : "N/A"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

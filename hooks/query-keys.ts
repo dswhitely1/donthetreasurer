@@ -43,6 +43,14 @@ export interface ReportParams {
   status?: string;
 }
 
+export const reconciliationKeys = {
+  all: ["reconciliation"] as const,
+  list: (accountId: string) =>
+    [...reconciliationKeys.all, "list", accountId] as const,
+  detail: (sessionId: string) =>
+    [...reconciliationKeys.all, "detail", sessionId] as const,
+};
+
 export const reportKeys = {
   all: ["reports"] as const,
   data: (orgId: string, params?: ReportParams) =>
