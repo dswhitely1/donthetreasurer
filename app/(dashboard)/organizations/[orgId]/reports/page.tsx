@@ -20,6 +20,7 @@ interface SearchParams {
   category_id?: string;
   start_date?: string;
   end_date?: string;
+  preset?: string;
 }
 
 export default async function ReportsPage({
@@ -43,7 +44,7 @@ export default async function ReportsPage({
   // Verify org exists and user has access
   const { data: organization } = await supabase
     .from("organizations")
-    .select("id, name")
+    .select("id, name, fiscal_year_start_month")
     .eq("id", orgId)
     .eq("is_active", true)
     .single();
@@ -135,6 +136,7 @@ export default async function ReportsPage({
           orgId={orgId}
           accounts={activeAccounts}
           categories={categoryOptions}
+          fiscalYearStartMonth={organization.fiscal_year_start_month ?? 1}
         />
       </div>
 

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { reportParamsSchema } from "@/lib/validations/report";
 import { fetchReportData } from "@/lib/reports/fetch-report-data";
 import { generateReportWorkbook } from "@/lib/excel/generate-report";
+import { getPresetDateRange } from "@/lib/fiscal-year";
 
 export async function GET(
   request: Request,
@@ -28,6 +29,7 @@ export async function GET(
     account_id: url.searchParams.get("account_id") ?? undefined,
     category_id: url.searchParams.get("category_id") ?? undefined,
     status: url.searchParams.get("status") ?? undefined,
+    preset: url.searchParams.get("preset") ?? undefined,
   };
 
   const parsed = reportParamsSchema.safeParse(rawParams);
@@ -41,7 +43,7 @@ export async function GET(
   // Verify org ownership (RLS handles this but give a clear 404)
   const { data: org } = await supabase
     .from("organizations")
-    .select("id, name")
+    .select("id, name, fiscal_year_start_month")
     .eq("id", orgId)
     .eq("is_active", true)
     .single();
@@ -55,6 +57,17 @@ export async function GET(
 
   try {
     const reportData = await fetchReportData(supabase, orgId, parsed.data);
+
+    if (parsed.data.preset && parsed.data.preset !== "custom") {
+      const range = getPresetDateRange(
+        parsed.data.preset,
+        org.fiscal_year_start_month ?? 1
+      );
+      if (range) {
+        reportData.fiscalYearLabel = range.label;
+      }
+    }
+
     const buffer = await generateReportWorkbook(reportData);
 
     const safeName = reportData.organizationName.replace(/[^a-zA-Z0-9]/g, "");
