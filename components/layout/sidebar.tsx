@@ -7,6 +7,7 @@ import {
   Landmark,
   Tags,
   ArrowLeftRight,
+  Repeat,
   FileBarChart,
   X,
 } from "lucide-react";
@@ -24,6 +25,7 @@ const navItems = [
     icon: ArrowLeftRight,
     exact: false,
   },
+  { label: "Templates", href: "/templates", icon: Repeat, exact: false },
   { label: "Reports", href: "/reports", icon: FileBarChart, exact: false },
 ];
 

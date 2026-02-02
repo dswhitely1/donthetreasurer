@@ -3,7 +3,10 @@
 import { useActionState, useState } from "react";
 import { Lock } from "lucide-react";
 
-import { updateTransaction, deleteTransaction } from "../actions";
+import Link from "next/link";
+import { Repeat } from "lucide-react";
+
+import { deleteTransaction } from "../actions";
 import { TransactionForm } from "../transaction-form";
 import { Button } from "@/components/ui/button";
 
@@ -96,9 +99,18 @@ export function TransactionActions({
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <Button variant="outline" onClick={() => setIsEditing(true)}>
               Edit
+            </Button>
+
+            <Button variant="outline" asChild>
+              <Link
+                href={`/organizations/${orgId}/templates/new?from_transaction=${transaction.id}`}
+              >
+                <Repeat className="mr-2 h-4 w-4" />
+                Create Template
+              </Link>
             </Button>
 
             {isConfirmingDelete ? (

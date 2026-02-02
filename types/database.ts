@@ -188,6 +188,120 @@ export type Database = {
           },
         ]
       }
+      recurring_template_line_items: {
+        Row: {
+          amount: number
+          category_id: string
+          created_at: string | null
+          id: string
+          memo: string | null
+          template_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          category_id: string
+          created_at?: string | null
+          id?: string
+          memo?: string | null
+          template_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          category_id?: string
+          created_at?: string | null
+          id?: string
+          memo?: string | null
+          template_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_template_line_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_template_line_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recurring_templates: {
+        Row: {
+          account_id: string
+          amount: number
+          check_number: string | null
+          created_at: string | null
+          description: string
+          end_date: string | null
+          id: string
+          is_active: boolean
+          next_occurrence_date: string | null
+          organization_id: string
+          recurrence_rule: string
+          start_date: string
+          transaction_type: string
+          updated_at: string | null
+          vendor: string | null
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          check_number?: string | null
+          created_at?: string | null
+          description: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          next_occurrence_date?: string | null
+          organization_id: string
+          recurrence_rule: string
+          start_date: string
+          transaction_type: string
+          updated_at?: string | null
+          vendor?: string | null
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          check_number?: string | null
+          created_at?: string | null
+          description?: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          next_occurrence_date?: string | null
+          organization_id?: string
+          recurrence_rule?: string
+          start_date?: string
+          transaction_type?: string
+          updated_at?: string | null
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_templates_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reconciliation_sessions: {
         Row: {
           account_id: string
@@ -290,6 +404,7 @@ export type Database = {
           description: string
           id: string
           status: string
+          template_id: string | null
           transaction_date: string
           transaction_type: string
           updated_at: string | null
@@ -304,6 +419,7 @@ export type Database = {
           description: string
           id?: string
           status?: string
+          template_id?: string | null
           transaction_date: string
           transaction_type: string
           updated_at?: string | null
@@ -318,6 +434,7 @@ export type Database = {
           description?: string
           id?: string
           status?: string
+          template_id?: string | null
           transaction_date?: string
           transaction_type?: string
           updated_at?: string | null
@@ -329,6 +446,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_templates"
             referencedColumns: ["id"]
           },
         ]
