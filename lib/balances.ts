@@ -65,6 +65,32 @@ export function getAccountBalances(
   return result;
 }
 
+interface ReconciledTransaction {
+  amount: number;
+  transaction_type: string;
+  status: string;
+}
+
+/**
+ * Compute the reconciled balance: opening balance + net of reconciled transactions.
+ * Income adds, expense subtracts. Only transactions with status === 'reconciled' are included.
+ */
+export function getReconciledBalance(
+  openingBalance: number,
+  transactions: ReconciledTransaction[]
+): number {
+  let balance = openingBalance;
+  for (const txn of transactions) {
+    if (txn.status !== "reconciled") continue;
+    if (txn.transaction_type === "income") {
+      balance += txn.amount;
+    } else {
+      balance -= txn.amount;
+    }
+  }
+  return balance;
+}
+
 interface RunningBalanceTransaction {
   id: string;
   amount: number;

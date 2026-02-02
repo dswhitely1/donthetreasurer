@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import {
   getAccountBalances,
+  getReconciledBalance,
   computeRunningBalances,
 } from "./balances";
 
@@ -111,6 +112,51 @@ describe("getAccountBalances", () => {
     expect(balance.currentBalance).toBe(250);
     expect(balance.totalIncome).toBe(300);
     expect(balance.totalExpense).toBe(50);
+  });
+});
+
+describe("getReconciledBalance", () => {
+  it("returns opening balance when no transactions", () => {
+    expect(getReconciledBalance(1000, [])).toBe(1000);
+  });
+
+  it("only includes reconciled transactions", () => {
+    const result = getReconciledBalance(500, [
+      { amount: 200, transaction_type: "income", status: "reconciled" },
+      { amount: 100, transaction_type: "income", status: "cleared" },
+      { amount: 50, transaction_type: "expense", status: "uncleared" },
+      { amount: 75, transaction_type: "expense", status: "reconciled" },
+    ]);
+    // 500 + 200 - 75 = 625 (cleared and uncleared are ignored)
+    expect(result).toBe(625);
+  });
+
+  it("adds reconciled income", () => {
+    expect(
+      getReconciledBalance(0, [
+        { amount: 300, transaction_type: "income", status: "reconciled" },
+      ])
+    ).toBe(300);
+  });
+
+  it("subtracts reconciled expenses", () => {
+    expect(
+      getReconciledBalance(1000, [
+        { amount: 250, transaction_type: "expense", status: "reconciled" },
+      ])
+    ).toBe(750);
+  });
+
+  it("handles zero opening balance", () => {
+    expect(getReconciledBalance(0, [])).toBe(0);
+  });
+
+  it("can produce negative balance", () => {
+    expect(
+      getReconciledBalance(100, [
+        { amount: 300, transaction_type: "expense", status: "reconciled" },
+      ])
+    ).toBe(-200);
   });
 });
 
