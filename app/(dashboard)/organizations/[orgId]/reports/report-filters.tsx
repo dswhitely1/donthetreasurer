@@ -13,6 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PRESET_OPTIONS, getPresetDateRange } from "@/lib/fiscal-year";
+
+import type { PresetKey } from "@/lib/fiscal-year";
 
 interface Account {
   id: string;
@@ -28,6 +31,7 @@ interface ReportFiltersProps {
   orgId: string;
   accounts: Account[];
   categories: CategoryOption[];
+  fiscalYearStartMonth: number;
 }
 
 const STATUS_OPTIONS = [
@@ -42,6 +46,7 @@ export function ReportFilters({
   orgId,
   accounts,
   categories,
+  fiscalYearStartMonth,
 }: Readonly<ReportFiltersProps>) {
   const router = useRouter();
   const pathname = usePathname();
@@ -52,18 +57,52 @@ export function ReportFilters({
   const currentCategoryId = searchParams.get("category_id") ?? "all";
   const currentStartDate = searchParams.get("start_date") ?? "";
   const currentEndDate = searchParams.get("end_date") ?? "";
+  const currentPreset = (searchParams.get("preset") ?? "custom") as PresetKey;
 
   const hasDateRange = currentStartDate !== "" && currentEndDate !== "";
 
-  function updateParam(key: string, value: string) {
+  // Compute the label for the active preset
+  const presetRange =
+    currentPreset !== "custom"
+      ? getPresetDateRange(currentPreset, fiscalYearStartMonth)
+      : null;
+  const presetLabel = presetRange?.label ?? null;
+
+  function updateParams(updates: Record<string, string>) {
     const params = new URLSearchParams(searchParams.toString());
-    if (value === "all" || value === "") {
-      params.delete(key);
-    } else {
-      params.set(key, value);
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === "all" || value === "") {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
     }
     const qs = params.toString();
     router.push(qs ? `${pathname}?${qs}` : pathname);
+  }
+
+  function updateParam(key: string, value: string) {
+    updateParams({ [key]: value });
+  }
+
+  function handlePresetChange(preset: string) {
+    if (preset === "custom") {
+      updateParam("preset", "");
+      return;
+    }
+
+    const range = getPresetDateRange(preset, fiscalYearStartMonth);
+    if (range) {
+      updateParams({
+        preset,
+        start_date: range.start,
+        end_date: range.end,
+      });
+    }
+  }
+
+  function handleDateChange(key: string, value: string) {
+    updateParams({ [key]: value, preset: "" });
   }
 
   function clearFilters() {
@@ -85,6 +124,9 @@ export function ReportFilters({
     if (currentCategoryId !== "all") {
       params.set("category_id", currentCategoryId);
     }
+    if (currentPreset !== "custom") {
+      params.set("preset", currentPreset);
+    }
 
     window.location.href = `/api/organizations/${orgId}/reports/export?${params.toString()}`;
   }
@@ -94,11 +136,28 @@ export function ReportFilters({
     currentStatus !== "all" ||
     currentCategoryId !== "all" ||
     currentStartDate !== "" ||
-    currentEndDate !== "";
+    currentEndDate !== "" ||
+    currentPreset !== "custom";
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Date Preset</Label>
+          <Select value={currentPreset} onValueChange={handlePresetChange}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Custom Range" />
+            </SelectTrigger>
+            <SelectContent>
+              {PRESET_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">
             Cleared From <span className="text-destructive">*</span>
@@ -107,7 +166,7 @@ export function ReportFilters({
             type="date"
             className="w-[160px]"
             value={currentStartDate}
-            onChange={(e) => updateParam("start_date", e.target.value)}
+            onChange={(e) => handleDateChange("start_date", e.target.value)}
           />
         </div>
 
@@ -119,7 +178,7 @@ export function ReportFilters({
             type="date"
             className="w-[160px]"
             value={currentEndDate}
-            onChange={(e) => updateParam("end_date", e.target.value)}
+            onChange={(e) => handleDateChange("end_date", e.target.value)}
           />
         </div>
 
@@ -182,6 +241,10 @@ export function ReportFilters({
           </Select>
         </div>
       </div>
+
+      {presetLabel && (
+        <p className="text-sm text-muted-foreground">{presetLabel}</p>
+      )}
 
       <div className="flex items-center gap-3">
         <Button onClick={handleExport} disabled={!hasDateRange}>

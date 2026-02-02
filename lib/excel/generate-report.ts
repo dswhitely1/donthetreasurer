@@ -138,9 +138,10 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
   subtitleRow.font = { size: 12 };
   sheet.mergeCells("A2:L2");
 
-  const dateRangeRow = sheet.addRow([
-    `Cleared: ${formatExcelDate(data.startDate)} to ${formatExcelDate(data.endDate)} (includes all uncleared)`,
-  ]);
+  const dateRangeText = data.fiscalYearLabel
+    ? `${data.fiscalYearLabel} — Cleared: ${formatExcelDate(data.startDate)} to ${formatExcelDate(data.endDate)} (includes all uncleared)`
+    : `Cleared: ${formatExcelDate(data.startDate)} to ${formatExcelDate(data.endDate)} (includes all uncleared)`;
+  const dateRangeRow = sheet.addRow([dateRangeText]);
   dateRangeRow.font = { italic: true };
   sheet.mergeCells("A3:L3");
 

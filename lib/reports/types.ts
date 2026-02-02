@@ -50,6 +50,7 @@ export interface ReportData {
   startDate: string;
   endDate: string;
   generatedAt: string;
+  fiscalYearLabel?: string;
   transactions: ReportTransaction[];
   summary: ReportSummary;
   accountBalances: AccountBalanceSummary[] | null;

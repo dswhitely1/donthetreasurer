@@ -18,6 +18,7 @@ export const reportParamsSchema = z.object({
       if (!val || val === "all") return undefined;
       return val.split(",").filter(Boolean);
     }),
+  preset: z.string().optional(),
 });
 
 export type ReportParams = z.infer<typeof reportParamsSchema>;
