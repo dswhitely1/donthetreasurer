@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { Download } from "lucide-react";
+import { Download, FileText } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -109,9 +109,7 @@ export function ReportFilters({
     router.push(pathname);
   }
 
-  function handleExport() {
-    if (!hasDateRange) return;
-
+  function buildExportParams(): URLSearchParams {
     const params = new URLSearchParams();
     params.set("start_date", currentStartDate);
     params.set("end_date", currentEndDate);
@@ -127,8 +125,17 @@ export function ReportFilters({
     if (currentPreset !== "custom") {
       params.set("preset", currentPreset);
     }
+    return params;
+  }
 
-    window.location.href = `/api/organizations/${orgId}/reports/export?${params.toString()}`;
+  function handleExport() {
+    if (!hasDateRange) return;
+    window.location.href = `/api/organizations/${orgId}/reports/export?${buildExportParams().toString()}`;
+  }
+
+  function handleExportPdf() {
+    if (!hasDateRange) return;
+    window.location.href = `/api/organizations/${orgId}/reports/export-pdf?${buildExportParams().toString()}`;
   }
 
   const hasActiveFilters =
@@ -250,6 +257,10 @@ export function ReportFilters({
         <Button onClick={handleExport} disabled={!hasDateRange}>
           <Download className="mr-2 h-4 w-4" />
           Export to Excel
+        </Button>
+        <Button variant="outline" onClick={handleExportPdf} disabled={!hasDateRange}>
+          <FileText className="mr-2 h-4 w-4" />
+          Export to PDF
         </Button>
         {hasActiveFilters && (
           <Button variant="ghost" size="sm" onClick={clearFilters}>
