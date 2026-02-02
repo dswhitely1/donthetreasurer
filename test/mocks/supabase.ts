@@ -72,6 +72,7 @@ export function createMockSupabaseClient() {
 
   const client = {
     from: vi.fn(() => buildChain()),
+    rpc: vi.fn(() => Promise.resolve({ data: null, error: null })),
     auth: {
       getUser: vi.fn(() =>
         Promise.resolve({ data: { user: null }, error: null })

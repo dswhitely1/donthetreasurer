@@ -312,7 +312,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      merge_categories: {
+        Args: {
+          p_source_id: string
+          p_target_id: string
+          p_organization_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

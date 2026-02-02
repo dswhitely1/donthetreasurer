@@ -34,6 +34,7 @@ export function CategoryActions({
   parentCategory,
   subcategoryCount,
   lineItemCount,
+  transactionCount,
   mergeTargets,
 }: Readonly<{
   category: Tables<"categories">;
@@ -41,7 +42,13 @@ export function CategoryActions({
   parentCategory: Pick<Tables<"categories">, "id" | "name" | "category_type"> | null;
   subcategoryCount: number;
   lineItemCount: number;
-  mergeTargets: Array<{ id: string; name: string }>;
+  transactionCount: number;
+  mergeTargets: Array<{
+    id: string;
+    name: string;
+    parent_id: string | null;
+    parent: { name: string } | null;
+  }>;
 }>) {
   const [isEditing, setIsEditing] = useState(false);
   const [isConfirmingDeactivate, setIsConfirmingDeactivate] = useState(false);
@@ -155,7 +162,7 @@ export function CategoryActions({
               Edit
             </Button>
 
-            {mergeTargets.length > 0 && (
+            {subcategoryCount === 0 && mergeTargets.length > 0 && (
               <Dialog open={isMergeOpen} onOpenChange={(open) => {
                 setIsMergeOpen(open);
                 if (!open) setSelectedTargetId("");
@@ -168,17 +175,30 @@ export function CategoryActions({
                     <DialogTitle>
                       Merge &ldquo;{category.name}&rdquo;
                     </DialogTitle>
-                    <DialogDescription>
-                      Merge this category into another. All transaction line
-                      items will be reassigned to the target category, and this
-                      category will be deactivated.
-                      {!isSubcategory && subcategoryCount > 0 && (
-                        <span className="mt-2 block">
-                          This is a parent category with {subcategoryCount} active
-                          subcategor{subcategoryCount === 1 ? "y" : "ies"}. They
-                          will be moved under the target parent.
-                        </span>
-                      )}
+                    <DialogDescription asChild>
+                      <div className="text-sm text-muted-foreground">
+                        {lineItemCount > 0 ? (
+                          <p>
+                            {transactionCount} transaction{transactionCount === 1 ? "" : "s"} with{" "}
+                            {lineItemCount} line item{lineItemCount === 1 ? "" : "s"} will be moved
+                            from &ldquo;{category.name}&rdquo;
+                            {selectedTargetId
+                              ? (() => {
+                                  const target = mergeTargets.find((t) => t.id === selectedTargetId);
+                                  return target
+                                    ? <> to &ldquo;{target.parent ? `${target.parent.name} > ` : ""}{target.name}&rdquo;</>
+                                    : null;
+                                })()
+                              : " to the selected target"}
+                            .
+                          </p>
+                        ) : (
+                          <p>No transactions use this category.</p>
+                        )}
+                        <p className="mt-2 font-medium text-destructive">
+                          This action cannot be undone. The source category will be permanently deleted.
+                        </p>
+                      </div>
                     </DialogDescription>
                   </DialogHeader>
 
@@ -213,7 +233,7 @@ export function CategoryActions({
                         <SelectContent>
                           {mergeTargets.map((target) => (
                             <SelectItem key={target.id} value={target.id}>
-                              {target.name}
+                              {target.parent ? `${target.parent.name} > ` : ""}{target.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -233,7 +253,7 @@ export function CategoryActions({
                         variant="destructive"
                         disabled={mergePending || !selectedTargetId}
                       >
-                        {mergePending ? "Merging\u2026" : "Confirm Merge"}
+                        {mergePending ? "Merging\u2026" : "Merge Categories"}
                       </Button>
                     </DialogFooter>
                   </form>
@@ -284,9 +304,9 @@ export function CategoryActions({
 
           {!canDeactivate && (
             <p className="text-xs text-muted-foreground">
-              {lineItemCount > 0
-                ? `Cannot deactivate: ${lineItemCount} transaction line item${lineItemCount === 1 ? "" : "s"} use this category. Use Merge to move them to another category.`
-                : `Cannot deactivate: ${subcategoryCount} active subcategor${subcategoryCount === 1 ? "y" : "ies"} must be deactivated first.`}
+              {subcategoryCount > 0
+                ? `Cannot merge or deactivate: ${subcategoryCount} active subcategor${subcategoryCount === 1 ? "y" : "ies"} must be deactivated or merged first.`
+                : `Cannot deactivate: ${lineItemCount} transaction line item${lineItemCount === 1 ? "" : "s"} use this category. Use Merge to move them to another category.`}
             </p>
           )}
         </div>
