@@ -56,3 +56,10 @@ export const reportKeys = {
   data: (orgId: string, params?: ReportParams) =>
     [...reportKeys.all, "data", orgId, params ?? {}] as const,
 };
+
+export const templateKeys = {
+  all: ["templates"] as const,
+  list: (orgId: string) => [...templateKeys.all, "list", orgId] as const,
+  detail: (orgId: string, templateId: string) =>
+    [...templateKeys.all, "detail", orgId, templateId] as const,
+};

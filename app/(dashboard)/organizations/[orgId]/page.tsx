@@ -8,6 +8,7 @@ import {
   Landmark,
   Lock,
   Plus,
+  Repeat,
   GitBranch,
 } from "lucide-react";
 
@@ -27,7 +28,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  RECURRENCE_RULE_LABELS,
+} from "@/lib/validations/recurring-template";
 import { OrganizationActions } from "./organization-actions";
+
+import type { RecurrenceRule } from "@/lib/recurrence";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -53,8 +59,8 @@ export default async function OrganizationOverviewPage({
   const { orgId } = await params;
   const supabase = await createClient();
 
-  // Fetch org, accounts, transactions, and recent transactions in parallel
-  const [orgResult, accountsResult, txnResult, recentResult] =
+  // Fetch org, accounts, transactions, recent transactions, and upcoming templates in parallel
+  const [orgResult, accountsResult, txnResult, recentResult, upcomingResult] =
     await Promise.all([
       supabase
         .from("organizations")
@@ -97,6 +103,24 @@ export default async function OrganizationOverviewPage({
         .order("transaction_date", { ascending: false })
         .order("created_at", { ascending: false })
         .limit(10),
+      supabase
+        .from("recurring_templates")
+        .select(
+          `
+          id,
+          description,
+          amount,
+          transaction_type,
+          recurrence_rule,
+          next_occurrence_date,
+          accounts!inner(id, name, organization_id)
+        `
+        )
+        .eq("organization_id", orgId)
+        .eq("is_active", true)
+        .not("next_occurrence_date", "is", null)
+        .order("next_occurrence_date", { ascending: true })
+        .limit(5),
     ]);
 
   const organization = orgResult.data;
@@ -107,6 +131,7 @@ export default async function OrganizationOverviewPage({
   const accounts = accountsResult.data ?? [];
   const allTransactions = txnResult.data ?? [];
   const recentTransactions = recentResult.data ?? [];
+  const upcomingTemplates = upcomingResult.data ?? [];
 
   // Compute balances
   const openingBalanceTotal = accounts.reduce(
@@ -260,6 +285,95 @@ export default async function OrganizationOverviewPage({
             </Link>
           </Button>
         </div>
+
+        {/* Upcoming recurring transactions */}
+        {upcomingTemplates.length > 0 && (
+          <div className="mt-8">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-foreground">
+                Upcoming Transactions
+              </h3>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href={`/organizations/${orgId}/templates`}>
+                  View all
+                </Link>
+              </Button>
+            </div>
+            <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50">
+                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      Description
+                    </th>
+                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      Account
+                    </th>
+                    <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
+                      Amount
+                    </th>
+                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      Next Date
+                    </th>
+                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                      Frequency
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {upcomingTemplates.map((tmpl) => {
+                    const isIncome = tmpl.transaction_type === "income";
+                    const accountName =
+                      (tmpl.accounts as { id: string; name: string } | null)
+                        ?.name ?? "Unknown";
+                    const ruleLabel =
+                      RECURRENCE_RULE_LABELS[
+                        tmpl.recurrence_rule as RecurrenceRule
+                      ] ?? tmpl.recurrence_rule;
+
+                    return (
+                      <tr
+                        key={tmpl.id}
+                        className="border-b border-border last:border-b-0 hover:bg-muted/30"
+                      >
+                        <td className="px-3 py-2.5">
+                          <Link
+                            href={`/organizations/${orgId}/templates/${tmpl.id}`}
+                            className="inline-flex items-center gap-1.5 font-medium hover:underline"
+                          >
+                            <Repeat className="h-3.5 w-3.5 text-muted-foreground" />
+                            {tmpl.description}
+                          </Link>
+                        </td>
+                        <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
+                          {accountName}
+                        </td>
+                        <td
+                          className={`px-3 py-2.5 whitespace-nowrap text-right font-medium tabular-nums ${
+                            isIncome
+                              ? "text-green-600 dark:text-green-400"
+                              : "text-red-600 dark:text-red-400"
+                          }`}
+                        >
+                          {isIncome ? "+" : "-"}
+                          {formatCurrency(tmpl.amount)}
+                        </td>
+                        <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
+                          {tmpl.next_occurrence_date
+                            ? formatDate(tmpl.next_occurrence_date)
+                            : "\u2014"}
+                        </td>
+                        <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
+                          {ruleLabel}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Recent transactions */}
         <div className="mt-8">
