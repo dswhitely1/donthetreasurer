@@ -467,7 +467,18 @@ export async function deleteTransaction(
     return { error: "Transaction does not belong to this organization." };
   }
 
-  // Delete transaction (line items cascade via ON DELETE CASCADE)
+  // Clean up receipt storage files before deleting the transaction
+  const { data: receipts } = await supabase
+    .from("receipts")
+    .select("storage_path")
+    .eq("transaction_id", id);
+
+  if (receipts && receipts.length > 0) {
+    const paths = receipts.map((r) => r.storage_path);
+    await supabase.storage.from("receipts").remove(paths);
+  }
+
+  // Delete transaction (line items and receipts cascade via ON DELETE CASCADE)
   const { error } = await supabase
     .from("transactions")
     .delete()
@@ -645,7 +656,18 @@ export async function bulkDeleteTransactions(
     return { error: "Some transactions do not belong to this organization." };
   }
 
-  // Delete (line items cascade via ON DELETE CASCADE)
+  // Clean up receipt storage files before deleting the transactions
+  const { data: receipts } = await supabase
+    .from("receipts")
+    .select("storage_path")
+    .in("transaction_id", ids);
+
+  if (receipts && receipts.length > 0) {
+    const paths = receipts.map((r) => r.storage_path);
+    await supabase.storage.from("receipts").remove(paths);
+  }
+
+  // Delete (line items and receipts cascade via ON DELETE CASCADE)
   const { error } = await supabase
     .from("transactions")
     .delete()

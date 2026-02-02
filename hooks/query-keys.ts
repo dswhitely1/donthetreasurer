@@ -63,3 +63,11 @@ export const templateKeys = {
   detail: (orgId: string, templateId: string) =>
     [...templateKeys.all, "detail", orgId, templateId] as const,
 };
+
+export const receiptKeys = {
+  all: ["receipts"] as const,
+  list: (transactionId: string) =>
+    [...receiptKeys.all, "list", transactionId] as const,
+  signedUrl: (orgId: string, receiptId: string) =>
+    [...receiptKeys.all, "signedUrl", orgId, receiptId] as const,
+};
