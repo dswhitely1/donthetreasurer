@@ -381,53 +381,11 @@ describe("category actions", () => {
       expect(result?.error).toContain("Cannot merge a category into itself");
     });
 
-    it("returns error when types don't match", async () => {
-      let callCount = 0;
-      mockSupabase.from.mockImplementation(() => {
-        callCount++;
-        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-        const methods = ["select", "insert", "update", "delete", "eq", "in", "is", "order", "limit"];
-        for (const m of methods) chain[m] = vi.fn(() => chain);
-
-        if (callCount === 1) {
-          // org check
-          chain.single = vi.fn(() => Promise.resolve({ data: { id: orgId }, error: null }));
-        } else if (callCount === 2) {
-          // source category
-          chain.single = vi.fn(() =>
-            Promise.resolve({
-              data: {
-                id: catId,
-                parent_id: null,
-                category_type: "income",
-                is_active: true,
-              },
-              error: null,
-            })
-          );
-        } else if (callCount === 3) {
-          // target category - different type
-          chain.single = vi.fn(() =>
-            Promise.resolve({
-              data: {
-                id: targetCatId,
-                parent_id: null,
-                category_type: "expense",
-                is_active: true,
-              },
-              error: null,
-            })
-          );
-        }
-
-        Object.defineProperty(chain, "then", {
-          value: (resolve?: (v: unknown) => unknown, reject?: (r: unknown) => unknown) =>
-            Promise.resolve({ data: null, error: null }).then(resolve, reject),
-          writable: true,
-          configurable: true,
-        });
-
-        return chain;
+    it("returns RPC error when types don't match", async () => {
+      mockSupabase.mockResult({ data: { id: orgId }, error: null });
+      mockSupabase.rpc.mockResolvedValue({
+        data: null,
+        error: { message: "Categories must be the same type (income/expense)." },
       });
 
       const fd = makeFormData({
@@ -439,42 +397,11 @@ describe("category actions", () => {
       expect(result?.error).toContain("same type");
     });
 
-    it("blocks merging categories at different levels", async () => {
-      let callCount = 0;
-      mockSupabase.from.mockImplementation(() => {
-        callCount++;
-        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-        const methods = ["select", "insert", "update", "delete", "eq", "in", "is", "order", "limit"];
-        for (const m of methods) chain[m] = vi.fn(() => chain);
-
-        if (callCount === 1) {
-          chain.single = vi.fn(() => Promise.resolve({ data: { id: orgId }, error: null }));
-        } else if (callCount === 2) {
-          // source: parent (no parent_id)
-          chain.single = vi.fn(() =>
-            Promise.resolve({
-              data: { id: catId, parent_id: null, category_type: "income", is_active: true },
-              error: null,
-            })
-          );
-        } else if (callCount === 3) {
-          // target: child (has parent_id)
-          chain.single = vi.fn(() =>
-            Promise.resolve({
-              data: { id: targetCatId, parent_id: parentCatId, category_type: "income", is_active: true },
-              error: null,
-            })
-          );
-        }
-
-        Object.defineProperty(chain, "then", {
-          value: (resolve?: (v: unknown) => unknown, reject?: (r: unknown) => unknown) =>
-            Promise.resolve({ data: null, error: null }).then(resolve, reject),
-          writable: true,
-          configurable: true,
-        });
-
-        return chain;
+    it("returns RPC error when source has active subcategories", async () => {
+      mockSupabase.mockResult({ data: { id: orgId }, error: null });
+      mockSupabase.rpc.mockResolvedValue({
+        data: null,
+        error: { message: "Cannot merge a parent category that has active subcategories. Deactivate or merge its subcategories first." },
       });
 
       const fd = makeFormData({
@@ -483,46 +410,14 @@ describe("category actions", () => {
         organization_id: orgId,
       });
       const result = await mergeCategory(null, fd);
-      expect(result?.error).toContain("same level");
+      expect(result?.error).toContain("active subcategories");
     });
 
-    it("reparents subcategories and redirects on success (parent merge)", async () => {
-      let callCount = 0;
-      mockSupabase.from.mockImplementation(() => {
-        callCount++;
-        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-        const methods = ["select", "insert", "update", "delete", "eq", "in", "is", "order", "limit"];
-        for (const m of methods) chain[m] = vi.fn(() => chain);
-
-        if (callCount === 1) {
-          chain.single = vi.fn(() => Promise.resolve({ data: { id: orgId }, error: null }));
-        } else if (callCount === 2) {
-          // source: parent
-          chain.single = vi.fn(() =>
-            Promise.resolve({
-              data: { id: catId, parent_id: null, category_type: "income", is_active: true },
-              error: null,
-            })
-          );
-        } else if (callCount === 3) {
-          // target: parent
-          chain.single = vi.fn(() =>
-            Promise.resolve({
-              data: { id: targetCatId, parent_id: null, category_type: "income", is_active: true },
-              error: null,
-            })
-          );
-        }
-
-        // All subsequent calls succeed
-        Object.defineProperty(chain, "then", {
-          value: (resolve?: (v: unknown) => unknown, reject?: (r: unknown) => unknown) =>
-            Promise.resolve({ data: null, error: null }).then(resolve, reject),
-          writable: true,
-          configurable: true,
-        });
-
-        return chain;
+    it("redirects on successful merge via RPC", async () => {
+      mockSupabase.mockResult({ data: { id: orgId }, error: null });
+      mockSupabase.rpc.mockResolvedValue({
+        data: { reassigned_line_items: 5 },
+        error: null,
       });
 
       const fd = makeFormData({

@@ -73,31 +73,25 @@ export default async function CategoryDetailPage({
     subcategories = data ?? [];
   }
 
-  // Count transaction line items using this category
-  const { count: lineItemCount } = await supabase
+  // Count transaction line items and distinct transactions using this category
+  const { data: lineItems, count: lineItemCount } = await supabase
     .from("transaction_line_items")
-    .select("id", { count: "exact", head: true })
+    .select("transaction_id", { count: "exact" })
     .eq("category_id", categoryId);
 
-  // Fetch eligible merge targets: same org, same type, same level, active, not self
-  let mergeTargetQuery = supabase
+  const transactionCount = lineItems
+    ? new Set(lineItems.map((li) => li.transaction_id)).size
+    : 0;
+
+  // Fetch eligible merge targets: same org, same type, active, not self (cross-hierarchy allowed)
+  const { data: mergeTargets } = await supabase
     .from("categories")
-    .select("id, name")
+    .select("id, name, parent_id, parent:categories!parent_id(name)")
     .eq("organization_id", orgId)
     .eq("category_type", category.category_type)
     .eq("is_active", true)
     .neq("id", categoryId)
     .order("name");
-
-  if (category.parent_id) {
-    // Subcategory: only other subcategories (has parent_id)
-    mergeTargetQuery = mergeTargetQuery.not("parent_id", "is", null);
-  } else {
-    // Parent: only other parents (no parent_id)
-    mergeTargetQuery = mergeTargetQuery.is("parent_id", null);
-  }
-
-  const { data: mergeTargets } = await mergeTargetQuery;
 
 
   const typeLabel =
@@ -205,6 +199,7 @@ export default async function CategoryDetailPage({
             parentCategory={parentCategory}
             subcategoryCount={subcategoryCount}
             lineItemCount={lineItemCount ?? 0}
+            transactionCount={transactionCount}
             mergeTargets={mergeTargets ?? []}
           />
         </CardContent>

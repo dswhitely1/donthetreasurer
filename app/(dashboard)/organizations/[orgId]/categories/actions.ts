@@ -305,78 +305,16 @@ export async function mergeCategory(
     return { error: "Organization not found." };
   }
 
-  // Fetch source and target categories
-  const { data: source } = await supabase
-    .from("categories")
-    .select("id, parent_id, category_type, is_active")
-    .eq("id", source_id)
-    .eq("organization_id", organization_id)
-    .single();
+  // Atomic merge via RPC — validates, reassigns line items, hard-deletes source
+  const { error } = await supabase.rpc("merge_categories", {
+    p_source_id: source_id,
+    p_target_id: target_id,
+    p_organization_id: organization_id,
+  });
 
-  const { data: target } = await supabase
-    .from("categories")
-    .select("id, parent_id, category_type, is_active")
-    .eq("id", target_id)
-    .eq("organization_id", organization_id)
-    .single();
-
-  if (!source || !target) {
-    return { error: "Source or target category not found." };
-  }
-
-  if (!source.is_active) {
-    return { error: "Source category is already inactive." };
-  }
-
-  if (!target.is_active) {
-    return { error: "Target category is inactive." };
-  }
-
-  if (source.category_type !== target.category_type) {
-    return { error: "Categories must be the same type (income/expense)." };
-  }
-
-  const sourceIsParent = !source.parent_id;
-  const targetIsParent = !target.parent_id;
-
-  if (sourceIsParent !== targetIsParent) {
-    return {
-      error: "Categories must be at the same level (both parents or both subcategories).",
-    };
-  }
-
-  // If source is a parent, reparent its active subcategories to target
-  if (sourceIsParent) {
-    const { error: reparentError } = await supabase
-      .from("categories")
-      .update({ parent_id: target_id })
-      .eq("parent_id", source_id)
-      .eq("is_active", true);
-
-    if (reparentError) {
-      return { error: "Failed to move subcategories. Please try again." };
-    }
-  }
-
-  // Reassign line items from source to target
-  const { error: reassignError } = await supabase
-    .from("transaction_line_items")
-    .update({ category_id: target_id })
-    .eq("category_id", source_id);
-
-  if (reassignError) {
-    return { error: "Failed to reassign line items. Please try again." };
-  }
-
-  // Deactivate source category
-  const { error: deactivateError } = await supabase
-    .from("categories")
-    .update({ is_active: false })
-    .eq("id", source_id)
-    .eq("organization_id", organization_id);
-
-  if (deactivateError) {
-    return { error: "Failed to deactivate source category. Please try again." };
+  if (error) {
+    // RPC RAISE EXCEPTION messages come through as error.message
+    return { error: error.message || "Failed to merge categories. Please try again." };
   }
 
   revalidatePath("/dashboard", "layout");
