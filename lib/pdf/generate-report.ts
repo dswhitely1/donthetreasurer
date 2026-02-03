@@ -7,6 +7,7 @@ import type {
   ReportData,
   ReportTransaction,
 } from "@/lib/reports/types";
+import type { BudgetReportData } from "@/lib/reports/fetch-budget-data";
 
 function formatPdfDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
@@ -18,6 +19,11 @@ function formatCurrency(amount: number): string {
     style: "currency",
     currency: "USD",
   }).format(amount);
+}
+
+/** Replace Unicode characters unsupported by jsPDF built-in fonts with ASCII */
+function sanitizeText(text: string): string {
+  return text.replace(/\u2192/g, ">").replace(/\u2014/g, "--");
 }
 
 const STATUS_ORDER: ReportTransaction["status"][] = [
@@ -58,7 +64,10 @@ function addPageNumbers(doc: jsPDF): void {
   }
 }
 
-export function generateReportPdf(data: ReportData): Buffer {
+export function generateReportPdf(
+  data: ReportData,
+  budgetData?: BudgetReportData | null
+): Buffer {
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "letter" });
 
   // Title block
@@ -175,7 +184,7 @@ export function generateReportPdf(data: ReportData): Buffer {
               isFirst ? txn.checkNumber ?? "" : "",
               isFirst ? txn.vendor ?? "" : "",
               isFirst ? txn.description : "",
-              li.categoryLabel,
+              sanitizeText(li.categoryLabel),
               li.memo ?? "",
               incomeAmt !== null ? formatCurrency(incomeAmt) : "",
               expenseAmt !== null ? formatCurrency(expenseAmt) : "",
@@ -459,6 +468,148 @@ export function generateReportPdf(data: ReportData): Buffer {
       }
     }
     drawSummaryTable(expenseRows);
+  }
+
+  // Budget vs. Actuals page
+  if (budgetData) {
+    doc.addPage();
+    let budgetY = MARGIN + 10;
+
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Budget vs. Actuals: ${budgetData.budgetName}`, MARGIN, budgetY);
+    budgetY += 18;
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "italic");
+    doc.text(
+      `${formatPdfDate(budgetData.startDate)} to ${formatPdfDate(budgetData.endDate)} (${budgetData.status})`,
+      MARGIN,
+      budgetY
+    );
+    budgetY += 15;
+
+    const budgetHead = [["Category", "Budgeted", "Actual", "Variance ($)", "Variance (%)"]];
+    const budgetRows: CellInput[][] = [];
+
+    if (budgetData.incomeLines.length > 0) {
+      budgetRows.push([
+        {
+          content: "INCOME",
+          colSpan: 5,
+          styles: { fillColor: BLUE_BG, fontStyle: "bold", fontSize: 8 },
+        },
+      ]);
+      for (const line of budgetData.incomeLines) {
+        budgetRows.push([
+          sanitizeText(line.categoryName),
+          { content: formatCurrency(line.budgeted), styles: { halign: "right" } },
+          { content: formatCurrency(line.actual), styles: { halign: "right" } },
+          {
+            content: `${line.variance >= 0 ? "+" : ""}${formatCurrency(line.variance)}`,
+            styles: { halign: "right", textColor: line.variance >= 0 ? GREEN : RED },
+          },
+          {
+            content: line.variancePercent !== null ? `${line.variancePercent.toFixed(0)}%` : "--",
+            styles: { halign: "right" },
+          },
+        ]);
+      }
+      budgetRows.push([
+        { content: "Income Subtotal", styles: { fontStyle: "bold" } },
+        { content: formatCurrency(budgetData.totals.budgetedIncome), styles: { halign: "right", fontStyle: "bold" } },
+        { content: formatCurrency(budgetData.totals.actualIncome), styles: { halign: "right", fontStyle: "bold" } },
+        {
+          content: formatCurrency(budgetData.totals.actualIncome - budgetData.totals.budgetedIncome),
+          styles: {
+            halign: "right",
+            fontStyle: "bold",
+            textColor: budgetData.totals.actualIncome >= budgetData.totals.budgetedIncome ? GREEN : RED,
+          },
+        },
+        "",
+      ]);
+    }
+
+    if (budgetData.expenseLines.length > 0) {
+      budgetRows.push([
+        {
+          content: "EXPENSES",
+          colSpan: 5,
+          styles: { fillColor: [254, 242, 242], fontStyle: "bold", fontSize: 8 },
+        },
+      ]);
+      for (const line of budgetData.expenseLines) {
+        budgetRows.push([
+          sanitizeText(line.categoryName),
+          { content: formatCurrency(line.budgeted), styles: { halign: "right" } },
+          { content: formatCurrency(line.actual), styles: { halign: "right" } },
+          {
+            content: `${line.variance >= 0 ? "+" : ""}${formatCurrency(line.variance)}`,
+            styles: { halign: "right", textColor: line.variance >= 0 ? GREEN : RED },
+          },
+          {
+            content: line.variancePercent !== null ? `${line.variancePercent.toFixed(0)}%` : "--",
+            styles: { halign: "right" },
+          },
+        ]);
+      }
+      budgetRows.push([
+        { content: "Expenses Subtotal", styles: { fontStyle: "bold" } },
+        { content: formatCurrency(budgetData.totals.budgetedExpenses), styles: { halign: "right", fontStyle: "bold" } },
+        { content: formatCurrency(budgetData.totals.actualExpenses), styles: { halign: "right", fontStyle: "bold" } },
+        {
+          content: formatCurrency(budgetData.totals.budgetedExpenses - budgetData.totals.actualExpenses),
+          styles: {
+            halign: "right",
+            fontStyle: "bold",
+            textColor: budgetData.totals.actualExpenses <= budgetData.totals.budgetedExpenses ? GREEN : RED,
+          },
+        },
+        "",
+      ]);
+    }
+
+    // Net row
+    const netVariance = budgetData.totals.netActual - budgetData.totals.netBudget;
+    budgetRows.push([
+      { content: "NET", styles: { fontStyle: "bold", fontSize: 9 } },
+      { content: formatCurrency(budgetData.totals.netBudget), styles: { halign: "right", fontStyle: "bold" } },
+      { content: formatCurrency(budgetData.totals.netActual), styles: { halign: "right", fontStyle: "bold" } },
+      {
+        content: formatCurrency(netVariance),
+        styles: {
+          halign: "right",
+          fontStyle: "bold",
+          textColor: netVariance >= 0 ? GREEN : RED,
+        },
+      },
+      "",
+    ]);
+
+    autoTable(doc, {
+      startY: budgetY,
+      head: budgetHead,
+      body: budgetRows,
+      margin: { left: MARGIN, right: MARGIN },
+      theme: "grid",
+      headStyles: {
+        fillColor: HEADER_BG,
+        textColor: [0, 0, 0],
+        fontStyle: "bold",
+        fontSize: 8,
+      },
+      styles: { fontSize: 8, cellPadding: 4 },
+      columnStyles: {
+        0: { cellWidth: 200 },
+        1: { cellWidth: 80, halign: "right" },
+        2: { cellWidth: 80, halign: "right" },
+        3: { cellWidth: 80, halign: "right" },
+        4: { cellWidth: 60, halign: "right" },
+      },
+      tableWidth: 500,
+    });
   }
 
   // Page numbers

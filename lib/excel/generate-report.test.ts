@@ -62,14 +62,14 @@ describe("generateReportWorkbook", () => {
     const headerRow = sheet.getRow(6);
 
     expect(headerRow.getCell(1).value).toBe("Transaction Date");
-    expect(headerRow.getCell(5).value).toBe("Vendor");
-    expect(headerRow.getCell(6).value).toBe("Description");
-    expect(headerRow.getCell(9).value).toBe("Income");
-    expect(headerRow.getCell(10).value).toBe("Expense");
-    expect(headerRow.getCell(13).value).toBe("Running Balance");
+    expect(headerRow.getCell(4).value).toBe("Vendor");
+    expect(headerRow.getCell(5).value).toBe("Description");
+    expect(headerRow.getCell(8).value).toBe("Income");
+    expect(headerRow.getCell(9).value).toBe("Expense");
+    expect(headerRow.getCell(12).value).toBe("Running Balance");
   });
 
-  it("puts income in column I and expense in column J", async () => {
+  it("puts income in column H and expense in column I", async () => {
     const data = makeReportData({
       transactions: [
         {
@@ -113,17 +113,19 @@ describe("generateReportWorkbook", () => {
     const wb = await parseWorkbook(buffer);
     const sheet = wb.getWorksheet("Transactions")!;
 
-    // Row 7 = first data row (income)
-    const incomeRow = sheet.getRow(7);
-    expect(incomeRow.getCell(5).value).toBe("Donor Corp"); // Vendor column
-    expect(incomeRow.getCell(9).value).toBe(500); // Income column
-    expect(incomeRow.getCell(10).value).toBeNull(); // Expense should be null
+    // Row 7 = Account header ("Account: Checking")
+    // Row 8 = Status sub-header ("  Cleared")
+    // Row 9 = first data row (income)
+    const incomeRow = sheet.getRow(9);
+    expect(incomeRow.getCell(4).value).toBe("Donor Corp"); // Vendor column
+    expect(incomeRow.getCell(8).value).toBe(500); // Income column
+    expect(incomeRow.getCell(9).value).toBeNull(); // Expense should be null
 
-    // Row 8 = second data row (expense)
-    const expenseRow = sheet.getRow(8);
-    expect(expenseRow.getCell(5).value).toBe("Staples"); // Vendor column
-    expect(expenseRow.getCell(9).value).toBeNull(); // Income should be null
-    expect(expenseRow.getCell(10).value).toBe(200); // Expense column
+    // Row 10 = second data row (expense)
+    const expenseRow = sheet.getRow(10);
+    expect(expenseRow.getCell(4).value).toBe("Staples"); // Vendor column
+    expect(expenseRow.getCell(8).value).toBeNull(); // Income should be null
+    expect(expenseRow.getCell(9).value).toBe(200); // Expense column
   });
 
   it("handles split transaction with multiple rows", async () => {
@@ -154,20 +156,22 @@ describe("generateReportWorkbook", () => {
     const wb = await parseWorkbook(buffer);
     const sheet = wb.getWorksheet("Transactions")!;
 
-    // First line item row (row 7)
-    const row7 = sheet.getRow(7);
-    expect(row7.getCell(6).value).toBe("Office Supplies"); // Description
-    expect(row7.getCell(7).value).toBe("Operations → Supplies"); // Category
-    expect(row7.getCell(10).value).toBe(350); // Expense amount
+    // Row 7 = Account header ("Account: Checking")
+    // Row 8 = Status sub-header ("  Cleared")
+    // Row 9 = first line item
+    const row9 = sheet.getRow(9);
+    expect(row9.getCell(5).value).toBe("Office Supplies"); // Description
+    expect(row9.getCell(6).value).toBe("Operations → Supplies"); // Category
+    expect(row9.getCell(9).value).toBe(350); // Expense amount
 
-    // Second line item row (row 8) - continuation row
-    const row8 = sheet.getRow(8);
-    expect(row8.getCell(6).value).toBe(""); // Description blank on continuation
-    expect(row8.getCell(7).value).toBe("Operations → Equipment"); // Category
-    expect(row8.getCell(10).value).toBe(150); // Expense amount
+    // Row 10 = second line item (continuation)
+    const row10 = sheet.getRow(10);
+    expect(row10.getCell(5).value).toBe(""); // Description blank on continuation
+    expect(row10.getCell(6).value).toBe("Operations → Equipment"); // Category
+    expect(row10.getCell(9).value).toBe(150); // Expense amount
   });
 
-  it("shows running balance only on last line item of split transaction", async () => {
+  it("shows running balance as null in grouped view", async () => {
     const data = makeReportData({
       transactions: [
         {
@@ -195,10 +199,10 @@ describe("generateReportWorkbook", () => {
     const wb = await parseWorkbook(buffer);
     const sheet = wb.getWorksheet("Transactions")!;
 
-    // First line item: running balance should be null
-    expect(sheet.getRow(7).getCell(13).value).toBeNull();
-    // Second (last) line item: running balance should be 700
-    expect(sheet.getRow(8).getCell(13).value).toBe(700);
+    // Row 7 = Account header, Row 8 = Status header, Row 9-10 = data rows
+    // In grouped view, running balance column (12) is always null for data rows
+    expect(sheet.getRow(9).getCell(12).value).toBeNull();
+    expect(sheet.getRow(10).getCell(12).value).toBeNull();
   });
 
   it("handles empty transactions with a note", async () => {

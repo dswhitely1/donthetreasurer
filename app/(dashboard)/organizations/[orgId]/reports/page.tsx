@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { ReportFilters } from "./report-filters";
 
-import type { CategoryOption } from "./report-filters";
+import type { CategoryOption, BudgetOption } from "./report-filters";
 
 interface SearchParams {
   account_id?: string;
@@ -21,6 +21,7 @@ interface SearchParams {
   start_date?: string;
   end_date?: string;
   preset?: string;
+  budget_id?: string;
 }
 
 export default async function ReportsPage({
@@ -37,6 +38,7 @@ export default async function ReportsPage({
     category_id,
     start_date,
     end_date,
+    budget_id,
   } = await searchParams;
 
   const supabase = await createClient();
@@ -93,6 +95,18 @@ export default async function ReportsPage({
     }
   }
 
+  // Fetch budgets for filter dropdown
+  const { data: allBudgets } = await supabase
+    .from("budgets")
+    .select("id, name")
+    .eq("organization_id", orgId)
+    .order("name");
+
+  const budgetOptions: BudgetOption[] = (allBudgets ?? []).map((b) => ({
+    id: b.id,
+    name: b.name,
+  }));
+
   // Check if we have valid date range to generate report
   const hasDateRange = !!start_date && !!end_date;
   let reportData = null;
@@ -105,6 +119,7 @@ export default async function ReportsPage({
       account_id: account_id || undefined,
       category_id: category_id || undefined,
       status: status || undefined,
+      budget_id: budget_id || undefined,
     });
 
     if (!parsed.success) {
@@ -136,6 +151,7 @@ export default async function ReportsPage({
           orgId={orgId}
           accounts={activeAccounts}
           categories={categoryOptions}
+          budgets={budgetOptions}
           fiscalYearStartMonth={organization.fiscal_year_start_month ?? 1}
         />
       </div>

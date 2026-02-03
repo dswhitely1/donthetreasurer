@@ -19,6 +19,7 @@ export const reportParamsSchema = z.object({
       return val.split(",").filter(Boolean);
     }),
   preset: z.string().optional(),
+  budget_id: z.string().uuid("Invalid budget ID.").optional(),
 });
 
 export type ReportParams = z.infer<typeof reportParamsSchema>;

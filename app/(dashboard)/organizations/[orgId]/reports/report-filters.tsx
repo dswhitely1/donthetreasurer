@@ -27,10 +27,16 @@ export interface CategoryOption {
   label: string;
 }
 
+export interface BudgetOption {
+  id: string;
+  name: string;
+}
+
 interface ReportFiltersProps {
   orgId: string;
   accounts: Account[];
   categories: CategoryOption[];
+  budgets: BudgetOption[];
   fiscalYearStartMonth: number;
 }
 
@@ -46,6 +52,7 @@ export function ReportFilters({
   orgId,
   accounts,
   categories,
+  budgets,
   fiscalYearStartMonth,
 }: Readonly<ReportFiltersProps>) {
   const router = useRouter();
@@ -55,6 +62,7 @@ export function ReportFilters({
   const currentAccountId = searchParams.get("account_id") ?? "all";
   const currentStatus = searchParams.get("status") ?? "all";
   const currentCategoryId = searchParams.get("category_id") ?? "all";
+  const currentBudgetId = searchParams.get("budget_id") ?? "none";
   const currentStartDate = searchParams.get("start_date") ?? "";
   const currentEndDate = searchParams.get("end_date") ?? "";
   const currentPreset = (searchParams.get("preset") ?? "custom") as PresetKey;
@@ -124,6 +132,9 @@ export function ReportFilters({
     }
     if (currentPreset !== "custom") {
       params.set("preset", currentPreset);
+    }
+    if (currentBudgetId !== "none") {
+      params.set("budget_id", currentBudgetId);
     }
     return params;
   }
@@ -247,6 +258,28 @@ export function ReportFilters({
             </SelectContent>
           </Select>
         </div>
+
+        {budgets.length > 0 && (
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Budget</Label>
+            <Select
+              value={currentBudgetId}
+              onValueChange={(v) => updateParam("budget_id", v === "none" ? "" : v)}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="No Budget" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No Budget</SelectItem>
+                {budgets.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {presetLabel && (

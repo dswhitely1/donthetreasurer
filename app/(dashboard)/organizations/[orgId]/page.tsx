@@ -7,6 +7,7 @@ import {
   FolderTree,
   Landmark,
   Lock,
+  PiggyBank,
   Plus,
   Repeat,
   GitBranch,
@@ -59,8 +60,8 @@ export default async function OrganizationOverviewPage({
   const { orgId } = await params;
   const supabase = await createClient();
 
-  // Fetch org, accounts, transactions, recent transactions, and upcoming templates in parallel
-  const [orgResult, accountsResult, txnResult, recentResult, upcomingResult] =
+  // Fetch org, accounts, transactions, recent transactions, upcoming templates, and active budgets in parallel
+  const [orgResult, accountsResult, txnResult, recentResult, upcomingResult, activeBudgetsResult] =
     await Promise.all([
       supabase
         .from("organizations")
@@ -121,6 +122,21 @@ export default async function OrganizationOverviewPage({
         .not("next_occurrence_date", "is", null)
         .order("next_occurrence_date", { ascending: true })
         .limit(5),
+      supabase
+        .from("budgets")
+        .select(
+          `
+          id,
+          name,
+          start_date,
+          end_date,
+          budget_line_items(amount, category_id, categories(category_type))
+        `
+        )
+        .eq("organization_id", orgId)
+        .eq("status", "active")
+        .order("start_date", { ascending: false })
+        .limit(3),
     ]);
 
   const organization = orgResult.data;
@@ -132,6 +148,7 @@ export default async function OrganizationOverviewPage({
   const allTransactions = txnResult.data ?? [];
   const recentTransactions = recentResult.data ?? [];
   const upcomingTemplates = upcomingResult.data ?? [];
+  const activeBudgets = activeBudgetsResult.data ?? [];
 
   // Compute balances
   const openingBalanceTotal = accounts.reduce(
@@ -285,6 +302,71 @@ export default async function OrganizationOverviewPage({
             </Link>
           </Button>
         </div>
+
+        {/* Budget Snapshot */}
+        {activeBudgets.length > 0 && (
+          <div className="mt-8">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-foreground">
+                Budget Snapshot
+              </h3>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href={`/organizations/${orgId}/budgets`}>
+                  View all
+                </Link>
+              </Button>
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {activeBudgets.map((b) => {
+                const items = b.budget_line_items ?? [];
+                let budgetedIncome = 0;
+                let budgetedExpenses = 0;
+                for (const li of items) {
+                  const cat = li.categories as { category_type: string } | null;
+                  if (cat?.category_type === "income") {
+                    budgetedIncome += li.amount;
+                  } else {
+                    budgetedExpenses += li.amount;
+                  }
+                }
+
+                return (
+                  <Link
+                    key={b.id}
+                    href={`/organizations/${orgId}/budgets/${b.id}`}
+                    className="rounded-lg border border-border p-4 transition-colors hover:bg-muted/30"
+                  >
+                    <div className="flex items-center gap-2">
+                      <PiggyBank className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{b.name}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatDate(b.start_date)} &ndash; {formatDate(b.end_date)}
+                    </p>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-xs text-muted-foreground">
+                          Income
+                        </span>
+                        <p className="font-medium tabular-nums text-green-600 dark:text-green-400">
+                          {formatCurrency(budgetedIncome)}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">
+                          Expenses
+                        </span>
+                        <p className="font-medium tabular-nums text-red-600 dark:text-red-400">
+                          {formatCurrency(budgetedExpenses)}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Upcoming recurring transactions */}
         {upcomingTemplates.length > 0 && (
