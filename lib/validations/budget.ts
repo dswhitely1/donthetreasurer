@@ -24,54 +24,43 @@ export const budgetLineItemsArraySchema = z
   .array(budgetLineItemSchema)
   .min(1, "At least one line item is required.");
 
-export const createBudgetSchema = z
-  .object({
-    organization_id: z.string().uuid("Invalid organization ID."),
-    name: z
-      .string()
-      .min(1, "Name is required.")
-      .max(150, "Name must be 150 characters or fewer."),
-    start_date: z.string().min(1, "Start date is required."),
-    end_date: z.string().min(1, "End date is required."),
-    status: z.enum(BUDGET_STATUSES, {
-      message: "Invalid budget status.",
-    }),
-    notes: z
-      .string()
-      .max(1000, "Notes must be 1000 characters or fewer.")
-      .optional()
-      .or(z.literal("")),
-    line_items: z.string().min(1, "Line items are required."),
-  })
-  .refine((data) => data.start_date < data.end_date, {
-    message: "Start date must be before end date.",
-    path: ["end_date"],
-  });
+const baseBudgetSchema = z.object({
+  organization_id: z.string().uuid("Invalid organization ID."),
+  name: z
+    .string()
+    .min(1, "Name is required.")
+    .max(150, "Name must be 150 characters or fewer."),
+  start_date: z.string().min(1, "Start date is required."),
+  end_date: z.string().min(1, "End date is required."),
+  status: z.enum(BUDGET_STATUSES, {
+    message: "Invalid budget status.",
+  }),
+  notes: z
+    .string()
+    .max(1000, "Notes must be 1000 characters or fewer.")
+    .optional()
+    .or(z.literal("")),
+  line_items: z.string().min(1, "Line items are required."),
+});
 
-export const updateBudgetSchema = z
-  .object({
+const dateRangeRefinement = (data: { start_date: string; end_date: string }) =>
+  data.start_date < data.end_date;
+
+const dateRangeOptions = {
+  message: "Start date must be before end date.",
+  path: ["end_date"] as string[],
+};
+
+export const createBudgetSchema = baseBudgetSchema.refine(
+  dateRangeRefinement,
+  dateRangeOptions
+);
+
+export const updateBudgetSchema = baseBudgetSchema
+  .extend({
     id: z.string().uuid("Invalid budget ID."),
-    organization_id: z.string().uuid("Invalid organization ID."),
-    name: z
-      .string()
-      .min(1, "Name is required.")
-      .max(150, "Name must be 150 characters or fewer."),
-    start_date: z.string().min(1, "Start date is required."),
-    end_date: z.string().min(1, "End date is required."),
-    status: z.enum(BUDGET_STATUSES, {
-      message: "Invalid budget status.",
-    }),
-    notes: z
-      .string()
-      .max(1000, "Notes must be 1000 characters or fewer.")
-      .optional()
-      .or(z.literal("")),
-    line_items: z.string().min(1, "Line items are required."),
   })
-  .refine((data) => data.start_date < data.end_date, {
-    message: "Start date must be before end date.",
-    path: ["end_date"],
-  });
+  .refine(dateRangeRefinement, dateRangeOptions);
 
 export const duplicateBudgetSchema = z
   .object({

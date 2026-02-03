@@ -75,6 +75,13 @@ export async function GET(
       ? await fetchBudgetReportData(supabase, parsed.data.budget_id)
       : null;
 
+    if (parsed.data.budget_id && !budgetData) {
+      return NextResponse.json(
+        { error: "Budget not found" },
+        { status: 404 }
+      );
+    }
+
     const buffer = await generateReportWorkbook(reportData, budgetData);
 
     const safeName = reportData.organizationName.replace(/[^a-zA-Z0-9]/g, "");

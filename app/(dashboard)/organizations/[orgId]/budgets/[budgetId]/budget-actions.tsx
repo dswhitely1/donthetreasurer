@@ -8,6 +8,7 @@ import {
   BUDGET_STATUSES,
   BUDGET_STATUS_LABELS,
 } from "@/lib/validations/budget";
+import type { BudgetStatus } from "@/lib/validations/budget";
 import { useDuplicateBudget } from "@/hooks/use-budgets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,7 @@ import {
 interface BudgetActionsProps {
   budgetId: string;
   orgId: string;
-  currentStatus: string;
+  currentStatus: BudgetStatus;
   budgetName: string;
 }
 

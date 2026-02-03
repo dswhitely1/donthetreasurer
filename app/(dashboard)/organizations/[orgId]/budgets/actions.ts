@@ -135,7 +135,13 @@ export async function createBudget(
     .insert(lineItemInserts);
 
   if (liError) {
-    await supabase.from("budgets").delete().eq("id", budget.id);
+    const { error: cleanupError } = await supabase
+      .from("budgets")
+      .delete()
+      .eq("id", budget.id);
+    if (cleanupError) {
+      console.error("Failed to clean up orphaned budget:", budget.id, cleanupError);
+    }
     return { error: "Failed to create line items. Please try again." };
   }
 
@@ -270,10 +276,14 @@ export async function updateBudget(
   }
 
   // Delete existing line items and re-insert
-  await supabase
+  const { error: deleteError } = await supabase
     .from("budget_line_items")
     .delete()
     .eq("budget_id", parsed.data.id);
+
+  if (deleteError) {
+    return { error: "Failed to update line items. Please try again." };
+  }
 
   const lineItemInserts = parsedLineItems.data.map((li) => ({
     budget_id: parsed.data.id,
@@ -354,7 +364,7 @@ export async function deleteBudget(
 }
 
 export async function duplicateBudget(
-  _prevState: { error: string } | null,
+  _prevState: { error: string } | { newBudgetId: string } | null,
   formData: FormData
 ) {
   const raw = {
@@ -447,15 +457,19 @@ export async function duplicateBudget(
       .insert(lineItemInserts);
 
     if (liError) {
-      await supabase.from("budgets").delete().eq("id", newBudget.id);
+      const { error: cleanupError } = await supabase
+        .from("budgets")
+        .delete()
+        .eq("id", newBudget.id);
+      if (cleanupError) {
+        console.error("Failed to clean up orphaned budget:", newBudget.id, cleanupError);
+      }
       return { error: "Failed to copy line items. Please try again." };
     }
   }
 
   revalidatePath("/dashboard", "layout");
-  redirect(
-    `/organizations/${parsed.data.organization_id}/budgets/${newBudget.id}`
-  );
+  return { newBudgetId: newBudget.id };
 }
 
 export async function updateBudgetStatus(
@@ -490,6 +504,18 @@ export async function updateBudgetStatus(
 
   if (!org) {
     return { error: "Organization not found." };
+  }
+
+  // Verify the budget exists and belongs to this org
+  const { data: existing } = await supabase
+    .from("budgets")
+    .select("id")
+    .eq("id", parsed.data.id)
+    .eq("organization_id", parsed.data.organization_id)
+    .single();
+
+  if (!existing) {
+    return { error: "Budget not found." };
   }
 
   const { error } = await supabase

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import type { BudgetStatus } from "@/lib/validations/budget";
 
 export interface BudgetReportLine {
   categoryName: string;
@@ -14,7 +15,7 @@ export interface BudgetReportData {
   budgetName: string;
   startDate: string;
   endDate: string;
-  status: string;
+  status: BudgetStatus;
   incomeLines: BudgetReportLine[];
   expenseLines: BudgetReportLine[];
   totals: {
@@ -32,7 +33,7 @@ export async function fetchBudgetReportData(
   budgetId: string
 ): Promise<BudgetReportData | null> {
   // Fetch budget with line items
-  const { data: budget } = await supabase
+  const { data: budget, error: budgetError } = await supabase
     .from("budgets")
     .select(
       `
@@ -46,15 +47,23 @@ export async function fetchBudgetReportData(
     .eq("id", budgetId)
     .single();
 
+  if (budgetError && budgetError.code !== "PGRST116") {
+    throw new Error(`Failed to fetch budget: ${budgetError.message}`);
+  }
+
   if (!budget) return null;
 
   const orgId = budget.organization_id;
 
   // Fetch all categories for parent name resolution
-  const { data: allCategories } = await supabase
+  const { data: allCategories, error: categoriesError } = await supabase
     .from("categories")
     .select("id, name, parent_id")
     .eq("organization_id", orgId);
+
+  if (categoriesError) {
+    throw new Error(`Failed to fetch categories: ${categoriesError.message}`);
+  }
 
   const categoryNameMap = new Map(
     (allCategories ?? []).map((c) => [c.id, c.name])
@@ -79,7 +88,7 @@ export async function fetchBudgetReportData(
   }
 
   // Fetch actuals
-  const { data: transactions } = await supabase
+  const { data: transactions, error: transactionsError } = await supabase
     .from("transactions")
     .select(
       `
@@ -91,6 +100,10 @@ export async function fetchBudgetReportData(
     .eq("accounts.organization_id", orgId)
     .gte("transaction_date", budget.start_date)
     .lte("transaction_date", budget.end_date);
+
+  if (transactionsError) {
+    throw new Error(`Failed to fetch transactions: ${transactionsError.message}`);
+  }
 
   const actualsByCategory = new Map<string, number>();
   for (const txn of transactions ?? []) {
@@ -155,7 +168,7 @@ export async function fetchBudgetReportData(
     budgetName: budget.name,
     startDate: budget.start_date,
     endDate: budget.end_date,
-    status: budget.status,
+    status: budget.status as BudgetStatus,
     incomeLines,
     expenseLines,
     totals: {

@@ -8,6 +8,8 @@ import {
 } from "@/app/(dashboard)/organizations/[orgId]/budgets/actions";
 import { budgetKeys } from "./query-keys";
 
+import type { BudgetStatus } from "@/lib/validations/budget";
+
 export function useDeleteBudget(orgId: string) {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -54,13 +56,18 @@ export function useDuplicateBudget(orgId: string) {
       formData.set("end_date", endDate);
 
       const result = await duplicateBudget(null, formData);
-      if (result?.error) {
+      if (result && "error" in result) {
         throw new Error(result.error);
       }
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: budgetKeys.all });
-      router.refresh();
+      if (result?.newBudgetId) {
+        router.push(`/organizations/${orgId}/budgets/${result.newBudgetId}`);
+      } else {
+        router.refresh();
+      }
     },
   });
 }
@@ -75,7 +82,7 @@ export function useUpdateBudgetStatus(orgId: string) {
       status,
     }: {
       id: string;
-      status: string;
+      status: BudgetStatus;
     }) => {
       const formData = new FormData();
       formData.set("id", id);

@@ -19,7 +19,7 @@ import { BudgetDetailActions } from "./budget-actions";
 import type { BudgetStatus } from "@/lib/validations/budget";
 
 function getStatusBadgeVariant(
-  status: string
+  status: BudgetStatus
 ): "default" | "secondary" | "outline" {
   switch (status) {
     case "active":
@@ -50,10 +50,10 @@ interface UnbudgetedActual {
   actual: number;
 }
 
-function VarianceCell({ variance, type }: Readonly<{ variance: number; type: "income" | "expense" }>) {
-  // For income: positive variance = good (actual > budgeted)
-  // For expense: negative variance = good (actual < budgeted)
-  const isFavorable = type === "income" ? variance >= 0 : variance >= 0;
+function VarianceCell({ variance }: Readonly<{ variance: number }>) {
+  // Variance is pre-computed: income = actual - budgeted, expense = budgeted - actual
+  // So positive variance is always favorable regardless of type
+  const isFavorable = variance >= 0;
   return (
     <span
       className={`tabular-nums ${
@@ -279,8 +279,8 @@ export default async function BudgetDetailPage({
   const netBudget = budgetedIncome - budgetedExpenses;
   const netActual = actualIncome - actualExpenses;
 
-  const statusLabel =
-    BUDGET_STATUS_LABELS[budget.status as BudgetStatus] ?? budget.status;
+  const budgetStatus = budget.status as BudgetStatus;
+  const statusLabel = BUDGET_STATUS_LABELS[budgetStatus] ?? budget.status;
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -303,7 +303,7 @@ export default async function BudgetDetailPage({
                 {formatDate(budget.end_date)}
               </p>
             </div>
-            <Badge variant={getStatusBadgeVariant(budget.status)}>
+            <Badge variant={getStatusBadgeVariant(budgetStatus)}>
               {statusLabel}
             </Badge>
           </div>
@@ -318,7 +318,7 @@ export default async function BudgetDetailPage({
           <BudgetDetailActions
             budgetId={budgetId}
             orgId={orgId}
-            currentStatus={budget.status}
+            currentStatus={budgetStatus}
             budgetName={budget.name}
           />
 
@@ -409,10 +409,7 @@ export default async function BudgetDetailPage({
                           {formatCurrency(line.actual)}
                         </td>
                         <td className="px-3 py-2 text-right">
-                          <VarianceCell
-                            variance={line.variance}
-                            type="income"
-                          />
+                          <VarianceCell variance={line.variance} />
                         </td>
                         <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
                           {line.variancePercent !== null
@@ -439,7 +436,6 @@ export default async function BudgetDetailPage({
                       <td className="px-3 py-2 text-right">
                         <VarianceCell
                           variance={actualIncome - budgetedIncome}
-                          type="income"
                         />
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
@@ -499,10 +495,7 @@ export default async function BudgetDetailPage({
                           {formatCurrency(line.actual)}
                         </td>
                         <td className="px-3 py-2 text-right">
-                          <VarianceCell
-                            variance={line.variance}
-                            type="expense"
-                          />
+                          <VarianceCell variance={line.variance} />
                         </td>
                         <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
                           {line.variancePercent !== null
@@ -529,7 +522,6 @@ export default async function BudgetDetailPage({
                       <td className="px-3 py-2 text-right">
                         <VarianceCell
                           variance={budgetedExpenses - actualExpenses}
-                          type="expense"
                         />
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">

@@ -30,7 +30,7 @@ CREATE TABLE public.budget_line_items (
 
 -- Indexes
 CREATE INDEX idx_budgets_organization ON public.budgets(organization_id);
-CREATE INDEX idx_budgets_dates ON public.budgets(start_date, end_date);
+CREATE INDEX idx_budgets_dates ON public.budgets(organization_id, start_date, end_date);
 CREATE INDEX idx_budget_line_items_budget ON public.budget_line_items(budget_id);
 CREATE INDEX idx_budget_line_items_category ON public.budget_line_items(category_id);
 
