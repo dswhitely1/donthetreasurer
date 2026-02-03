@@ -71,3 +71,12 @@ export const receiptKeys = {
   signedUrl: (orgId: string, receiptId: string) =>
     [...receiptKeys.all, "signedUrl", orgId, receiptId] as const,
 };
+
+export const budgetKeys = {
+  all: ["budgets"] as const,
+  list: (orgId: string) => [...budgetKeys.all, "list", orgId] as const,
+  detail: (orgId: string, budgetId: string) =>
+    [...budgetKeys.all, "detail", orgId, budgetId] as const,
+  actuals: (orgId: string, budgetId: string) =>
+    [...budgetKeys.all, "actuals", orgId, budgetId] as const,
+};

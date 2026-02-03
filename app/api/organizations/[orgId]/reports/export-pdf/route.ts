@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { reportParamsSchema } from "@/lib/validations/report";
 import { fetchReportData } from "@/lib/reports/fetch-report-data";
+import { fetchBudgetReportData } from "@/lib/reports/fetch-budget-data";
 import { generateReportPdf } from "@/lib/pdf/generate-report";
 import { getPresetDateRange } from "@/lib/fiscal-year";
 
@@ -30,6 +31,7 @@ export async function GET(
     category_id: url.searchParams.get("category_id") ?? undefined,
     status: url.searchParams.get("status") ?? undefined,
     preset: url.searchParams.get("preset") ?? undefined,
+    budget_id: url.searchParams.get("budget_id") ?? undefined,
   };
 
   const parsed = reportParamsSchema.safeParse(rawParams);
@@ -68,7 +70,12 @@ export async function GET(
       }
     }
 
-    const buffer = generateReportPdf(reportData);
+    // Fetch budget data if budget_id provided
+    const budgetData = parsed.data.budget_id
+      ? await fetchBudgetReportData(supabase, parsed.data.budget_id)
+      : null;
+
+    const buffer = generateReportPdf(reportData, budgetData);
 
     const safeName = reportData.organizationName.replace(/[^a-zA-Z0-9]/g, "");
     const filename = `${safeName}_Transactions_${parsed.data.start_date}_to_${parsed.data.end_date}.pdf`;

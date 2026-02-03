@@ -8,6 +8,7 @@ import {
   Tags,
   ArrowLeftRight,
   Repeat,
+  PiggyBank,
   FileBarChart,
   X,
 } from "lucide-react";
@@ -26,6 +27,7 @@ const navItems = [
     exact: false,
   },
   { label: "Templates", href: "/templates", icon: Repeat, exact: false },
+  { label: "Budgets", href: "/budgets", icon: PiggyBank, exact: false },
   { label: "Reports", href: "/reports", icon: FileBarChart, exact: false },
 ];
 

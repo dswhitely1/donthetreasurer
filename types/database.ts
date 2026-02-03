@@ -39,6 +39,95 @@ export type Database = {
   }
   public: {
     Tables: {
+      budget_line_items: {
+        Row: {
+          amount: number
+          budget_id: string
+          category_id: string
+          created_at: string | null
+          id: string
+          notes: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          budget_id: string
+          category_id: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          budget_id?: string
+          category_id?: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_line_items_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_line_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budgets: {
+        Row: {
+          created_at: string | null
+          end_date: string
+          id: string
+          name: string
+          notes: string | null
+          organization_id: string
+          start_date: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          end_date: string
+          id?: string
+          name: string
+          notes?: string | null
+          organization_id: string
+          start_date: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          end_date?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          organization_id?: string
+          start_date?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budgets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounts: {
         Row: {
           account_type: string
