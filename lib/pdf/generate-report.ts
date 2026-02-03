@@ -21,6 +21,11 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+/** Replace Unicode characters unsupported by jsPDF built-in fonts with ASCII */
+function sanitizeText(text: string): string {
+  return text.replace(/\u2192/g, ">").replace(/\u2014/g, "--");
+}
+
 const STATUS_ORDER: ReportTransaction["status"][] = [
   "uncleared",
   "cleared",
@@ -179,7 +184,7 @@ export function generateReportPdf(
               isFirst ? txn.checkNumber ?? "" : "",
               isFirst ? txn.vendor ?? "" : "",
               isFirst ? txn.description : "",
-              li.categoryLabel,
+              sanitizeText(li.categoryLabel),
               li.memo ?? "",
               incomeAmt !== null ? formatCurrency(incomeAmt) : "",
               expenseAmt !== null ? formatCurrency(expenseAmt) : "",
@@ -498,7 +503,7 @@ export function generateReportPdf(
       ]);
       for (const line of budgetData.incomeLines) {
         budgetRows.push([
-          line.categoryName,
+          sanitizeText(line.categoryName),
           { content: formatCurrency(line.budgeted), styles: { halign: "right" } },
           { content: formatCurrency(line.actual), styles: { halign: "right" } },
           {
@@ -506,7 +511,7 @@ export function generateReportPdf(
             styles: { halign: "right", textColor: line.variance >= 0 ? GREEN : RED },
           },
           {
-            content: line.variancePercent !== null ? `${line.variancePercent.toFixed(0)}%` : "\u2014",
+            content: line.variancePercent !== null ? `${line.variancePercent.toFixed(0)}%` : "--",
             styles: { halign: "right" },
           },
         ]);
@@ -537,7 +542,7 @@ export function generateReportPdf(
       ]);
       for (const line of budgetData.expenseLines) {
         budgetRows.push([
-          line.categoryName,
+          sanitizeText(line.categoryName),
           { content: formatCurrency(line.budgeted), styles: { halign: "right" } },
           { content: formatCurrency(line.actual), styles: { halign: "right" } },
           {
@@ -545,7 +550,7 @@ export function generateReportPdf(
             styles: { halign: "right", textColor: line.variance >= 0 ? GREEN : RED },
           },
           {
-            content: line.variancePercent !== null ? `${line.variancePercent.toFixed(0)}%` : "\u2014",
+            content: line.variancePercent !== null ? `${line.variancePercent.toFixed(0)}%` : "--",
             styles: { halign: "right" },
           },
         ]);
