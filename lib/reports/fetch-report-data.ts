@@ -151,7 +151,23 @@ export async function fetchReportData(
   if (params.account_id && !params.category_id) {
     const account = transactions[0]?.accounts;
     const openingBalance = account?.opening_balance ?? 0;
-    runningBalanceMap = computeRunningBalances(openingBalance, transactions.map((t) => ({
+
+    // Fetch pre-period cleared/reconciled transactions to compute the true
+    // starting balance at the beginning of the report date range
+    const { data: prePeriodForRunning } = await supabase
+      .from("transactions")
+      .select("amount, transaction_type")
+      .eq("account_id", params.account_id)
+      .in("status", ["cleared", "reconciled"])
+      .lt("cleared_at", params.start_date);
+
+    let prePeriodNet = 0;
+    for (const txn of prePeriodForRunning ?? []) {
+      prePeriodNet += txn.transaction_type === "income" ? txn.amount : -txn.amount;
+    }
+
+    const startingBalance = openingBalance + prePeriodNet;
+    runningBalanceMap = computeRunningBalances(startingBalance, transactions.map((t) => ({
       id: t.id,
       amount: t.amount,
       transaction_type: t.transaction_type,
