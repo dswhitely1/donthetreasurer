@@ -61,6 +61,7 @@ export async function updateOrganization(
     name: formData.get("name") as string,
     ein: formData.get("ein") as string,
     fiscal_year_start_month: formData.get("fiscal_year_start_month") as string,
+    seasons_enabled: formData.get("seasons_enabled") as string,
   };
 
   const parsed = updateOrganizationSchema.safeParse(raw);
@@ -83,6 +84,7 @@ export async function updateOrganization(
       name: parsed.data.name,
       ein: parsed.data.ein || null,
       fiscal_year_start_month: parsed.data.fiscal_year_start_month,
+      seasons_enabled: parsed.data.seasons_enabled,
     })
     .eq("id", parsed.data.id);
 

@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import type { Tables } from "@/types/database";
 import { updateOrganization, deleteOrganization } from "../actions";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -27,6 +28,9 @@ export function OrganizationActions({
 }>) {
   const [isEditing, setIsEditing] = useState(false);
   const [isConfirmingArchive, setIsConfirmingArchive] = useState(false);
+  const [seasonsEnabled, setSeasonsEnabled] = useState(
+    organization.seasons_enabled ?? false
+  );
 
   const [updateState, updateAction, updatePending] = useActionState(
     updateOrganization,
@@ -90,6 +94,29 @@ export function OrganizationActions({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <input
+            type="hidden"
+            name="seasons_enabled"
+            value={seasonsEnabled ? "true" : "false"}
+          />
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="edit-seasons-enabled"
+              checked={seasonsEnabled}
+              onCheckedChange={(checked) =>
+                setSeasonsEnabled(checked === true)
+              }
+            />
+            <div className="flex flex-col gap-0.5">
+              <Label htmlFor="edit-seasons-enabled">
+                Enable Season Tracking
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Track student enrollment and fee payments for seasonal programs
+              </p>
+            </div>
           </div>
 
           <div className="flex gap-3">
