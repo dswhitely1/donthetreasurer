@@ -32,4 +32,11 @@ describe("computePaymentStatus", () => {
     // but if it does, treat as paid
     expect(computePaymentStatus(0, 10)).toBe("paid");
   });
+
+  it("handles floating-point precision in multi-payment sums", () => {
+    // 0.1 + 0.2 = 0.30000000000000004 in JS
+    expect(computePaymentStatus(0.3, 0.1 + 0.2)).toBe("paid");
+    // Three payments of $33.33 against $99.99 fee
+    expect(computePaymentStatus(99.99, 33.33 + 33.33 + 33.33)).toBe("paid");
+  });
 });

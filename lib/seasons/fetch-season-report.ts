@@ -8,7 +8,7 @@ export async function fetchSeasonReport(
   supabase: SupabaseClient<Database>,
   seasonId: string
 ): Promise<SeasonReportData | null> {
-  const { data: season } = await supabase
+  const { data: season, error: seasonError } = await supabase
     .from("seasons")
     .select(
       "*, organizations(name)"
@@ -16,15 +16,23 @@ export async function fetchSeasonReport(
     .eq("id", seasonId)
     .single();
 
+  if (seasonError) {
+    if (seasonError.code === "PGRST116") return null;
+    throw new Error(`Failed to fetch season: ${seasonError.message}`);
+  }
   if (!season) return null;
 
-  const { data: enrollments } = await supabase
+  const { data: enrollments, error: enrollmentsError } = await supabase
     .from("season_enrollments")
     .select(
       "*, student:students(first_name, last_name, guardian_name, email, phone, guardian_email, guardian_phone), season_payments(id, payment_date, amount, payment_method, notes)"
     )
     .eq("season_id", seasonId)
     .order("enrolled_at", { ascending: true });
+
+  if (enrollmentsError) {
+    throw new Error(`Failed to fetch enrollments: ${enrollmentsError.message}`);
+  }
 
   const org = season.organizations as { name: string } | null;
 

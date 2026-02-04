@@ -4,9 +4,12 @@ export function computePaymentStatus(
   feeAmount: number,
   totalPaid: number
 ): PaymentStatus {
-  if (feeAmount === 0) return "paid";
-  if (totalPaid === 0) return "unpaid";
-  if (totalPaid < feeAmount) return "partial";
-  if (totalPaid === feeAmount) return "paid";
+  // Compare in integer cents to avoid floating-point precision issues
+  const fee = Math.round(feeAmount * 100);
+  const paid = Math.round(totalPaid * 100);
+  if (fee === 0) return "paid";
+  if (paid === 0) return "unpaid";
+  if (paid < fee) return "partial";
+  if (paid === fee) return "paid";
   return "overpaid";
 }

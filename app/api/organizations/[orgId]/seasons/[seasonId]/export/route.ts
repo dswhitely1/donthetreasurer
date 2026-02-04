@@ -60,7 +60,8 @@ export async function GET(
         "Content-Disposition": `attachment; filename="${filename}"`,
       },
     });
-  } catch {
+  } catch (error) {
+    console.error("Season Excel export error:", error);
     return NextResponse.json(
       { error: "Failed to generate report" },
       { status: 500 }

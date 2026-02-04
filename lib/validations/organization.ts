@@ -16,7 +16,9 @@ export const createOrganizationSchema = z.object({
     .min(1)
     .max(12)
     .default(1),
-  seasons_enabled: z.coerce.boolean().default(false),
+  seasons_enabled: z
+    .preprocess((val) => val === "true" || val === true, z.boolean())
+    .default(false),
 });
 
 export const updateOrganizationSchema = createOrganizationSchema.extend({
