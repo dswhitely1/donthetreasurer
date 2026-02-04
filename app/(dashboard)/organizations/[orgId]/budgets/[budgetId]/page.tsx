@@ -269,38 +269,14 @@ export default async function BudgetDetailPage({
     (l) => l.categoryType === "expense"
   );
 
-  // Build combined view for matching income/expense category names
-  const {
-    combinedLines,
-    unmatchedIncomeLines: incomeLines,
-    unmatchedExpenseLines: expenseLines,
-  } = buildCombinedBudgetLines(
-    allIncomeLines.map((l) => ({
-      categoryName: l.categoryName,
-      categoryType: l.categoryType,
-      budgeted: l.budgeted,
-      actual: l.actual,
-      variance: l.variance,
-      variancePercent: l.variancePercent,
-    })),
-    allExpenseLines.map((l) => ({
-      categoryName: l.categoryName,
-      categoryType: l.categoryType,
-      budgeted: l.budgeted,
-      actual: l.actual,
-      variance: l.variance,
-      variancePercent: l.variancePercent,
-    }))
-  );
-
-  // Find unbudgeted actuals
-  const unbudgetedActuals: UnbudgetedActual[] = [];
+  // Compute unbudgeted actuals first so we can include them in combined matching
+  const allUnbudgetedActuals: UnbudgetedActual[] = [];
   for (const [categoryId, actual] of actualsByCategory) {
     if (!budgetedCategoryIds.has(categoryId) && actual > 0) {
       const type = (categoryTypeMap.get(categoryId) ?? "expense") as
         | "income"
         | "expense";
-      unbudgetedActuals.push({
+      allUnbudgetedActuals.push({
         categoryId,
         categoryName: resolveCategoryName(categoryId),
         categoryType: type,
@@ -308,6 +284,81 @@ export default async function BudgetDetailPage({
       });
     }
   }
+
+  // Create synthetic budget lines from unbudgeted actuals for combined matching
+  const syntheticNames = new Set<string>();
+  const syntheticIncomeLines = allUnbudgetedActuals
+    .filter((ua) => ua.categoryType === "income")
+    .map((ua) => {
+      syntheticNames.add(ua.categoryName);
+      return {
+        categoryName: ua.categoryName,
+        categoryType: ua.categoryType as "income" | "expense",
+        budgeted: 0,
+        actual: ua.actual,
+        variance: ua.actual,
+        variancePercent: null,
+      };
+    });
+  const syntheticExpenseLines = allUnbudgetedActuals
+    .filter((ua) => ua.categoryType === "expense")
+    .map((ua) => {
+      syntheticNames.add(ua.categoryName);
+      return {
+        categoryName: ua.categoryName,
+        categoryType: ua.categoryType as "income" | "expense",
+        budgeted: 0,
+        actual: ua.actual,
+        variance: -ua.actual,
+        variancePercent: null,
+      };
+    });
+
+  // Build combined view including unbudgeted actuals that match opposite-type budget lines
+  const {
+    combinedLines,
+    unmatchedIncomeLines,
+    unmatchedExpenseLines,
+  } = buildCombinedBudgetLines(
+    [
+      ...allIncomeLines.map((l) => ({
+        categoryName: l.categoryName,
+        categoryType: l.categoryType,
+        budgeted: l.budgeted,
+        actual: l.actual,
+        variance: l.variance,
+        variancePercent: l.variancePercent,
+      })),
+      ...syntheticIncomeLines,
+    ],
+    [
+      ...allExpenseLines.map((l) => ({
+        categoryName: l.categoryName,
+        categoryType: l.categoryType,
+        budgeted: l.budgeted,
+        actual: l.actual,
+        variance: l.variance,
+        variancePercent: l.variancePercent,
+      })),
+      ...syntheticExpenseLines,
+    ]
+  );
+
+  // Separate: budgeted lines → income/expense sections, synthetic → unbudgeted
+  const incomeLines = unmatchedIncomeLines.filter(
+    (l) => !(l.budgeted === 0 && syntheticNames.has(l.categoryName))
+  );
+  const expenseLines = unmatchedExpenseLines.filter(
+    (l) => !(l.budgeted === 0 && syntheticNames.has(l.categoryName))
+  );
+
+  // Only unbudgeted actuals that weren't matched stay in the unbudgeted section
+  const matchedCombinedNames = new Set(
+    combinedLines.map((cl) => cl.categoryName)
+  );
+  const unbudgetedActuals = allUnbudgetedActuals.filter(
+    (ua) => !matchedCombinedNames.has(ua.categoryName)
+  );
   unbudgetedActuals.sort((a, b) => b.actual - a.actual);
 
   // Summary computations use full arrays (before combining)

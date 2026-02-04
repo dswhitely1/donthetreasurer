@@ -15,6 +15,12 @@ export interface BudgetReportLine {
   variancePercent: number | null;
 }
 
+export interface UnbudgetedActualLine {
+  categoryName: string;
+  categoryType: "income" | "expense";
+  actual: number;
+}
+
 export interface BudgetReportData {
   budgetName: string;
   startDate: string;
@@ -23,6 +29,7 @@ export interface BudgetReportData {
   incomeLines: BudgetReportLine[];
   expenseLines: BudgetReportLine[];
   combinedLines: CombinedBudgetLine[];
+  unbudgetedActuals: UnbudgetedActualLine[];
   totals: {
     budgetedIncome: number;
     actualIncome: number;
@@ -63,7 +70,7 @@ export async function fetchBudgetReportData(
   // Fetch all categories for parent name resolution
   const { data: allCategories, error: categoriesError } = await supabase
     .from("categories")
-    .select("id, name, parent_id")
+    .select("id, name, category_type, parent_id")
     .eq("organization_id", orgId);
 
   if (categoriesError) {
@@ -164,27 +171,91 @@ export async function fetchBudgetReportData(
     }
   }
 
-  // Totals computed from full arrays (before splitting matched/unmatched)
+  // Totals computed from full budgeted arrays (before combining with unbudgeted)
   const budgetedIncome = incomeLines.reduce((s, l) => s + l.budgeted, 0);
   const actualIncome = incomeLines.reduce((s, l) => s + l.actual, 0);
   const budgetedExpenses = expenseLines.reduce((s, l) => s + l.budgeted, 0);
   const actualExpenses = expenseLines.reduce((s, l) => s + l.actual, 0);
 
-  // Split matched categories into combined rows, keep unmatched separate
+  // Build set of budgeted category IDs (including children of parent categories)
+  const budgetedCategoryIds = new Set<string>();
+  for (const li of lineItems) {
+    budgetedCategoryIds.add(li.category_id);
+    const children = childrenByParent.get(li.category_id) ?? [];
+    for (const childId of children) {
+      budgetedCategoryIds.add(childId);
+    }
+  }
+
+  // Compute unbudgeted actuals
+  const categoryTypeMap = new Map(
+    (allCategories ?? []).map((c) => [c.id, c.category_type])
+  );
+  const allUnbudgetedActuals: UnbudgetedActualLine[] = [];
+  for (const [categoryId, actual] of actualsByCategory) {
+    if (!budgetedCategoryIds.has(categoryId) && actual > 0) {
+      allUnbudgetedActuals.push({
+        categoryName: resolveName(categoryId),
+        categoryType: (categoryTypeMap.get(categoryId) ?? "expense") as
+          | "income"
+          | "expense",
+        actual,
+      });
+    }
+  }
+
+  // Create synthetic budget lines from unbudgeted actuals for combined matching
+  const syntheticNames = new Set<string>();
+  const syntheticIncome: BudgetReportLine[] = [];
+  const syntheticExpense: BudgetReportLine[] = [];
+  for (const ua of allUnbudgetedActuals) {
+    syntheticNames.add(ua.categoryName);
+    const line: BudgetReportLine = {
+      categoryName: ua.categoryName,
+      categoryType: ua.categoryType,
+      budgeted: 0,
+      actual: ua.actual,
+      variance: ua.categoryType === "income" ? ua.actual : -ua.actual,
+      variancePercent: null,
+    };
+    if (ua.categoryType === "income") {
+      syntheticIncome.push(line);
+    } else {
+      syntheticExpense.push(line);
+    }
+  }
+
+  // Merge budgeted and synthetic lines, then split into combined + unmatched
   const {
     combinedLines,
     unmatchedIncomeLines,
     unmatchedExpenseLines,
-  } = buildCombinedBudgetLines(incomeLines, expenseLines);
+  } = buildCombinedBudgetLines(
+    [...incomeLines, ...syntheticIncome],
+    [...expenseLines, ...syntheticExpense]
+  );
+
+  // Separate unmatched: budgeted lines stay in sections, synthetic go to unbudgeted
+  const matchedCombinedNames = new Set(
+    combinedLines.map((cl) => cl.categoryName)
+  );
+  const unbudgetedActuals = allUnbudgetedActuals.filter(
+    (ua) => !matchedCombinedNames.has(ua.categoryName)
+  );
 
   return {
     budgetName: budget.name,
     startDate: budget.start_date,
     endDate: budget.end_date,
     status: budget.status as BudgetStatus,
-    incomeLines: unmatchedIncomeLines,
-    expenseLines: unmatchedExpenseLines,
+    incomeLines: unmatchedIncomeLines.filter(
+      (l) => !(l.budgeted === 0 && syntheticNames.has(l.categoryName))
+    ),
+    expenseLines: unmatchedExpenseLines.filter(
+      (l) => !(l.budgeted === 0 && syntheticNames.has(l.categoryName))
+    ),
     combinedLines,
+    unbudgetedActuals,
     totals: {
       budgetedIncome,
       actualIncome,

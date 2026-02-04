@@ -140,6 +140,50 @@ describe("buildCombinedBudgetLines", () => {
     expect(result.unmatchedExpenseLines).toEqual(expense);
   });
 
+  it("combines budgeted income with unbudgeted (zero-budget) expense of same name", () => {
+    const income = [
+      makeLine({ categoryName: "Fundraising → Events", categoryType: "income", budgeted: 5000, actual: 4500 }),
+    ];
+    const expense = [
+      makeLine({ categoryName: "Fundraising → Events", categoryType: "expense", budgeted: 0, actual: 1200 }),
+    ];
+
+    const result = buildCombinedBudgetLines(income, expense);
+    expect(result.combinedLines).toHaveLength(1);
+    expect(result.combinedLines[0]).toEqual({
+      categoryName: "Fundraising → Events",
+      incomeBudgeted: 5000,
+      incomeActual: 4500,
+      expenseBudgeted: 0,
+      expenseActual: 1200,
+      netBudgeted: 5000,
+      netActual: 3300,
+    });
+    expect(result.unmatchedIncomeLines).toEqual([]);
+    expect(result.unmatchedExpenseLines).toEqual([]);
+  });
+
+  it("combines budgeted expense with unbudgeted (zero-budget) income of same name", () => {
+    const income = [
+      makeLine({ categoryName: "Programs", categoryType: "income", budgeted: 0, actual: 800 }),
+    ];
+    const expense = [
+      makeLine({ categoryName: "Programs", categoryType: "expense", budgeted: 3000, actual: 2500 }),
+    ];
+
+    const result = buildCombinedBudgetLines(income, expense);
+    expect(result.combinedLines).toHaveLength(1);
+    expect(result.combinedLines[0]).toEqual({
+      categoryName: "Programs",
+      incomeBudgeted: 0,
+      incomeActual: 800,
+      expenseBudgeted: 3000,
+      expenseActual: 2500,
+      netBudgeted: -3000,
+      netActual: -1700,
+    });
+  });
+
   it("matches names with parent arrow notation", () => {
     const income = [
       makeLine({ categoryName: "Programs > Youth", categoryType: "income", budgeted: 2000, actual: 1800 }),
