@@ -10,6 +10,8 @@ import {
   Repeat,
   PiggyBank,
   FileBarChart,
+  Calendar,
+  Users,
   X,
 } from "lucide-react";
 
@@ -31,9 +33,15 @@ const navItems = [
   { label: "Reports", href: "/reports", icon: FileBarChart, exact: false },
 ];
 
+const seasonNavItems = [
+  { label: "Seasons", href: "/seasons", icon: Calendar, exact: false },
+  { label: "Students", href: "/students", icon: Users, exact: false },
+];
+
 interface SidebarProps {
   orgId: string;
   orgName: string;
+  seasonsEnabled: boolean;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -41,9 +49,14 @@ interface SidebarProps {
 function SidebarContent({
   orgId,
   orgName,
-}: Readonly<{ orgId: string; orgName: string }>) {
+  seasonsEnabled,
+}: Readonly<{ orgId: string; orgName: string; seasonsEnabled: boolean }>) {
   const pathname = usePathname();
   const basePath = `/organizations/${orgId}`;
+
+  const allItems = seasonsEnabled
+    ? [...navItems, ...seasonNavItems]
+    : navItems;
 
   return (
     <div className="flex h-full flex-col">
@@ -53,7 +66,7 @@ function SidebarContent({
         </p>
       </div>
       <nav className="flex-1 space-y-1 px-2 py-3">
-        {navItems.map((item) => {
+        {allItems.map((item) => {
           const fullHref = basePath + item.href;
           const isActive = item.exact
             ? pathname === fullHref
@@ -80,12 +93,12 @@ function SidebarContent({
   );
 }
 
-export function Sidebar({ orgId, orgName, isOpen, onClose }: Readonly<SidebarProps>) {
+export function Sidebar({ orgId, orgName, seasonsEnabled, isOpen, onClose }: Readonly<SidebarProps>) {
   return (
     <>
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex lg:w-64 lg:shrink-0 lg:flex-col border-r border-sidebar-border bg-sidebar">
-        <SidebarContent orgId={orgId} orgName={orgName} />
+        <SidebarContent orgId={orgId} orgName={orgName} seasonsEnabled={seasonsEnabled} />
       </aside>
 
       {/* Mobile sidebar overlay */}
@@ -112,7 +125,7 @@ export function Sidebar({ orgId, orgName, isOpen, onClose }: Readonly<SidebarPro
                 <X className="size-4" />
               </Button>
             </div>
-            <SidebarContent orgId={orgId} orgName={orgName} />
+            <SidebarContent orgId={orgId} orgName={orgName} seasonsEnabled={seasonsEnabled} />
           </aside>
         </>
       )}

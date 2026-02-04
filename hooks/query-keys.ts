@@ -80,3 +80,21 @@ export const budgetKeys = {
   actuals: (orgId: string, budgetId: string) =>
     [...budgetKeys.all, "actuals", orgId, budgetId] as const,
 };
+
+export const studentKeys = {
+  all: ["students"] as const,
+  list: (orgId: string) => [...studentKeys.all, "list", orgId] as const,
+  detail: (orgId: string, studentId: string) =>
+    [...studentKeys.all, "detail", orgId, studentId] as const,
+};
+
+export const seasonKeys = {
+  all: ["seasons"] as const,
+  list: (orgId: string) => [...seasonKeys.all, "list", orgId] as const,
+  detail: (orgId: string, seasonId: string) =>
+    [...seasonKeys.all, "detail", orgId, seasonId] as const,
+  enrollments: (orgId: string, seasonId: string) =>
+    [...seasonKeys.all, "enrollments", orgId, seasonId] as const,
+  report: (orgId: string, seasonId: string) =>
+    [...seasonKeys.all, "report", orgId, seasonId] as const,
+};

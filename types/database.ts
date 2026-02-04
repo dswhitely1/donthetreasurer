@@ -244,6 +244,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           name: string
+          seasons_enabled: boolean
           treasurer_id: string
           updated_at: string | null
         }
@@ -254,6 +255,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name: string
+          seasons_enabled?: boolean
           treasurer_id: string
           updated_at?: string | null
         }
@@ -264,6 +266,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name?: string
+          seasons_enabled?: boolean
           treasurer_id?: string
           updated_at?: string | null
         }
@@ -583,6 +586,201 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "recurring_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      season_enrollments: {
+        Row: {
+          created_at: string | null
+          enrolled_at: string | null
+          fee_amount: number
+          fee_override_reason: string | null
+          id: string
+          season_id: string
+          status: string
+          student_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          enrolled_at?: string | null
+          fee_amount: number
+          fee_override_reason?: string | null
+          id?: string
+          season_id: string
+          status?: string
+          student_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          enrolled_at?: string | null
+          fee_amount?: number
+          fee_override_reason?: string | null
+          id?: string
+          season_id?: string
+          status?: string
+          student_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "season_enrollments_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "season_enrollments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      season_payments: {
+        Row: {
+          amount: number
+          created_at: string | null
+          enrollment_id: string
+          id: string
+          notes: string | null
+          payment_date: string
+          payment_method: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          enrollment_id: string
+          id?: string
+          notes?: string | null
+          payment_date: string
+          payment_method?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          enrollment_id?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "season_payments_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "season_enrollments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seasons: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          end_date: string
+          fee_amount: number
+          id: string
+          name: string
+          organization_id: string
+          start_date: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          end_date: string
+          fee_amount?: number
+          id?: string
+          name: string
+          organization_id: string
+          start_date: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          end_date?: string
+          fee_amount?: number
+          id?: string
+          name?: string
+          organization_id?: string
+          start_date?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seasons_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      students: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          first_name: string
+          guardian_email: string | null
+          guardian_name: string | null
+          guardian_phone: string | null
+          id: string
+          is_active: boolean
+          last_name: string
+          notes: string | null
+          organization_id: string
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          first_name: string
+          guardian_email?: string | null
+          guardian_name?: string | null
+          guardian_phone?: string | null
+          id?: string
+          is_active?: boolean
+          last_name: string
+          notes?: string | null
+          organization_id: string
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          first_name?: string
+          guardian_email?: string | null
+          guardian_name?: string | null
+          guardian_phone?: string | null
+          id?: string
+          is_active?: boolean
+          last_name?: string
+          notes?: string | null
+          organization_id?: string
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "students_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]

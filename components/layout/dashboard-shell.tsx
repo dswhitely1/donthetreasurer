@@ -37,6 +37,7 @@ export function DashboardShell({
           <Sidebar
             orgId={currentOrgId}
             orgName={currentOrg?.name ?? ""}
+            seasonsEnabled={currentOrg?.seasons_enabled ?? false}
             isOpen={sidebarOpen}
             onClose={() => setSidebarOpen(false)}
           />
