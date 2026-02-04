@@ -80,8 +80,8 @@ export function generateReportPdf(
   doc.text("Transaction Report", MARGIN, MARGIN + 28);
 
   const dateRangeText = data.fiscalYearLabel
-    ? `${data.fiscalYearLabel} — Cleared: ${formatPdfDate(data.startDate)} to ${formatPdfDate(data.endDate)} (includes all uncleared)`
-    : `Cleared: ${formatPdfDate(data.startDate)} to ${formatPdfDate(data.endDate)} (includes all uncleared)`;
+    ? `${data.fiscalYearLabel} — Cleared: ${formatPdfDate(data.startDate)} to ${formatPdfDate(data.endDate)} (includes uncleared)`
+    : `Cleared: ${formatPdfDate(data.startDate)} to ${formatPdfDate(data.endDate)} (includes uncleared)`;
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "italic");

@@ -53,7 +53,7 @@ Actions live in `actions.ts` files colocated with their route segment (e.g., `or
 ### Report System
 
 Reports use a special date filtering model:
-- **Uncleared transactions** are always included regardless of date range
+- **Uncleared transactions** are filtered by `transaction_date` within the report date range
 - **Cleared/reconciled transactions** are filtered by `cleared_at` timestamp against the date range
 - Running balances and account starting/ending balances are computed only when not filtering by category
 - Fiscal year presets (`lib/fiscal-year.ts`) provide configurable date ranges (current/previous FY, quarters, fiscal YTD) based on organization's `fiscal_year_start_month`

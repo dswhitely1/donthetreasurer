@@ -108,12 +108,16 @@ export async function fetchReportData(
     ? requestedStatuses.filter((s) => s !== "uncleared")
     : ["cleared", "reconciled"];
 
-  // Build OR filter: uncleared (no date restriction) | cleared/reconciled within cleared_at range
+  // Build OR filter:
+  //   uncleared — filtered by transaction_date within the report period
+  //   cleared/reconciled — filtered by cleared_at within the report period
   const endDateExclusive = getNextDay(params.end_date);
   const orParts: string[] = [];
 
   if (includeUncleared) {
-    orParts.push("status.eq.uncleared");
+    orParts.push(
+      `and(status.eq.uncleared,transaction_date.gte.${params.start_date},transaction_date.lt.${endDateExclusive})`
+    );
   }
 
   if (clearedStatuses.length > 0) {
