@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { buildCombinedBudgetLines } from "@/lib/reports/budget-combined";
 import {
   BUDGET_STATUS_LABELS,
 } from "@/lib/validations/budget";
@@ -64,6 +65,20 @@ function VarianceCell({ variance }: Readonly<{ variance: number }>) {
     >
       {variance >= 0 ? "+" : ""}
       {formatCurrency(variance)}
+    </span>
+  );
+}
+
+function NetCell({ value }: Readonly<{ value: number }>) {
+  return (
+    <span
+      className={`tabular-nums ${
+        value >= 0
+          ? "text-green-600 dark:text-green-400"
+          : "text-red-600 dark:text-red-400"
+      }`}
+    >
+      {formatCurrency(value)}
     </span>
   );
 }
@@ -249,9 +264,33 @@ export default async function BudgetDetailPage({
     };
   });
 
-  const incomeLines = budgetLines.filter((l) => l.categoryType === "income");
-  const expenseLines = budgetLines.filter(
+  const allIncomeLines = budgetLines.filter((l) => l.categoryType === "income");
+  const allExpenseLines = budgetLines.filter(
     (l) => l.categoryType === "expense"
+  );
+
+  // Build combined view for matching income/expense category names
+  const {
+    combinedLines,
+    unmatchedIncomeLines: incomeLines,
+    unmatchedExpenseLines: expenseLines,
+  } = buildCombinedBudgetLines(
+    allIncomeLines.map((l) => ({
+      categoryName: l.categoryName,
+      categoryType: l.categoryType,
+      budgeted: l.budgeted,
+      actual: l.actual,
+      variance: l.variance,
+      variancePercent: l.variancePercent,
+    })),
+    allExpenseLines.map((l) => ({
+      categoryName: l.categoryName,
+      categoryType: l.categoryType,
+      budgeted: l.budgeted,
+      actual: l.actual,
+      variance: l.variance,
+      variancePercent: l.variancePercent,
+    }))
   );
 
   // Find unbudgeted actuals
@@ -271,11 +310,11 @@ export default async function BudgetDetailPage({
   }
   unbudgetedActuals.sort((a, b) => b.actual - a.actual);
 
-  // Summary computations
-  const budgetedIncome = incomeLines.reduce((s, l) => s + l.budgeted, 0);
-  const actualIncome = incomeLines.reduce((s, l) => s + l.actual, 0);
-  const budgetedExpenses = expenseLines.reduce((s, l) => s + l.budgeted, 0);
-  const actualExpenses = expenseLines.reduce((s, l) => s + l.actual, 0);
+  // Summary computations use full arrays (before combining)
+  const budgetedIncome = allIncomeLines.reduce((s, l) => s + l.budgeted, 0);
+  const actualIncome = allIncomeLines.reduce((s, l) => s + l.actual, 0);
+  const budgetedExpenses = allExpenseLines.reduce((s, l) => s + l.budgeted, 0);
+  const actualExpenses = allExpenseLines.reduce((s, l) => s + l.actual, 0);
   const netBudget = budgetedIncome - budgetedExpenses;
   const netActual = actualIncome - actualExpenses;
 
@@ -365,6 +404,105 @@ export default async function BudgetDetailPage({
             </div>
           </div>
 
+          {/* Combined Income & Expense Table */}
+          {combinedLines.length > 0 && (
+            <div className="mt-6">
+              <h3 className="mb-3 text-sm font-medium text-muted-foreground">
+                Combined Income &amp; Expense
+              </h3>
+              <div className="overflow-x-auto rounded-md border border-border">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/50">
+                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">
+                        Category
+                      </th>
+                      <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                        Inc. Budgeted
+                      </th>
+                      <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                        Inc. Actual
+                      </th>
+                      <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                        Exp. Budgeted
+                      </th>
+                      <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                        Exp. Actual
+                      </th>
+                      <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                        Net Budgeted
+                      </th>
+                      <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                        Net Actual
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {combinedLines.map((line) => (
+                      <tr
+                        key={line.categoryName}
+                        className="border-b border-border last:border-b-0"
+                      >
+                        <td className="px-3 py-2">{line.categoryName}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400">
+                          {formatCurrency(line.incomeBudgeted)}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400">
+                          {formatCurrency(line.incomeActual)}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400">
+                          {formatCurrency(line.expenseBudgeted)}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400">
+                          {formatCurrency(line.expenseActual)}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <NetCell value={line.netBudgeted} />
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <NetCell value={line.netActual} />
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="bg-muted/30 font-medium">
+                      <td className="px-3 py-2">Combined Total</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400">
+                        {formatCurrency(
+                          combinedLines.reduce((s, l) => s + l.incomeBudgeted, 0)
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400">
+                        {formatCurrency(
+                          combinedLines.reduce((s, l) => s + l.incomeActual, 0)
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400">
+                        {formatCurrency(
+                          combinedLines.reduce((s, l) => s + l.expenseBudgeted, 0)
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400">
+                        {formatCurrency(
+                          combinedLines.reduce((s, l) => s + l.expenseActual, 0)
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <NetCell
+                          value={combinedLines.reduce((s, l) => s + l.netBudgeted, 0)}
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <NetCell
+                          value={combinedLines.reduce((s, l) => s + l.netActual, 0)}
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Income Table */}
           {incomeLines.length > 0 && (
             <div className="mt-6">
@@ -398,7 +536,7 @@ export default async function BudgetDetailPage({
                   <tbody>
                     {incomeLines.map((line) => (
                       <tr
-                        key={line.categoryId}
+                        key={line.categoryName}
                         className="border-b border-border last:border-b-0"
                       >
                         <td className="px-3 py-2">{line.categoryName}</td>
@@ -425,26 +563,32 @@ export default async function BudgetDetailPage({
                         </td>
                       </tr>
                     ))}
-                    <tr className="bg-muted/30 font-medium">
-                      <td className="px-3 py-2">Total Income</td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        {formatCurrency(budgetedIncome)}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        {formatCurrency(actualIncome)}
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        <VarianceCell
-                          variance={actualIncome - budgetedIncome}
-                        />
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                        {budgetedIncome > 0
-                          ? `${((actualIncome / budgetedIncome) * 100).toFixed(0)}%`
-                          : "\u2014"}
-                      </td>
-                      <td className="px-3 py-2" />
-                    </tr>
+                    {(() => {
+                      const subtotalBudgeted = incomeLines.reduce((s, l) => s + l.budgeted, 0);
+                      const subtotalActual = incomeLines.reduce((s, l) => s + l.actual, 0);
+                      return (
+                        <tr className="bg-muted/30 font-medium">
+                          <td className="px-3 py-2">Income Subtotal</td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {formatCurrency(subtotalBudgeted)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {formatCurrency(subtotalActual)}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <VarianceCell
+                              variance={subtotalActual - subtotalBudgeted}
+                            />
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                            {subtotalBudgeted > 0
+                              ? `${((subtotalActual / subtotalBudgeted) * 100).toFixed(0)}%`
+                              : "\u2014"}
+                          </td>
+                          <td className="px-3 py-2" />
+                        </tr>
+                      );
+                    })()}
                   </tbody>
                 </table>
               </div>
@@ -484,7 +628,7 @@ export default async function BudgetDetailPage({
                   <tbody>
                     {expenseLines.map((line) => (
                       <tr
-                        key={line.categoryId}
+                        key={line.categoryName}
                         className="border-b border-border last:border-b-0"
                       >
                         <td className="px-3 py-2">{line.categoryName}</td>
@@ -511,26 +655,32 @@ export default async function BudgetDetailPage({
                         </td>
                       </tr>
                     ))}
-                    <tr className="bg-muted/30 font-medium">
-                      <td className="px-3 py-2">Total Expenses</td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        {formatCurrency(budgetedExpenses)}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        {formatCurrency(actualExpenses)}
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        <VarianceCell
-                          variance={budgetedExpenses - actualExpenses}
-                        />
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                        {budgetedExpenses > 0
-                          ? `${((actualExpenses / budgetedExpenses) * 100).toFixed(0)}%`
-                          : "\u2014"}
-                      </td>
-                      <td className="px-3 py-2" />
-                    </tr>
+                    {(() => {
+                      const subtotalBudgeted = expenseLines.reduce((s, l) => s + l.budgeted, 0);
+                      const subtotalActual = expenseLines.reduce((s, l) => s + l.actual, 0);
+                      return (
+                        <tr className="bg-muted/30 font-medium">
+                          <td className="px-3 py-2">Expenses Subtotal</td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {formatCurrency(subtotalBudgeted)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {formatCurrency(subtotalActual)}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <VarianceCell
+                              variance={subtotalBudgeted - subtotalActual}
+                            />
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                            {subtotalBudgeted > 0
+                              ? `${((subtotalActual / subtotalBudgeted) * 100).toFixed(0)}%`
+                              : "\u2014"}
+                          </td>
+                          <td className="px-3 py-2" />
+                        </tr>
+                      );
+                    })()}
                   </tbody>
                 </table>
               </div>

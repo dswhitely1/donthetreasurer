@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 
 import type { AccountBalanceSummary, ReportData, ReportTransaction } from "@/lib/reports/types";
 import type { BudgetReportData } from "@/lib/reports/fetch-budget-data";
+import type { CombinedBudgetLine } from "@/lib/reports/budget-combined";
 
 function formatExcelDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
@@ -472,6 +473,99 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
   }
 }
 
+function addCombinedBudgetSection(
+  sheet: ExcelJS.Worksheet,
+  combinedLines: CombinedBudgetLine[],
+  currencyFmt: string
+) {
+  const sectionHeader = sheet.addRow(["COMBINED INCOME & EXPENSE"]);
+  sectionHeader.font = { bold: true, size: 11 };
+  sheet.mergeCells(`A${sectionHeader.number}:G${sectionHeader.number}`);
+  sectionHeader.eachCell((cell) => {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFF0F9FF" },
+    };
+  });
+
+  const colHeader = sheet.addRow([
+    "Category",
+    "Inc. Budgeted",
+    "Inc. Actual",
+    "Exp. Budgeted",
+    "Exp. Actual",
+    "Net Budgeted",
+    "Net Actual",
+  ]);
+  colHeader.font = { bold: true };
+  colHeader.eachCell((cell) => {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE2E8F0" },
+    };
+    cell.border = {
+      bottom: { style: "thin", color: { argb: "FF94A3B8" } },
+    };
+  });
+
+  for (const line of combinedLines) {
+    const row = sheet.addRow([
+      line.categoryName,
+      line.incomeBudgeted,
+      line.incomeActual,
+      line.expenseBudgeted,
+      line.expenseActual,
+      line.netBudgeted,
+      line.netActual,
+    ]);
+    // Format currency cells
+    for (let i = 2; i <= 7; i++) {
+      row.getCell(i).numFmt = currencyFmt;
+    }
+    // Color income cells green
+    row.getCell(2).font = { color: { argb: "FF16A34A" } };
+    row.getCell(3).font = { color: { argb: "FF16A34A" } };
+    // Color expense cells red
+    row.getCell(4).font = { color: { argb: "FFDC2626" } };
+    row.getCell(5).font = { color: { argb: "FFDC2626" } };
+    // Color net cells based on sign
+    const netBudgetedColor = line.netBudgeted >= 0 ? "FF16A34A" : "FFDC2626";
+    const netActualColor = line.netActual >= 0 ? "FF16A34A" : "FFDC2626";
+    row.getCell(6).font = { color: { argb: netBudgetedColor } };
+    row.getCell(7).font = { color: { argb: netActualColor } };
+  }
+
+  // Subtotal row
+  const totIncBudget = combinedLines.reduce((s, l) => s + l.incomeBudgeted, 0);
+  const totIncActual = combinedLines.reduce((s, l) => s + l.incomeActual, 0);
+  const totExpBudget = combinedLines.reduce((s, l) => s + l.expenseBudgeted, 0);
+  const totExpActual = combinedLines.reduce((s, l) => s + l.expenseActual, 0);
+  const totNetBudget = combinedLines.reduce((s, l) => s + l.netBudgeted, 0);
+  const totNetActual = combinedLines.reduce((s, l) => s + l.netActual, 0);
+
+  const totalRow = sheet.addRow([
+    "Combined Total",
+    totIncBudget,
+    totIncActual,
+    totExpBudget,
+    totExpActual,
+    totNetBudget,
+    totNetActual,
+  ]);
+  totalRow.font = { bold: true };
+  for (let i = 2; i <= 7; i++) {
+    totalRow.getCell(i).numFmt = currencyFmt;
+  }
+  totalRow.getCell(2).font = { bold: true, color: { argb: "FF16A34A" } };
+  totalRow.getCell(3).font = { bold: true, color: { argb: "FF16A34A" } };
+  totalRow.getCell(4).font = { bold: true, color: { argb: "FFDC2626" } };
+  totalRow.getCell(5).font = { bold: true, color: { argb: "FFDC2626" } };
+  totalRow.getCell(6).font = { bold: true, color: { argb: totNetBudget >= 0 ? "FF16A34A" : "FFDC2626" } };
+  totalRow.getCell(7).font = { bold: true, color: { argb: totNetActual >= 0 ? "FF16A34A" : "FFDC2626" } };
+}
+
 function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
   const sheet = workbook.addWorksheet("Budget vs. Actuals");
   const currencyFmt = "$#,##0.00";
@@ -554,7 +648,13 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
     };
   }
 
-  // Income section
+  // Combined Income & Expense section
+  if (data.combinedLines.length > 0) {
+    addCombinedBudgetSection(sheet, data.combinedLines, currencyFmt);
+    sheet.addRow([]);
+  }
+
+  // Income section (unmatched only)
   if (data.incomeLines.length > 0) {
     const incomeHeader = sheet.addRow(["INCOME"]);
     incomeHeader.font = { bold: true, size: 11 };
@@ -578,22 +678,24 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
       );
     }
 
+    const incomeBudgeted = data.incomeLines.reduce((s, l) => s + l.budgeted, 0);
+    const incomeActual = data.incomeLines.reduce((s, l) => s + l.actual, 0);
     addBudgetRow(
       "Income Subtotal",
-      data.totals.budgetedIncome,
-      data.totals.actualIncome,
-      data.totals.actualIncome - data.totals.budgetedIncome,
-      data.totals.budgetedIncome > 0
-        ? (data.totals.actualIncome / data.totals.budgetedIncome) * 100
+      incomeBudgeted,
+      incomeActual,
+      incomeActual - incomeBudgeted,
+      incomeBudgeted > 0
+        ? (incomeActual / incomeBudgeted) * 100
         : null,
-      data.totals.actualIncome >= data.totals.budgetedIncome,
+      incomeActual >= incomeBudgeted,
       true
     );
 
     sheet.addRow([]);
   }
 
-  // Expenses section
+  // Expenses section (unmatched only)
   if (data.expenseLines.length > 0) {
     const expenseHeader = sheet.addRow(["EXPENSES"]);
     expenseHeader.font = { bold: true, size: 11 };
@@ -617,15 +719,17 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
       );
     }
 
+    const expenseBudgeted = data.expenseLines.reduce((s, l) => s + l.budgeted, 0);
+    const expenseActual = data.expenseLines.reduce((s, l) => s + l.actual, 0);
     addBudgetRow(
       "Expenses Subtotal",
-      data.totals.budgetedExpenses,
-      data.totals.actualExpenses,
-      data.totals.budgetedExpenses - data.totals.actualExpenses,
-      data.totals.budgetedExpenses > 0
-        ? (data.totals.actualExpenses / data.totals.budgetedExpenses) * 100
+      expenseBudgeted,
+      expenseActual,
+      expenseBudgeted - expenseActual,
+      expenseBudgeted > 0
+        ? (expenseActual / expenseBudgeted) * 100
         : null,
-      data.totals.actualExpenses <= data.totals.budgetedExpenses,
+      expenseActual <= expenseBudgeted,
       true
     );
 

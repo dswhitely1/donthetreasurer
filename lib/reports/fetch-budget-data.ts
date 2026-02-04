@@ -2,6 +2,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import type { BudgetStatus } from "@/lib/validations/budget";
 
+import { buildCombinedBudgetLines } from "./budget-combined";
+
+import type { CombinedBudgetLine } from "./budget-combined";
+
 export interface BudgetReportLine {
   categoryName: string;
   categoryType: "income" | "expense";
@@ -18,6 +22,7 @@ export interface BudgetReportData {
   status: BudgetStatus;
   incomeLines: BudgetReportLine[];
   expenseLines: BudgetReportLine[];
+  combinedLines: CombinedBudgetLine[];
   totals: {
     budgetedIncome: number;
     actualIncome: number;
@@ -159,18 +164,27 @@ export async function fetchBudgetReportData(
     }
   }
 
+  // Totals computed from full arrays (before splitting matched/unmatched)
   const budgetedIncome = incomeLines.reduce((s, l) => s + l.budgeted, 0);
   const actualIncome = incomeLines.reduce((s, l) => s + l.actual, 0);
   const budgetedExpenses = expenseLines.reduce((s, l) => s + l.budgeted, 0);
   const actualExpenses = expenseLines.reduce((s, l) => s + l.actual, 0);
+
+  // Split matched categories into combined rows, keep unmatched separate
+  const {
+    combinedLines,
+    unmatchedIncomeLines,
+    unmatchedExpenseLines,
+  } = buildCombinedBudgetLines(incomeLines, expenseLines);
 
   return {
     budgetName: budget.name,
     startDate: budget.start_date,
     endDate: budget.end_date,
     status: budget.status as BudgetStatus,
-    incomeLines,
-    expenseLines,
+    incomeLines: unmatchedIncomeLines,
+    expenseLines: unmatchedExpenseLines,
+    combinedLines,
     totals: {
       budgetedIncome,
       actualIncome,
