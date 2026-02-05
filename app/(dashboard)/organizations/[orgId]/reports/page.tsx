@@ -3,7 +3,10 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { reportParamsSchema } from "@/lib/validations/report";
 import { fetchReportData } from "@/lib/reports/fetch-report-data";
+import { fetchSeasonsReportData } from "@/lib/reports/fetch-seasons-summary";
 import { formatCurrency, formatDate } from "@/lib/utils";
+
+import type { SeasonsReportData } from "@/lib/reports/types";
 import {
   Card,
   CardContent,
@@ -46,7 +49,7 @@ export default async function ReportsPage({
   // Verify org exists and user has access
   const { data: organization } = await supabase
     .from("organizations")
-    .select("id, name, fiscal_year_start_month")
+    .select("id, name, fiscal_year_start_month, seasons_enabled")
     .eq("id", orgId)
     .eq("is_active", true)
     .single();
@@ -130,6 +133,16 @@ export default async function ReportsPage({
       } catch {
         reportError = "Failed to load report data.";
       }
+    }
+  }
+
+  // Fetch seasons summary when enabled and report has a date range
+  let seasonsData: SeasonsReportData | null = null;
+  if (organization.seasons_enabled && hasDateRange) {
+    try {
+      seasonsData = await fetchSeasonsReportData(supabase, orgId);
+    } catch {
+      // Non-fatal: seasons section simply won't appear
     }
   }
 
@@ -384,6 +397,71 @@ export default async function ReportsPage({
               </Card>
             )}
           </div>
+
+          {/* Active Seasons Summary */}
+          {seasonsData && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Active Seasons Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/50">
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">Season</th>
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">Dates</th>
+                        <th className="px-3 py-2 text-right font-medium text-muted-foreground">Base Fee</th>
+                        <th className="px-3 py-2 text-right font-medium text-muted-foreground">Enrolled</th>
+                        <th className="px-3 py-2 text-right font-medium text-muted-foreground">Expected</th>
+                        <th className="px-3 py-2 text-right font-medium text-muted-foreground">Collected</th>
+                        <th className="px-3 py-2 text-right font-medium text-muted-foreground">Outstanding</th>
+                        <th className="px-3 py-2 text-right font-medium text-muted-foreground">Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {seasonsData.seasons.map((season) => (
+                        <tr key={season.seasonName} className="border-b border-border">
+                          <td className="px-3 py-2 font-medium">{season.seasonName}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
+                            {formatDate(season.startDate)} - {formatDate(season.endDate)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(season.baseFee)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{season.enrolledCount}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(season.totalExpected)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400">
+                            {formatCurrency(season.totalCollected)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400">
+                            {formatCurrency(season.totalOutstanding)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {season.collectionRate.toFixed(1)}%
+                          </td>
+                        </tr>
+                      ))}
+                      {seasonsData.seasons.length > 1 && (
+                        <tr className="border-t-2 border-border font-semibold">
+                          <td className="px-3 py-2" colSpan={3}>Grand Total</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{seasonsData.grandTotals.enrolledCount}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(seasonsData.grandTotals.totalExpected)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400">
+                            {formatCurrency(seasonsData.grandTotals.totalCollected)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400">
+                            {formatCurrency(seasonsData.grandTotals.totalOutstanding)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {seasonsData.grandTotals.collectionRate.toFixed(1)}%
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Transaction preview table */}
           <Card>

@@ -55,3 +55,26 @@ export interface ReportData {
   summary: ReportSummary;
   accountBalances: AccountBalanceSummary[] | null;
 }
+
+export interface SeasonSummaryLine {
+  seasonName: string;
+  startDate: string;
+  endDate: string;
+  baseFee: number;
+  enrolledCount: number;
+  totalExpected: number;
+  totalCollected: number;
+  totalOutstanding: number;
+  collectionRate: number;
+}
+
+export interface SeasonsReportData {
+  seasons: SeasonSummaryLine[];
+  grandTotals: {
+    enrolledCount: number;
+    totalExpected: number;
+    totalCollected: number;
+    totalOutstanding: number;
+    collectionRate: number;
+  };
+}

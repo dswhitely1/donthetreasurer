@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { reportParamsSchema } from "@/lib/validations/report";
 import { fetchReportData } from "@/lib/reports/fetch-report-data";
 import { fetchBudgetReportData } from "@/lib/reports/fetch-budget-data";
+import { fetchSeasonsReportData } from "@/lib/reports/fetch-seasons-summary";
 import { generateReportWorkbook } from "@/lib/excel/generate-report";
 import { getPresetDateRange } from "@/lib/fiscal-year";
 
@@ -45,7 +46,7 @@ export async function GET(
   // Verify org ownership (RLS handles this but give a clear 404)
   const { data: org } = await supabase
     .from("organizations")
-    .select("id, name, fiscal_year_start_month")
+    .select("id, name, fiscal_year_start_month, seasons_enabled")
     .eq("id", orgId)
     .eq("is_active", true)
     .single();
@@ -82,7 +83,12 @@ export async function GET(
       );
     }
 
-    const buffer = await generateReportWorkbook(reportData, budgetData);
+    // Fetch seasons data when enabled
+    const seasonsData = org.seasons_enabled
+      ? await fetchSeasonsReportData(supabase, orgId)
+      : null;
+
+    const buffer = await generateReportWorkbook(reportData, budgetData, seasonsData);
 
     const safeName = reportData.organizationName.replace(/[^a-zA-Z0-9]/g, "");
     const filename = `${safeName}_Transactions_${parsed.data.start_date}_to_${parsed.data.end_date}.xlsx`;

@@ -6,6 +6,7 @@ import type {
   AccountBalanceSummary,
   ReportData,
   ReportTransaction,
+  SeasonsReportData,
 } from "@/lib/reports/types";
 import type { BudgetReportData } from "@/lib/reports/fetch-budget-data";
 
@@ -66,7 +67,8 @@ function addPageNumbers(doc: jsPDF): void {
 
 export function generateReportPdf(
   data: ReportData,
-  budgetData?: BudgetReportData | null
+  budgetData?: BudgetReportData | null,
+  seasonsData?: SeasonsReportData | null
 ): Buffer {
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "letter" });
 
@@ -746,6 +748,76 @@ export function generateReportPdf(
         4: { cellWidth: 60, halign: "right" },
       },
       tableWidth: 500,
+    });
+  }
+
+  // Active Seasons Summary page
+  if (seasonsData) {
+    doc.addPage();
+    let seasonsY = MARGIN + 10;
+
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text("Active Seasons Summary", MARGIN, seasonsY);
+    seasonsY += 20;
+
+    const seasonsHead = [["Season", "Start", "End", "Base Fee", "Enrolled", "Expected", "Collected", "Outstanding", "Rate"]];
+    const seasonsRows: CellInput[][] = [];
+
+    for (const season of seasonsData.seasons) {
+      seasonsRows.push([
+        season.seasonName,
+        formatPdfDate(season.startDate),
+        formatPdfDate(season.endDate),
+        formatCurrency(season.baseFee),
+        String(season.enrolledCount),
+        formatCurrency(season.totalExpected),
+        { content: formatCurrency(season.totalCollected), styles: { textColor: GREEN } },
+        { content: formatCurrency(season.totalOutstanding), styles: { textColor: RED } },
+        `${season.collectionRate.toFixed(1)}%`,
+      ]);
+    }
+
+    // Grand total row when multiple seasons
+    if (seasonsData.seasons.length > 1) {
+      seasonsRows.push([
+        { content: "Grand Total", styles: { fontStyle: "bold" } },
+        "",
+        "",
+        "",
+        { content: String(seasonsData.grandTotals.enrolledCount), styles: { fontStyle: "bold" } },
+        { content: formatCurrency(seasonsData.grandTotals.totalExpected), styles: { fontStyle: "bold" } },
+        { content: formatCurrency(seasonsData.grandTotals.totalCollected), styles: { fontStyle: "bold", textColor: GREEN } },
+        { content: formatCurrency(seasonsData.grandTotals.totalOutstanding), styles: { fontStyle: "bold", textColor: RED } },
+        { content: `${seasonsData.grandTotals.collectionRate.toFixed(1)}%`, styles: { fontStyle: "bold" } },
+      ]);
+    }
+
+    autoTable(doc, {
+      startY: seasonsY,
+      head: seasonsHead,
+      body: seasonsRows,
+      margin: { left: MARGIN, right: MARGIN },
+      theme: "grid",
+      headStyles: {
+        fillColor: HEADER_BG,
+        textColor: [0, 0, 0],
+        fontStyle: "bold",
+        fontSize: 8,
+      },
+      styles: { fontSize: 8, cellPadding: 4 },
+      columnStyles: {
+        0: { cellWidth: 120 },
+        1: { cellWidth: 60 },
+        2: { cellWidth: 60 },
+        3: { cellWidth: 60, halign: "right" },
+        4: { cellWidth: 45, halign: "right" },
+        5: { cellWidth: 70, halign: "right" },
+        6: { cellWidth: 70, halign: "right" },
+        7: { cellWidth: 70, halign: "right" },
+        8: { cellWidth: 50, halign: "right" },
+      },
     });
   }
 

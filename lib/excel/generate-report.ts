@@ -1,6 +1,6 @@
 import ExcelJS from "exceljs";
 
-import type { AccountBalanceSummary, ReportData, ReportTransaction } from "@/lib/reports/types";
+import type { AccountBalanceSummary, ReportData, ReportTransaction, SeasonsReportData } from "@/lib/reports/types";
 import type { BudgetReportData } from "@/lib/reports/fetch-budget-data";
 import type { CombinedBudgetLine } from "@/lib/reports/budget-combined";
 
@@ -11,7 +11,8 @@ function formatExcelDate(dateStr: string): string {
 
 export async function generateReportWorkbook(
   data: ReportData,
-  budgetData?: BudgetReportData | null
+  budgetData?: BudgetReportData | null,
+  seasonsData?: SeasonsReportData | null
 ): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
 
@@ -19,6 +20,9 @@ export async function generateReportWorkbook(
   buildSummarySheet(workbook, data);
   if (budgetData) {
     buildBudgetSheet(workbook, budgetData);
+  }
+  if (seasonsData) {
+    buildSeasonsSheet(workbook, seasonsData);
   }
 
   const buffer = await workbook.xlsx.writeBuffer();
@@ -834,4 +838,105 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
       top: { style: "double", color: { argb: "FF1E293B" } },
     };
   });
+}
+
+function buildSeasonsSheet(workbook: ExcelJS.Workbook, data: SeasonsReportData) {
+  const sheet = workbook.addWorksheet("Active Seasons");
+  const currencyFmt = "$#,##0.00";
+  const pctFmt = "0.0%";
+
+  sheet.columns = [
+    { key: "season", width: 30 },
+    { key: "startDate", width: 14 },
+    { key: "endDate", width: 14 },
+    { key: "baseFee", width: 14 },
+    { key: "enrolled", width: 12 },
+    { key: "expected", width: 16 },
+    { key: "collected", width: 16 },
+    { key: "outstanding", width: 16 },
+    { key: "rate", width: 12 },
+  ];
+
+  // Title
+  const titleRow = sheet.addRow(["Active Seasons Summary"]);
+  titleRow.font = { size: 14, bold: true };
+  sheet.mergeCells("A1:I1");
+
+  sheet.addRow([]);
+
+  // Column headers
+  const headerRow = sheet.addRow([
+    "Season",
+    "Start Date",
+    "End Date",
+    "Base Fee",
+    "Enrolled",
+    "Fees Expected",
+    "Collected",
+    "Outstanding",
+    "Collection Rate",
+  ]);
+  headerRow.font = { bold: true };
+  headerRow.eachCell((cell) => {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE2E8F0" },
+    };
+    cell.border = {
+      bottom: { style: "thin", color: { argb: "FF94A3B8" } },
+    };
+  });
+
+  // Freeze panes
+  sheet.views = [{ state: "frozen", ySplit: 3, xSplit: 0 }];
+
+  for (const season of data.seasons) {
+    const row = sheet.addRow([
+      season.seasonName,
+      formatExcelDate(season.startDate),
+      formatExcelDate(season.endDate),
+      season.baseFee,
+      season.enrolledCount,
+      season.totalExpected,
+      season.totalCollected,
+      season.totalOutstanding,
+      season.collectionRate / 100,
+    ]);
+
+    row.getCell(4).numFmt = currencyFmt;
+    row.getCell(6).numFmt = currencyFmt;
+    row.getCell(7).numFmt = currencyFmt;
+    row.getCell(7).font = { color: { argb: "FF16A34A" } };
+    row.getCell(8).numFmt = currencyFmt;
+    row.getCell(8).font = { color: { argb: "FFDC2626" } };
+    row.getCell(9).numFmt = pctFmt;
+  }
+
+  // Grand total row (only when multiple seasons)
+  if (data.seasons.length > 1) {
+    const totalRow = sheet.addRow([
+      "Grand Total",
+      "",
+      "",
+      "",
+      data.grandTotals.enrolledCount,
+      data.grandTotals.totalExpected,
+      data.grandTotals.totalCollected,
+      data.grandTotals.totalOutstanding,
+      data.grandTotals.collectionRate / 100,
+    ]);
+    totalRow.font = { bold: true };
+    totalRow.getCell(6).numFmt = currencyFmt;
+    totalRow.getCell(7).numFmt = currencyFmt;
+    totalRow.getCell(7).font = { bold: true, color: { argb: "FF16A34A" } };
+    totalRow.getCell(8).numFmt = currencyFmt;
+    totalRow.getCell(8).font = { bold: true, color: { argb: "FFDC2626" } };
+    totalRow.getCell(9).numFmt = pctFmt;
+    totalRow.eachCell((cell) => {
+      cell.border = {
+        top: { style: "double", color: { argb: "FF1E293B" } },
+      };
+    });
+  }
 }
