@@ -1,6 +1,6 @@
 import ExcelJS from "exceljs";
 
-import type { AccountBalanceSummary, ReportData, ReportTransaction } from "@/lib/reports/types";
+import type { AccountBalanceSummary, ReportData, ReportTransaction, SeasonsReportData } from "@/lib/reports/types";
 import type { BudgetReportData } from "@/lib/reports/fetch-budget-data";
 import type { CombinedBudgetLine } from "@/lib/reports/budget-combined";
 
@@ -11,7 +11,8 @@ function formatExcelDate(dateStr: string): string {
 
 export async function generateReportWorkbook(
   data: ReportData,
-  budgetData?: BudgetReportData | null
+  budgetData?: BudgetReportData | null,
+  seasonsData?: SeasonsReportData | null
 ): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
 
@@ -19,6 +20,9 @@ export async function generateReportWorkbook(
   buildSummarySheet(workbook, data);
   if (budgetData) {
     buildBudgetSheet(workbook, budgetData);
+  }
+  if (seasonsData) {
+    buildSeasonsSheet(workbook, seasonsData);
   }
 
   const buffer = await workbook.xlsx.writeBuffer();
@@ -368,106 +372,180 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
   const sheet = workbook.addWorksheet("Summary");
   const { summary } = data;
 
-  sheet.columns = [
-    { key: "label", width: 35 },
-    { key: "value", width: 20 },
-  ];
-
   const currencyFmt = "$#,##0.00";
 
-  function addSectionHeader(text: string) {
-    const row = sheet.addRow([text]);
-    row.font = { size: 13, bold: true };
-    sheet.addRow([]);
+  // 5-column layout: A-B (left), C (spacer), D-E (right)
+  sheet.getColumn(1).width = 32; // A: Left label
+  sheet.getColumn(2).width = 16; // B: Left value
+  sheet.getColumn(3).width = 4;  // C: Spacer
+  sheet.getColumn(4).width = 32; // D: Right label
+  sheet.getColumn(5).width = 16; // E: Right value
+
+  const HEADER_FILL: ExcelJS.FillPattern = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF1E293B" }, // slate-800
+  };
+  const HEADER_FONT: Partial<ExcelJS.Font> = {
+    bold: true,
+    color: { argb: "FFFFFFFF" },
+    size: 10,
+  };
+
+  // Row 1: "Summary" title spanning A1:E1
+  const titleRow = sheet.getRow(1);
+  titleRow.getCell(1).value = "Summary";
+  titleRow.getCell(1).font = { size: 16, bold: true, color: { argb: "FFFFFFFF" } };
+  titleRow.getCell(1).fill = HEADER_FILL;
+  titleRow.getCell(1).alignment = { horizontal: "center" };
+  for (let c = 2; c <= 5; c++) {
+    titleRow.getCell(c).fill = HEADER_FILL;
+  }
+  sheet.mergeCells("A1:E1");
+
+  // Row 2: Org name + date range
+  const infoRow = sheet.getRow(2);
+  const dateRangeText = data.fiscalYearLabel
+    ? `${data.organizationName}  |  ${data.fiscalYearLabel}  |  ${formatExcelDate(data.startDate)} to ${formatExcelDate(data.endDate)}`
+    : `${data.organizationName}  |  ${formatExcelDate(data.startDate)} to ${formatExcelDate(data.endDate)}`;
+  infoRow.getCell(1).value = dateRangeText;
+  infoRow.getCell(1).font = { size: 9, italic: true, color: { argb: "FF666666" } };
+  infoRow.getCell(1).alignment = { horizontal: "center" };
+  sheet.mergeCells("A2:E2");
+
+  // Row 3: blank separator
+  // Freeze panes: title rows frozen
+  sheet.views = [{ state: "frozen", ySplit: 3, xSplit: 0 }];
+
+  // Helpers that write into a specific column pair (colOffset 1=left A-B, 4=right D-E)
+  function writeSectionHeader(row: number, colOffset: number, title: string) {
+    const r = sheet.getRow(row);
+    const labelCell = r.getCell(colOffset);
+    const valueCell = r.getCell(colOffset + 1);
+    labelCell.value = title;
+    labelCell.font = HEADER_FONT;
+    labelCell.fill = HEADER_FILL;
+    valueCell.fill = HEADER_FILL;
   }
 
-  function addAmountRow(label: string, amount: number, indent = false) {
-    const displayLabel = indent ? `  ${label}` : label;
-    const row = sheet.addRow([displayLabel, amount]);
-    row.getCell(2).numFmt = currencyFmt;
-    return row;
+  function writeAmountRow(
+    row: number,
+    colOffset: number,
+    label: string,
+    amount: number,
+    opts?: { bold?: boolean; italic?: boolean; indent?: boolean; color?: string }
+  ) {
+    const r = sheet.getRow(row);
+    const displayLabel = opts?.indent ? `  ${label}` : label;
+    const labelCell = r.getCell(colOffset);
+    const valueCell = r.getCell(colOffset + 1);
+    labelCell.value = displayLabel;
+    if (opts?.bold) labelCell.font = { bold: true };
+    if (opts?.italic) labelCell.font = { italic: true };
+    valueCell.value = amount;
+    valueCell.numFmt = currencyFmt;
+    valueCell.alignment = { horizontal: "right" };
+    const fontOpts: Partial<ExcelJS.Font> = {};
+    if (opts?.bold) fontOpts.bold = true;
+    if (opts?.italic) fontOpts.italic = true;
+    if (opts?.color) fontOpts.color = { argb: opts.color };
+    if (Object.keys(fontOpts).length > 0) valueCell.font = fontOpts;
   }
 
-  function addBoldAmountRow(label: string, amount: number) {
-    const row = addAmountRow(label, amount);
-    row.font = { bold: true };
-    return row;
+  function writeLabelRow(
+    row: number,
+    colOffset: number,
+    label: string,
+    opts?: { bold?: boolean }
+  ) {
+    const r = sheet.getRow(row);
+    r.getCell(colOffset).value = label;
+    if (opts?.bold) r.getCell(colOffset).font = { bold: true };
   }
 
-  // Account Balances
+  // ── Left Column (cols A-B, colOffset=1) ──────────────────────
+  let leftRow = 4;
+
+  // OVERALL SUMMARY
+  writeSectionHeader(leftRow, 1, "OVERALL SUMMARY");
+  leftRow++;
+  writeAmountRow(leftRow, 1, "Total Income:", summary.totalIncome, { color: "FF16A34A" });
+  leftRow++;
+  writeAmountRow(leftRow, 1, "Total Expenses:", summary.totalExpenses, { color: "FFDC2626" });
+  leftRow++;
+  writeAmountRow(leftRow, 1, "Net Change:", summary.netChange, {
+    bold: true,
+    color: summary.netChange >= 0 ? "FF16A34A" : "FFDC2626",
+  });
+  leftRow += 2; // blank separator
+
+  // ACCOUNT BALANCES
   if (data.accountBalances && data.accountBalances.length > 0) {
-    addSectionHeader("ACCOUNT BALANCES");
+    writeSectionHeader(leftRow, 1, "ACCOUNT BALANCES");
+    leftRow++;
     for (const ab of data.accountBalances) {
-      const acctRow = sheet.addRow([ab.accountName]);
-      acctRow.font = { bold: true };
-      addAmountRow("Starting Balance:", ab.startingBalance, true);
-      addAmountRow("Ending Balance:", ab.endingBalance, true);
-      const changeRow = addAmountRow(
-        "Net Change:",
-        ab.endingBalance - ab.startingBalance,
-        true
-      );
-      changeRow.font = { italic: true };
-      changeRow.getCell(2).font = {
+      writeLabelRow(leftRow, 1, ab.accountName, { bold: true });
+      leftRow++;
+      writeAmountRow(leftRow, 1, "Starting Balance:", ab.startingBalance, { indent: true });
+      leftRow++;
+      writeAmountRow(leftRow, 1, "Ending Balance:", ab.endingBalance, { indent: true });
+      leftRow++;
+      const netChange = ab.endingBalance - ab.startingBalance;
+      writeAmountRow(leftRow, 1, "Net Change:", netChange, {
+        indent: true,
         italic: true,
-        color: { argb: ab.endingBalance - ab.startingBalance >= 0 ? "FF16A34A" : "FFDC2626" },
-      };
+        color: netChange >= 0 ? "FF16A34A" : "FFDC2626",
+      });
+      leftRow++;
     }
-    sheet.addRow([]);
+    leftRow++; // blank separator
   }
 
-  // Overall Summary
-  addSectionHeader("OVERALL SUMMARY");
-  addAmountRow("Total Income:", summary.totalIncome);
-  addAmountRow("Total Expenses:", summary.totalExpenses);
-  const netRow = addBoldAmountRow("Net Change:", summary.netChange);
-  if (summary.netChange >= 0) {
-    netRow.getCell(2).font = { bold: true, color: { argb: "FF16A34A" } };
-  } else {
-    netRow.getCell(2).font = { bold: true, color: { argb: "FFDC2626" } };
-  }
-  sheet.addRow([]);
+  // BALANCE BY STATUS
+  writeSectionHeader(leftRow, 1, "BALANCE BY STATUS");
+  leftRow++;
+  writeAmountRow(leftRow, 1, "Uncleared Balance:", summary.balanceByStatus.uncleared);
+  leftRow++;
+  writeAmountRow(leftRow, 1, "Cleared Balance:", summary.balanceByStatus.cleared);
+  leftRow++;
+  writeAmountRow(leftRow, 1, "Reconciled Balance:", summary.balanceByStatus.reconciled);
 
-  // Balance by Status
-  addSectionHeader("BALANCE BY STATUS");
-  addAmountRow("Uncleared Balance:", summary.balanceByStatus.uncleared);
-  addAmountRow("Cleared Balance:", summary.balanceByStatus.cleared);
-  addAmountRow("Reconciled Balance:", summary.balanceByStatus.reconciled);
-  sheet.addRow([]);
+  // ── Right Column (cols D-E, colOffset=4) ─────────────────────
+  let rightRow = 4;
 
-  // Income by Category
+  // INCOME BY CATEGORY
   if (summary.incomeByCategory.length > 0) {
-    addSectionHeader("INCOME BY CATEGORY");
+    writeSectionHeader(rightRow, 4, "INCOME BY CATEGORY");
+    rightRow++;
     for (const group of summary.incomeByCategory) {
-      const parentRow = sheet.addRow([group.parentName]);
-      parentRow.font = { bold: true };
+      writeLabelRow(rightRow, 4, group.parentName, { bold: true });
+      rightRow++;
       for (const child of group.children) {
-        addAmountRow(child.name, child.total, true);
+        writeAmountRow(rightRow, 4, child.name, child.total, { indent: true, color: "FF16A34A" });
+        rightRow++;
       }
       if (group.children.length > 1) {
-        const subtotalRow = addAmountRow("Subtotal:", group.subtotal, true);
-        subtotalRow.font = { italic: true };
-        subtotalRow.getCell(2).font = { italic: true };
-        subtotalRow.getCell(2).numFmt = currencyFmt;
+        writeAmountRow(rightRow, 4, "Subtotal:", group.subtotal, { indent: true, italic: true, color: "FF16A34A" });
+        rightRow++;
       }
     }
-    sheet.addRow([]);
+    rightRow++; // blank separator
   }
 
-  // Expenses by Category
+  // EXPENSES BY CATEGORY
   if (summary.expensesByCategory.length > 0) {
-    addSectionHeader("EXPENSES BY CATEGORY");
+    writeSectionHeader(rightRow, 4, "EXPENSES BY CATEGORY");
+    rightRow++;
     for (const group of summary.expensesByCategory) {
-      const parentRow = sheet.addRow([group.parentName]);
-      parentRow.font = { bold: true };
+      writeLabelRow(rightRow, 4, group.parentName, { bold: true });
+      rightRow++;
       for (const child of group.children) {
-        addAmountRow(child.name, child.total, true);
+        writeAmountRow(rightRow, 4, child.name, child.total, { indent: true, color: "FFDC2626" });
+        rightRow++;
       }
       if (group.children.length > 1) {
-        const subtotalRow = addAmountRow("Subtotal:", group.subtotal, true);
-        subtotalRow.font = { italic: true };
-        subtotalRow.getCell(2).font = { italic: true };
-        subtotalRow.getCell(2).numFmt = currencyFmt;
+        writeAmountRow(rightRow, 4, "Subtotal:", group.subtotal, { indent: true, italic: true, color: "FFDC2626" });
+        rightRow++;
       }
     }
   }
@@ -760,4 +838,105 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
       top: { style: "double", color: { argb: "FF1E293B" } },
     };
   });
+}
+
+function buildSeasonsSheet(workbook: ExcelJS.Workbook, data: SeasonsReportData) {
+  const sheet = workbook.addWorksheet("Active Seasons");
+  const currencyFmt = "$#,##0.00";
+  const pctFmt = "0.0%";
+
+  sheet.columns = [
+    { key: "season", width: 30 },
+    { key: "startDate", width: 14 },
+    { key: "endDate", width: 14 },
+    { key: "baseFee", width: 14 },
+    { key: "enrolled", width: 12 },
+    { key: "expected", width: 16 },
+    { key: "collected", width: 16 },
+    { key: "outstanding", width: 16 },
+    { key: "rate", width: 12 },
+  ];
+
+  // Title
+  const titleRow = sheet.addRow(["Active Seasons Summary"]);
+  titleRow.font = { size: 14, bold: true };
+  sheet.mergeCells("A1:I1");
+
+  sheet.addRow([]);
+
+  // Column headers
+  const headerRow = sheet.addRow([
+    "Season",
+    "Start Date",
+    "End Date",
+    "Base Fee",
+    "Enrolled",
+    "Fees Expected",
+    "Collected",
+    "Outstanding",
+    "Collection Rate",
+  ]);
+  headerRow.font = { bold: true };
+  headerRow.eachCell((cell) => {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE2E8F0" },
+    };
+    cell.border = {
+      bottom: { style: "thin", color: { argb: "FF94A3B8" } },
+    };
+  });
+
+  // Freeze panes
+  sheet.views = [{ state: "frozen", ySplit: 3, xSplit: 0 }];
+
+  for (const season of data.seasons) {
+    const row = sheet.addRow([
+      season.seasonName,
+      formatExcelDate(season.startDate),
+      formatExcelDate(season.endDate),
+      season.baseFee,
+      season.enrolledCount,
+      season.totalExpected,
+      season.totalCollected,
+      season.totalOutstanding,
+      season.collectionRate / 100,
+    ]);
+
+    row.getCell(4).numFmt = currencyFmt;
+    row.getCell(6).numFmt = currencyFmt;
+    row.getCell(7).numFmt = currencyFmt;
+    row.getCell(7).font = { color: { argb: "FF16A34A" } };
+    row.getCell(8).numFmt = currencyFmt;
+    row.getCell(8).font = { color: { argb: "FFDC2626" } };
+    row.getCell(9).numFmt = pctFmt;
+  }
+
+  // Grand total row (only when multiple seasons)
+  if (data.seasons.length > 1) {
+    const totalRow = sheet.addRow([
+      "Grand Total",
+      "",
+      "",
+      "",
+      data.grandTotals.enrolledCount,
+      data.grandTotals.totalExpected,
+      data.grandTotals.totalCollected,
+      data.grandTotals.totalOutstanding,
+      data.grandTotals.collectionRate / 100,
+    ]);
+    totalRow.font = { bold: true };
+    totalRow.getCell(6).numFmt = currencyFmt;
+    totalRow.getCell(7).numFmt = currencyFmt;
+    totalRow.getCell(7).font = { bold: true, color: { argb: "FF16A34A" } };
+    totalRow.getCell(8).numFmt = currencyFmt;
+    totalRow.getCell(8).font = { bold: true, color: { argb: "FFDC2626" } };
+    totalRow.getCell(9).numFmt = pctFmt;
+    totalRow.eachCell((cell) => {
+      cell.border = {
+        top: { style: "double", color: { argb: "FF1E293B" } },
+      };
+    });
+  }
 }
