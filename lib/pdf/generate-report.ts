@@ -334,57 +334,112 @@ export function generateReportPdf(
     });
   }
 
-  // Summary section — new page
+  // Summary section — new page with two-column layout
   doc.addPage();
   const { summary } = data;
 
-  let summaryY = MARGIN + 10;
+  const SLATE_800: [number, number, number] = [30, 41, 59]; // #1E293B
+  const SLATE_50: [number, number, number] = [248, 250, 252]; // #F8FAFC
+  const WHITE: [number, number, number] = [255, 255, 255];
+  const LEFT_X = MARGIN;
+  const COL_WIDTH = 340;
+  const RIGHT_X = MARGIN + COL_WIDTH + 32;
+  const LABEL_WIDTH = 220;
+  const VALUE_WIDTH = 120;
 
-  // Helper to draw a section header
-  function drawSectionHeader(title: string): number {
-    doc.setFontSize(12);
+  // Full-width "Summary" title banner
+  const pageWidth = doc.internal.pageSize.getWidth();
+  doc.setFillColor(...SLATE_800);
+  doc.rect(MARGIN, MARGIN, pageWidth - MARGIN * 2, 24, "F");
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...WHITE);
+  doc.text("Summary", pageWidth / 2, MARGIN + 16, { align: "center" });
+  doc.setTextColor(0, 0, 0);
+
+  // Subtitle row: org name + date range
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(102, 102, 102);
+  const summarySubtitle = `${data.organizationName}  |  ${formatPdfDate(data.startDate)} to ${formatPdfDate(data.endDate)}`;
+  doc.text(summarySubtitle, pageWidth / 2, MARGIN + 36, { align: "center" });
+  doc.setTextColor(0, 0, 0);
+
+  const columnsStartY = MARGIN + 48;
+
+  // Helper: draw a dark section header bar within a column
+  function drawColumnSectionHeader(title: string, x: number, y: number): number {
+    doc.setFillColor(...SLATE_800);
+    doc.rect(x, y, COL_WIDTH, 16, "F");
+    doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
+    doc.setTextColor(...WHITE);
+    doc.text(title, x + 6, y + 11);
     doc.setTextColor(0, 0, 0);
-    doc.text(title, MARGIN, summaryY);
-    summaryY += 15;
-    return summaryY;
+    return y + 16;
   }
 
-  // Helper to draw a summary table
-  function drawSummaryTable(rows: CellInput[][]): void {
+  // Helper: draw a summary table within a column using autoTable
+  function drawColumnTable(
+    rows: CellInput[][],
+    x: number,
+    y: number
+  ): number {
     autoTable(doc, {
-      startY: summaryY,
+      startY: y,
       body: rows,
-      margin: { left: MARGIN, right: MARGIN },
+      margin: { left: x, right: pageWidth - x - COL_WIDTH },
       theme: "plain",
       showHead: false,
       styles: { fontSize: 8, cellPadding: 3 },
       columnStyles: {
-        0: { cellWidth: 200 },
-        1: { cellWidth: 100, halign: "right" },
+        0: { cellWidth: LABEL_WIDTH },
+        1: { cellWidth: VALUE_WIDTH, halign: "right" },
       },
-      tableWidth: 300,
+      tableWidth: COL_WIDTH,
+      alternateRowStyles: { fillColor: SLATE_50 },
     });
-    summaryY = getFinalY(doc) + 10;
+    return getFinalY(doc) + 8;
   }
 
-  // Account Balances
+  // ── Left Column ──────────────────────────────────────────────
+  let leftY = columnsStartY;
+
+  // OVERALL SUMMARY
+  leftY = drawColumnSectionHeader("OVERALL SUMMARY", LEFT_X, leftY);
+  const overallRows: CellInput[][] = [
+    [
+      "Total Income:",
+      { content: formatCurrency(summary.totalIncome), styles: { textColor: GREEN } },
+    ],
+    [
+      "Total Expenses:",
+      { content: formatCurrency(summary.totalExpenses), styles: { textColor: RED } },
+    ],
+    [
+      { content: "Net Change:", styles: { fontStyle: "bold" } },
+      {
+        content: formatCurrency(summary.netChange),
+        styles: {
+          fontStyle: "bold",
+          textColor: summary.netChange >= 0 ? GREEN : RED,
+        },
+      },
+    ],
+  ];
+  leftY = drawColumnTable(overallRows, LEFT_X, leftY);
+
+  // ACCOUNT BALANCES
   if (data.accountBalances && data.accountBalances.length > 0) {
-    drawSectionHeader("ACCOUNT BALANCES");
+    leftY = drawColumnSectionHeader("ACCOUNT BALANCES", LEFT_X, leftY);
     const balanceRows: CellInput[][] = [];
     for (const ab of data.accountBalances) {
       balanceRows.push([
         { content: ab.accountName, styles: { fontStyle: "bold" } },
         "",
       ]);
-      balanceRows.push([
-        { content: "  Starting Balance:", styles: {} },
-        formatCurrency(ab.startingBalance),
-      ]);
-      balanceRows.push([
-        { content: "  Ending Balance:", styles: {} },
-        formatCurrency(ab.endingBalance),
-      ]);
+      balanceRows.push(["  Starting Balance:", formatCurrency(ab.startingBalance)]);
+      balanceRows.push(["  Ending Balance:", formatCurrency(ab.endingBalance)]);
       const netChange = ab.endingBalance - ab.startingBalance;
       balanceRows.push([
         { content: "  Net Change:", styles: { fontStyle: "italic" } },
@@ -397,38 +452,27 @@ export function generateReportPdf(
         },
       ]);
     }
-    drawSummaryTable(balanceRows);
+    leftY = drawColumnTable(balanceRows, LEFT_X, leftY);
   }
 
-  // Overall Summary
-  drawSectionHeader("OVERALL SUMMARY");
-  const overallRows: CellInput[][] = [
-    ["Total Income:", formatCurrency(summary.totalIncome)],
-    ["Total Expenses:", formatCurrency(summary.totalExpenses)],
+  // BALANCE BY STATUS
+  leftY = drawColumnSectionHeader("BALANCE BY STATUS", LEFT_X, leftY);
+  leftY = drawColumnTable(
     [
-      { content: "Net Change:", styles: { fontStyle: "bold" } },
-      {
-        content: formatCurrency(summary.netChange),
-        styles: {
-          fontStyle: "bold",
-          textColor: summary.netChange >= 0 ? GREEN : RED,
-        },
-      },
+      ["Uncleared Balance:", formatCurrency(summary.balanceByStatus.uncleared)],
+      ["Cleared Balance:", formatCurrency(summary.balanceByStatus.cleared)],
+      ["Reconciled Balance:", formatCurrency(summary.balanceByStatus.reconciled)],
     ],
-  ];
-  drawSummaryTable(overallRows);
+    LEFT_X,
+    leftY
+  );
 
-  // Balance by Status
-  drawSectionHeader("BALANCE BY STATUS");
-  drawSummaryTable([
-    ["Uncleared Balance:", formatCurrency(summary.balanceByStatus.uncleared)],
-    ["Cleared Balance:", formatCurrency(summary.balanceByStatus.cleared)],
-    ["Reconciled Balance:", formatCurrency(summary.balanceByStatus.reconciled)],
-  ]);
+  // ── Right Column ─────────────────────────────────────────────
+  let rightY = columnsStartY;
 
-  // Income by Category
+  // INCOME BY CATEGORY
   if (summary.incomeByCategory.length > 0) {
-    drawSectionHeader("INCOME BY CATEGORY");
+    rightY = drawColumnSectionHeader("INCOME BY CATEGORY", RIGHT_X, rightY);
     const incomeRows: CellInput[][] = [];
     for (const group of summary.incomeByCategory) {
       incomeRows.push([
@@ -436,21 +480,24 @@ export function generateReportPdf(
         "",
       ]);
       for (const child of group.children) {
-        incomeRows.push([`  ${child.name}`, formatCurrency(child.total)]);
+        incomeRows.push([
+          `  ${child.name}`,
+          { content: formatCurrency(child.total), styles: { textColor: GREEN } },
+        ]);
       }
       if (group.children.length > 1) {
         incomeRows.push([
           { content: "  Subtotal:", styles: { fontStyle: "italic" } },
-          { content: formatCurrency(group.subtotal), styles: { fontStyle: "italic" } },
+          { content: formatCurrency(group.subtotal), styles: { fontStyle: "italic", textColor: GREEN } },
         ]);
       }
     }
-    drawSummaryTable(incomeRows);
+    rightY = drawColumnTable(incomeRows, RIGHT_X, rightY);
   }
 
-  // Expenses by Category
+  // EXPENSES BY CATEGORY
   if (summary.expensesByCategory.length > 0) {
-    drawSectionHeader("EXPENSES BY CATEGORY");
+    rightY = drawColumnSectionHeader("EXPENSES BY CATEGORY", RIGHT_X, rightY);
     const expenseRows: CellInput[][] = [];
     for (const group of summary.expensesByCategory) {
       expenseRows.push([
@@ -458,16 +505,19 @@ export function generateReportPdf(
         "",
       ]);
       for (const child of group.children) {
-        expenseRows.push([`  ${child.name}`, formatCurrency(child.total)]);
+        expenseRows.push([
+          `  ${child.name}`,
+          { content: formatCurrency(child.total), styles: { textColor: RED } },
+        ]);
       }
       if (group.children.length > 1) {
         expenseRows.push([
           { content: "  Subtotal:", styles: { fontStyle: "italic" } },
-          { content: formatCurrency(group.subtotal), styles: { fontStyle: "italic" } },
+          { content: formatCurrency(group.subtotal), styles: { fontStyle: "italic", textColor: RED } },
         ]);
       }
     }
-    drawSummaryTable(expenseRows);
+    rightY = drawColumnTable(expenseRows, RIGHT_X, rightY);
   }
 
   // Budget vs. Actuals page
