@@ -83,10 +83,15 @@ export async function GET(
       );
     }
 
-    // Fetch seasons data when enabled
-    const seasonsData = org.seasons_enabled
-      ? await fetchSeasonsReportData(supabase, orgId)
-      : null;
+    // Fetch seasons data when enabled (non-fatal if it fails)
+    let seasonsData = null;
+    if (org.seasons_enabled) {
+      try {
+        seasonsData = await fetchSeasonsReportData(supabase, orgId);
+      } catch (seasonsError) {
+        console.error("Failed to fetch seasons data for PDF export, proceeding without it:", seasonsError);
+      }
+    }
 
     const buffer = generateReportPdf(reportData, budgetData, seasonsData);
 

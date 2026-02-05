@@ -5,8 +5,6 @@ import { reportParamsSchema } from "@/lib/validations/report";
 import { fetchReportData } from "@/lib/reports/fetch-report-data";
 import { fetchSeasonsReportData } from "@/lib/reports/fetch-seasons-summary";
 import { formatCurrency, formatDate } from "@/lib/utils";
-
-import type { SeasonsReportData } from "@/lib/reports/types";
 import {
   Card,
   CardContent,
@@ -15,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { ReportFilters } from "./report-filters";
 
+import type { SeasonsReportData } from "@/lib/reports/types";
 import type { CategoryOption, BudgetOption } from "./report-filters";
 
 interface SearchParams {
@@ -141,8 +140,11 @@ export default async function ReportsPage({
   if (organization.seasons_enabled && hasDateRange) {
     try {
       seasonsData = await fetchSeasonsReportData(supabase, orgId);
-    } catch {
-      // Non-fatal: seasons section simply won't appear
+    } catch (error) {
+      console.error("Failed to fetch seasons report data:", error);
+      reportError = reportError
+        ? `${reportError} Additionally, seasons data could not be loaded.`
+        : "Failed to load seasons data. The rest of the report is shown below.";
     }
   }
 
@@ -421,7 +423,7 @@ export default async function ReportsPage({
                     </thead>
                     <tbody>
                       {seasonsData.seasons.map((season) => (
-                        <tr key={season.seasonName} className="border-b border-border">
+                        <tr key={season.seasonId} className="border-b border-border">
                           <td className="px-3 py-2 font-medium">{season.seasonName}</td>
                           <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
                             {formatDate(season.startDate)} - {formatDate(season.endDate)}
