@@ -156,8 +156,9 @@ export default async function ReportsPage({
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Generate and export transaction reports for {organization.name}.
-          All uncleared transactions are always included. The date range
-          filters cleared and reconciled transactions by their cleared date.
+          All uncleared transactions through the end date are included. The
+          date range filters cleared and reconciled transactions by their
+          cleared date.
         </p>
       </div>
 

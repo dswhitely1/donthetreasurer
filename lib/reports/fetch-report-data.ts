@@ -77,8 +77,8 @@ export async function fetchReportData(
   }
 
   // Build transaction query
-  // Report logic: all uncleared transactions are included regardless of date.
-  // The date range filters on cleared_at for cleared/reconciled transactions.
+  // Uncleared transactions: included if transaction_date <= report end date.
+  // Cleared/reconciled: filtered by cleared_at within the report date range.
   let txnQuery = supabase
     .from("transactions")
     .select(
@@ -109,14 +109,14 @@ export async function fetchReportData(
     : ["cleared", "reconciled"];
 
   // Build OR filter:
-  //   uncleared — filtered by transaction_date within the report period
+  //   uncleared — transaction_date on or before the report end date
   //   cleared/reconciled — filtered by cleared_at within the report period
   const endDateExclusive = getNextDay(params.end_date);
   const orParts: string[] = [];
 
   if (includeUncleared) {
     orParts.push(
-      `and(status.eq.uncleared,transaction_date.gte.${params.start_date},transaction_date.lt.${endDateExclusive})`
+      `and(status.eq.uncleared,transaction_date.lt.${endDateExclusive})`
     );
   }
 
