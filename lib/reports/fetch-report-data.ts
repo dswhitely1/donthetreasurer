@@ -77,8 +77,10 @@ export async function fetchReportData(
   }
 
   // Build transaction query
-  // Uncleared transactions: included if transaction_date <= report end date.
-  // Cleared/reconciled: filtered by cleared_at within the report date range.
+  // A transaction is included if any of these match:
+  //   - uncleared with transaction_date <= report end date
+  //   - cleared/reconciled with cleared_at in the report date range
+  //   - any status with transaction_date in the report date range
   let txnQuery = supabase
     .from("transactions")
     .select(
@@ -108,9 +110,10 @@ export async function fetchReportData(
     ? requestedStatuses.filter((s) => s !== "uncleared")
     : ["cleared", "reconciled"];
 
-  // Build OR filter:
-  //   uncleared — transaction_date on or before the report end date
-  //   cleared/reconciled — filtered by cleared_at within the report period
+  // Build OR filter (a transaction appears if ANY condition matches):
+  //   1. uncleared — transaction_date on or before the report end date
+  //   2. cleared/reconciled — cleared_at within the report period
+  //   3. any status — transaction_date within the report period
   const endDateExclusive = getNextDay(params.end_date);
   const orParts: string[] = [];
 
@@ -127,6 +130,21 @@ export async function fetchReportData(
         : `status.in.(${clearedStatuses.join(",")})`;
     orParts.push(
       `and(${statusPart},cleared_at.gte.${params.start_date},cleared_at.lt.${endDateExclusive})`
+    );
+  }
+
+  // Also include transactions written (transaction_date) within the report period
+  if (requestedStatuses) {
+    const allStatusPart =
+      requestedStatuses.length === 1
+        ? `status.eq.${requestedStatuses[0]}`
+        : `status.in.(${requestedStatuses.join(",")})`;
+    orParts.push(
+      `and(${allStatusPart},transaction_date.gte.${params.start_date},transaction_date.lt.${endDateExclusive})`
+    );
+  } else {
+    orParts.push(
+      `and(transaction_date.gte.${params.start_date},transaction_date.lt.${endDateExclusive})`
     );
   }
 
