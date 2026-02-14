@@ -56,6 +56,7 @@ describe("buildCombinedBudgetLines", () => {
       expenseActual: 1800,
       netBudgeted: 3000,
       netActual: 2700,
+      netVariance: -300,
     });
     expect(result.unmatchedIncomeLines).toEqual([]);
     expect(result.unmatchedExpenseLines).toEqual([]);
@@ -99,6 +100,7 @@ describe("buildCombinedBudgetLines", () => {
       expenseActual: 400,
       netBudgeted: 2500,
       netActual: 2000,
+      netVariance: -500,
     });
     // Duplicate income lines are all consumed (matched name)
     expect(result.unmatchedIncomeLines).toEqual([]);
@@ -116,6 +118,7 @@ describe("buildCombinedBudgetLines", () => {
     const result = buildCombinedBudgetLines(income, expense);
     expect(result.combinedLines[0].netBudgeted).toBe(-1000);
     expect(result.combinedLines[0].netActual).toBe(-2500);
+    expect(result.combinedLines[0].netVariance).toBe(-1500);
   });
 
   it("handles only income lines with no expenses", () => {
@@ -158,6 +161,7 @@ describe("buildCombinedBudgetLines", () => {
       expenseActual: 1200,
       netBudgeted: 5000,
       netActual: 3300,
+      netVariance: -1700,
     });
     expect(result.unmatchedIncomeLines).toEqual([]);
     expect(result.unmatchedExpenseLines).toEqual([]);
@@ -181,7 +185,33 @@ describe("buildCombinedBudgetLines", () => {
       expenseActual: 2500,
       netBudgeted: -3000,
       netActual: -1700,
+      netVariance: 1300,
     });
+  });
+
+  it("computes net variance showing overspend after income offset", () => {
+    // Scenario: expense budgeted $5000, actual expense $7750, fundraised income $2484.27
+    // Net actual = 2484.27 - 7750 = -5265.73
+    // Net budgeted = 0 - 5000 = -5000
+    // Net variance = -5265.73 - (-5000) = -265.73 (overspent by $265.73)
+    const income = [
+      makeLine({ categoryName: "8th Grade", categoryType: "income", budgeted: 0, actual: 2484.27 }),
+    ];
+    const expense = [
+      makeLine({ categoryName: "8th Grade", categoryType: "expense", budgeted: 5000, actual: 7750 }),
+    ];
+
+    const result = buildCombinedBudgetLines(income, expense);
+    expect(result.combinedLines).toHaveLength(1);
+    const line = result.combinedLines[0];
+    expect(line.categoryName).toBe("8th Grade");
+    expect(line.incomeBudgeted).toBe(0);
+    expect(line.incomeActual).toBe(2484.27);
+    expect(line.expenseBudgeted).toBe(5000);
+    expect(line.expenseActual).toBe(7750);
+    expect(line.netBudgeted).toBe(-5000);
+    expect(line.netActual).toBeCloseTo(-5265.73);
+    expect(line.netVariance).toBeCloseTo(-265.73);
   });
 
   it("matches names with parent arrow notation", () => {
@@ -197,5 +227,6 @@ describe("buildCombinedBudgetLines", () => {
     expect(result.combinedLines[0].categoryName).toBe("Programs > Youth");
     expect(result.combinedLines[0].netBudgeted).toBe(500);
     expect(result.combinedLines[0].netActual).toBe(600);
+    expect(result.combinedLines[0].netVariance).toBe(100);
   });
 });

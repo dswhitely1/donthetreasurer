@@ -486,6 +486,9 @@ export default async function BudgetDetailPage({
                       <th className="px-3 py-2 text-right font-medium text-muted-foreground">
                         Net Actual
                       </th>
+                      <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                        Net Variance
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -512,6 +515,9 @@ export default async function BudgetDetailPage({
                         </td>
                         <td className="px-3 py-2 text-right">
                           <NetCell value={line.netActual} />
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <VarianceCell variance={line.netVariance} />
                         </td>
                       </tr>
                     ))}
@@ -545,6 +551,11 @@ export default async function BudgetDetailPage({
                       <td className="px-3 py-2 text-right">
                         <NetCell
                           value={combinedLines.reduce((s, l) => s + l.netActual, 0)}
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <VarianceCell
+                          variance={combinedLines.reduce((s, l) => s + l.netVariance, 0)}
                         />
                       </td>
                     </tr>

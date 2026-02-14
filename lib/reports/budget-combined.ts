@@ -8,6 +8,7 @@ export interface CombinedBudgetLine {
   expenseActual: number;
   netBudgeted: number;
   netActual: number;
+  netVariance: number;
 }
 
 export interface CombinedBudgetResult {
@@ -63,14 +64,17 @@ export function buildCombinedBudgetLines(
     const expense = expenseMap.get(name);
     if (expense) {
       matchedNames.add(name);
+      const netBudgeted = income.budgeted - expense.budgeted;
+      const netActual = income.actual - expense.actual;
       combinedLines.push({
         categoryName: name,
         incomeBudgeted: income.budgeted,
         incomeActual: income.actual,
         expenseBudgeted: expense.budgeted,
         expenseActual: expense.actual,
-        netBudgeted: income.budgeted - expense.budgeted,
-        netActual: income.actual - expense.actual,
+        netBudgeted,
+        netActual,
+        netVariance: netActual - netBudgeted,
       });
     }
   }

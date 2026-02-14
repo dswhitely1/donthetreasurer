@@ -544,7 +544,7 @@ export function generateReportPdf(
 
     // Combined Income & Expense table (if any matching categories)
     if (budgetData.combinedLines.length > 0) {
-      const combinedHead = [["Category", "Inc. Budgeted", "Inc. Actual", "Exp. Budgeted", "Exp. Actual", "Net Budgeted", "Net Actual"]];
+      const combinedHead = [["Category", "Inc. Budgeted", "Inc. Actual", "Exp. Budgeted", "Exp. Actual", "Net Budgeted", "Net Actual", "Net Variance"]];
       const combinedRows: CellInput[][] = [];
 
       for (const line of budgetData.combinedLines) {
@@ -556,6 +556,7 @@ export function generateReportPdf(
           { content: formatCurrency(line.expenseActual), styles: { halign: "right", textColor: RED } },
           { content: formatCurrency(line.netBudgeted), styles: { halign: "right", textColor: line.netBudgeted >= 0 ? GREEN : RED } },
           { content: formatCurrency(line.netActual), styles: { halign: "right", textColor: line.netActual >= 0 ? GREEN : RED } },
+          { content: formatCurrency(line.netVariance), styles: { halign: "right", textColor: line.netVariance >= 0 ? GREEN : RED } },
         ]);
       }
 
@@ -565,6 +566,7 @@ export function generateReportPdf(
       const totExpActual = budgetData.combinedLines.reduce((s, l) => s + l.expenseActual, 0);
       const totNetBudget = budgetData.combinedLines.reduce((s, l) => s + l.netBudgeted, 0);
       const totNetActual = budgetData.combinedLines.reduce((s, l) => s + l.netActual, 0);
+      const totNetVariance = budgetData.combinedLines.reduce((s, l) => s + l.netVariance, 0);
 
       combinedRows.push([
         { content: "Combined Total", styles: { fontStyle: "bold" } },
@@ -574,6 +576,7 @@ export function generateReportPdf(
         { content: formatCurrency(totExpActual), styles: { halign: "right", fontStyle: "bold", textColor: RED } },
         { content: formatCurrency(totNetBudget), styles: { halign: "right", fontStyle: "bold", textColor: totNetBudget >= 0 ? GREEN : RED } },
         { content: formatCurrency(totNetActual), styles: { halign: "right", fontStyle: "bold", textColor: totNetActual >= 0 ? GREEN : RED } },
+        { content: formatCurrency(totNetVariance), styles: { halign: "right", fontStyle: "bold", textColor: totNetVariance >= 0 ? GREEN : RED } },
       ]);
 
       autoTable(doc, {
@@ -590,13 +593,14 @@ export function generateReportPdf(
         },
         styles: { fontSize: 7, cellPadding: 3 },
         columnStyles: {
-          0: { cellWidth: 140 },
-          1: { cellWidth: 70, halign: "right" },
-          2: { cellWidth: 70, halign: "right" },
-          3: { cellWidth: 70, halign: "right" },
-          4: { cellWidth: 70, halign: "right" },
-          5: { cellWidth: 70, halign: "right" },
-          6: { cellWidth: 70, halign: "right" },
+          0: { cellWidth: 120 },
+          1: { cellWidth: 60, halign: "right" },
+          2: { cellWidth: 60, halign: "right" },
+          3: { cellWidth: 60, halign: "right" },
+          4: { cellWidth: 60, halign: "right" },
+          5: { cellWidth: 60, halign: "right" },
+          6: { cellWidth: 60, halign: "right" },
+          7: { cellWidth: 60, halign: "right" },
         },
       });
 

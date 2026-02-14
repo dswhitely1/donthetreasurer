@@ -558,7 +558,7 @@ function addCombinedBudgetSection(
 ) {
   const sectionHeader = sheet.addRow(["COMBINED INCOME & EXPENSE"]);
   sectionHeader.font = { bold: true, size: 11 };
-  sheet.mergeCells(`A${sectionHeader.number}:G${sectionHeader.number}`);
+  sheet.mergeCells(`A${sectionHeader.number}:H${sectionHeader.number}`);
   sectionHeader.eachCell((cell) => {
     cell.fill = {
       type: "pattern",
@@ -575,6 +575,7 @@ function addCombinedBudgetSection(
     "Exp. Actual",
     "Net Budgeted",
     "Net Actual",
+    "Net Variance",
   ]);
   colHeader.font = { bold: true };
   colHeader.eachCell((cell) => {
@@ -597,9 +598,10 @@ function addCombinedBudgetSection(
       line.expenseActual,
       line.netBudgeted,
       line.netActual,
+      line.netVariance,
     ]);
     // Format currency cells
-    for (let i = 2; i <= 7; i++) {
+    for (let i = 2; i <= 8; i++) {
       row.getCell(i).numFmt = currencyFmt;
     }
     // Color income cells green
@@ -611,8 +613,10 @@ function addCombinedBudgetSection(
     // Color net cells based on sign
     const netBudgetedColor = line.netBudgeted >= 0 ? "FF16A34A" : "FFDC2626";
     const netActualColor = line.netActual >= 0 ? "FF16A34A" : "FFDC2626";
+    const netVarianceColor = line.netVariance >= 0 ? "FF16A34A" : "FFDC2626";
     row.getCell(6).font = { color: { argb: netBudgetedColor } };
     row.getCell(7).font = { color: { argb: netActualColor } };
+    row.getCell(8).font = { color: { argb: netVarianceColor } };
   }
 
   // Subtotal row
@@ -622,6 +626,7 @@ function addCombinedBudgetSection(
   const totExpActual = combinedLines.reduce((s, l) => s + l.expenseActual, 0);
   const totNetBudget = combinedLines.reduce((s, l) => s + l.netBudgeted, 0);
   const totNetActual = combinedLines.reduce((s, l) => s + l.netActual, 0);
+  const totNetVariance = combinedLines.reduce((s, l) => s + l.netVariance, 0);
 
   const totalRow = sheet.addRow([
     "Combined Total",
@@ -631,9 +636,10 @@ function addCombinedBudgetSection(
     totExpActual,
     totNetBudget,
     totNetActual,
+    totNetVariance,
   ]);
   totalRow.font = { bold: true };
-  for (let i = 2; i <= 7; i++) {
+  for (let i = 2; i <= 8; i++) {
     totalRow.getCell(i).numFmt = currencyFmt;
   }
   totalRow.getCell(2).font = { bold: true, color: { argb: "FF16A34A" } };
@@ -642,6 +648,7 @@ function addCombinedBudgetSection(
   totalRow.getCell(5).font = { bold: true, color: { argb: "FFDC2626" } };
   totalRow.getCell(6).font = { bold: true, color: { argb: totNetBudget >= 0 ? "FF16A34A" : "FFDC2626" } };
   totalRow.getCell(7).font = { bold: true, color: { argb: totNetActual >= 0 ? "FF16A34A" : "FFDC2626" } };
+  totalRow.getCell(8).font = { bold: true, color: { argb: totNetVariance >= 0 ? "FF16A34A" : "FFDC2626" } };
 }
 
 function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
