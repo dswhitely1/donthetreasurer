@@ -40,6 +40,17 @@ export const mergeCategorySchema = z
     message: "Cannot merge a category into itself.",
   });
 
+export const reassignCategorySchema = z
+  .object({
+    id: z.string().uuid("Invalid category ID."),
+    organization_id: z.string().uuid("Invalid organization ID."),
+    new_parent_id: z.string().uuid("Invalid parent category ID."),
+  })
+  .refine((data) => data.id !== data.new_parent_id, {
+    message: "Cannot reassign a category under itself.",
+  });
+
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
 export type MergeCategoryInput = z.infer<typeof mergeCategorySchema>;
+export type ReassignCategoryInput = z.infer<typeof reassignCategorySchema>;

@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 
 import type { Tables } from "@/types/database";
-import { updateCategory, deactivateCategory, mergeCategory } from "../actions";
+import { updateCategory, deactivateCategory, mergeCategory, reassignCategory } from "../actions";
 import {
   CATEGORY_TYPES,
   CATEGORY_TYPE_LABELS,
@@ -36,6 +36,7 @@ export function CategoryActions({
   lineItemCount,
   transactionCount,
   mergeTargets,
+  reassignTargets,
 }: Readonly<{
   category: Tables<"categories">;
   orgId: string;
@@ -49,11 +50,17 @@ export function CategoryActions({
     parent_id: string | null;
     parent: { name: string } | null;
   }>;
+  reassignTargets: Array<{
+    id: string;
+    name: string;
+  }>;
 }>) {
   const [isEditing, setIsEditing] = useState(false);
   const [isConfirmingDeactivate, setIsConfirmingDeactivate] = useState(false);
   const [isMergeOpen, setIsMergeOpen] = useState(false);
   const [selectedTargetId, setSelectedTargetId] = useState("");
+  const [isReassignOpen, setIsReassignOpen] = useState(false);
+  const [selectedReassignTargetId, setSelectedReassignTargetId] = useState("");
 
   const [updateState, updateAction, updatePending] = useActionState(
     updateCategory,
@@ -63,6 +70,10 @@ export function CategoryActions({
     useActionState(deactivateCategory, null);
   const [mergeState, mergeAction, mergePending] = useActionState(
     mergeCategory,
+    null
+  );
+  const [reassignState, reassignAction, reassignPending] = useActionState(
+    reassignCategory,
     null
   );
 
@@ -254,6 +265,82 @@ export function CategoryActions({
                         disabled={mergePending || !selectedTargetId}
                       >
                         {mergePending ? "Merging\u2026" : "Merge Categories"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            )}
+
+            {!isSubcategory && subcategoryCount === 0 && reassignTargets.length > 0 && (
+              <Dialog open={isReassignOpen} onOpenChange={(open) => {
+                setIsReassignOpen(open);
+                if (!open) setSelectedReassignTargetId("");
+              }}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">Make Subcategory</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>
+                      Make &ldquo;{category.name}&rdquo; a Subcategory
+                    </DialogTitle>
+                    <DialogDescription>
+                      Move this category under another parent. All transactions will be preserved.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <form action={reassignAction} className="flex flex-col gap-4">
+                    <input type="hidden" name="id" value={category.id} />
+                    <input
+                      type="hidden"
+                      name="organization_id"
+                      value={orgId}
+                    />
+                    <input
+                      type="hidden"
+                      name="new_parent_id"
+                      value={selectedReassignTargetId}
+                    />
+
+                    {reassignState?.error && (
+                      <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                        {reassignState.error}
+                      </div>
+                    )}
+
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="reassign-target">New parent category</Label>
+                      <Select
+                        value={selectedReassignTargetId}
+                        onValueChange={setSelectedReassignTargetId}
+                      >
+                        <SelectTrigger id="reassign-target">
+                          <SelectValue placeholder="Select a parent category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {reassignTargets.map((target) => (
+                            <SelectItem key={target.id} value={target.id}>
+                              {target.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <DialogFooter>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsReassignOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={reassignPending || !selectedReassignTargetId}
+                      >
+                        {reassignPending ? "Moving\u2026" : "Make Subcategory"}
                       </Button>
                     </DialogFooter>
                   </form>

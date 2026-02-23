@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 
 import { createTemplate, updateTemplate } from "./actions";
+import { CreateCategoryDialog } from "../categories/create-category-dialog";
 import {
   RECURRENCE_RULES,
   RECURRENCE_RULE_LABELS,
@@ -107,6 +108,10 @@ export function TemplateForm({
     return [{ key: generateKey(), category_id: "", amount: "", memo: "" }];
   });
 
+  const [localCategories, setLocalCategories] = useState<Category[]>(categories);
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  const [activeLineItemKey, setActiveLineItemKey] = useState<string | null>(null);
+
   const [amountValue, setAmountValue] = useState<string>(
     defaultValues?.amount?.toString() ?? ""
   );
@@ -115,7 +120,7 @@ export function TemplateForm({
   const isCheckingAccount = selectedAccount?.account_type === "checking";
 
   // Filter categories by transaction type
-  const filteredCategories = categories.filter(
+  const filteredCategories = localCategories.filter(
     (c) => c.category_type === transactionType
   );
   const parentCats = filteredCategories.filter((c) => !c.parent_id);
@@ -172,6 +177,29 @@ export function TemplateForm({
       prev.map((li) => ({ ...li, category_id: "" }))
     );
   }
+
+  function openCategoryDialog(lineItemKey: string) {
+    setActiveLineItemKey(lineItemKey);
+    setIsCategoryDialogOpen(true);
+  }
+
+  function handleCategoryCreated(newCat: {
+    id: string;
+    name: string;
+    category_type: string;
+    parent_id: string | null;
+  }) {
+    setLocalCategories((prev) => [...prev, newCat]);
+    if (activeLineItemKey) {
+      updateLineItem(activeLineItemKey, "category_id", newCat.id);
+    }
+    setActiveLineItemKey(null);
+  }
+
+  // Parent categories for inline creation dialog
+  const parentCategoriesForDialog = localCategories.filter(
+    (c) => !c.parent_id && c.category_type === transactionType
+  );
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -364,12 +392,13 @@ export function TemplateForm({
               {filteredCategories.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   No {transactionType} categories found.{" "}
-                  <Link
-                    href={`/organizations/${orgId}/categories/new`}
+                  <button
+                    type="button"
                     className="underline hover:text-foreground"
+                    onClick={() => openCategoryDialog(lineItems[0]?.key ?? "")}
                   >
-                    Create one first
-                  </Link>
+                    Create one
+                  </button>
                   .
                 </p>
               ) : (
@@ -403,45 +432,57 @@ export function TemplateForm({
                         >
                           Category
                         </Label>
-                        <Select
-                          value={li.category_id}
-                          onValueChange={(val) =>
-                            updateLineItem(li.key, "category_id", val)
-                          }
-                        >
-                          <SelectTrigger id={`${formId}-li-cat-${li.key}`}>
-                            <SelectValue placeholder="Select category" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {parentCats.map((parent) => {
-                              const children =
-                                childrenMap.get(parent.id) ?? [];
-                              if (children.length > 0) {
+                        <div className="flex gap-1.5">
+                          <Select
+                            value={li.category_id}
+                            onValueChange={(val) =>
+                              updateLineItem(li.key, "category_id", val)
+                            }
+                          >
+                            <SelectTrigger id={`${formId}-li-cat-${li.key}`}>
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {parentCats.map((parent) => {
+                                const children =
+                                  childrenMap.get(parent.id) ?? [];
+                                if (children.length > 0) {
+                                  return (
+                                    <SelectGroup key={parent.id}>
+                                      <SelectLabel>{parent.name}</SelectLabel>
+                                      {children.map((child) => (
+                                        <SelectItem
+                                          key={child.id}
+                                          value={child.id}
+                                        >
+                                          {parent.name} → {child.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectGroup>
+                                  );
+                                }
                                 return (
-                                  <SelectGroup key={parent.id}>
-                                    <SelectLabel>{parent.name}</SelectLabel>
-                                    {children.map((child) => (
-                                      <SelectItem
-                                        key={child.id}
-                                        value={child.id}
-                                      >
-                                        {parent.name} → {child.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectGroup>
+                                  <SelectItem
+                                    key={parent.id}
+                                    value={parent.id}
+                                  >
+                                    {parent.name}
+                                  </SelectItem>
                                 );
-                              }
-                              return (
-                                <SelectItem
-                                  key={parent.id}
-                                  value={parent.id}
-                                >
-                                  {parent.name}
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectContent>
-                        </Select>
+                              })}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-9 w-9 shrink-0"
+                            onClick={() => openCategoryDialog(li.key)}
+                            title="Create new category"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-2">
@@ -522,6 +563,15 @@ export function TemplateForm({
           </form>
         </CardContent>
       </Card>
+
+      <CreateCategoryDialog
+        open={isCategoryDialogOpen}
+        onOpenChange={setIsCategoryDialogOpen}
+        orgId={orgId}
+        categoryType={transactionType}
+        parentCategories={parentCategoriesForDialog}
+        onCreated={handleCategoryCreated}
+      />
     </div>
   );
 }

@@ -93,6 +93,21 @@ export default async function CategoryDetailPage({
     .neq("id", categoryId)
     .order("name");
 
+  // Fetch eligible reassign targets: same org, same type, active, top-level only, not self
+  const reassignTargets =
+    !category.parent_id && subcategoryCount === 0
+      ? (
+          await supabase
+            .from("categories")
+            .select("id, name")
+            .eq("organization_id", orgId)
+            .eq("category_type", category.category_type)
+            .eq("is_active", true)
+            .is("parent_id", null)
+            .neq("id", categoryId)
+            .order("name")
+        ).data ?? []
+      : [];
 
   const typeLabel =
     CATEGORY_TYPE_LABELS[
@@ -201,6 +216,7 @@ export default async function CategoryDetailPage({
             lineItemCount={lineItemCount ?? 0}
             transactionCount={transactionCount}
             mergeTargets={mergeTargets ?? []}
+            reassignTargets={reassignTargets}
           />
         </CardContent>
       </Card>
