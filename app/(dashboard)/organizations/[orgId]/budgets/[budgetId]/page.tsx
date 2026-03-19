@@ -413,7 +413,7 @@ export default async function BudgetDetailPage({
           />
 
           {/* Summary Cards */}
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <div className="mt-6 grid grid-cols-3 gap-3">
             <div className="rounded-lg border border-border p-3">
               <p className="text-xs font-medium text-muted-foreground">
                 Budgeted Income
@@ -468,16 +468,16 @@ export default async function BudgetDetailPage({
                       <th className="px-3 py-2 text-left font-medium text-muted-foreground">
                         Category
                       </th>
-                      <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                      <th className="hidden px-3 py-2 text-right font-medium text-muted-foreground sm:table-cell">
                         Inc. Budgeted
                       </th>
-                      <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                      <th className="hidden px-3 py-2 text-right font-medium text-muted-foreground sm:table-cell">
                         Inc. Actual
                       </th>
-                      <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                      <th className="hidden px-3 py-2 text-right font-medium text-muted-foreground sm:table-cell">
                         Exp. Budgeted
                       </th>
-                      <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                      <th className="hidden px-3 py-2 text-right font-medium text-muted-foreground sm:table-cell">
                         Exp. Actual
                       </th>
                       <th className="px-3 py-2 text-right font-medium text-muted-foreground">
@@ -498,16 +498,16 @@ export default async function BudgetDetailPage({
                         className="border-b border-border last:border-b-0"
                       >
                         <td className="px-3 py-2">{line.categoryName}</td>
-                        <td className="px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400">
+                        <td className="hidden px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400 sm:table-cell">
                           {formatCurrency(line.incomeBudgeted)}
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400">
+                        <td className="hidden px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400 sm:table-cell">
                           {formatCurrency(line.incomeActual)}
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400">
+                        <td className="hidden px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400 sm:table-cell">
                           {formatCurrency(line.expenseBudgeted)}
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400">
+                        <td className="hidden px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400 sm:table-cell">
                           {formatCurrency(line.expenseActual)}
                         </td>
                         <td className="px-3 py-2 text-right">
@@ -523,22 +523,22 @@ export default async function BudgetDetailPage({
                     ))}
                     <tr className="bg-muted/30 font-medium">
                       <td className="px-3 py-2">Combined Total</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400">
+                      <td className="hidden px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400 sm:table-cell">
                         {formatCurrency(
                           combinedLines.reduce((s, l) => s + l.incomeBudgeted, 0)
                         )}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400">
+                      <td className="hidden px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400 sm:table-cell">
                         {formatCurrency(
                           combinedLines.reduce((s, l) => s + l.incomeActual, 0)
                         )}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400">
+                      <td className="hidden px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400 sm:table-cell">
                         {formatCurrency(
                           combinedLines.reduce((s, l) => s + l.expenseBudgeted, 0)
                         )}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400">
+                      <td className="hidden px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400 sm:table-cell">
                         {formatCurrency(
                           combinedLines.reduce((s, l) => s + l.expenseActual, 0)
                         )}
@@ -587,10 +587,10 @@ export default async function BudgetDetailPage({
                       <th className="px-3 py-2 text-right font-medium text-muted-foreground">
                         Variance
                       </th>
-                      <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                      <th className="hidden px-3 py-2 text-right font-medium text-muted-foreground sm:table-cell">
                         %
                       </th>
-                      <th className="w-24 px-3 py-2 font-medium text-muted-foreground">
+                      <th className="hidden w-24 px-3 py-2 font-medium text-muted-foreground sm:table-cell">
                         Progress
                       </th>
                     </tr>
@@ -611,12 +611,12 @@ export default async function BudgetDetailPage({
                         <td className="px-3 py-2 text-right">
                           <VarianceCell variance={line.variance} />
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                        <td className="hidden px-3 py-2 text-right tabular-nums text-muted-foreground sm:table-cell">
                           {line.variancePercent !== null
                             ? `${line.variancePercent.toFixed(0)}%`
                             : "\u2014"}
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="hidden px-3 py-2 sm:table-cell">
                           <ProgressBar
                             actual={line.actual}
                             budgeted={line.budgeted}
@@ -642,12 +642,12 @@ export default async function BudgetDetailPage({
                               variance={subtotalActual - subtotalBudgeted}
                             />
                           </td>
-                          <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                          <td className="hidden px-3 py-2 text-right tabular-nums text-muted-foreground sm:table-cell">
                             {subtotalBudgeted > 0
                               ? `${((subtotalActual / subtotalBudgeted) * 100).toFixed(0)}%`
                               : "\u2014"}
                           </td>
-                          <td className="px-3 py-2" />
+                          <td className="hidden px-3 py-2 sm:table-cell" />
                         </tr>
                       );
                     })()}
@@ -679,10 +679,10 @@ export default async function BudgetDetailPage({
                       <th className="px-3 py-2 text-right font-medium text-muted-foreground">
                         Variance
                       </th>
-                      <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                      <th className="hidden px-3 py-2 text-right font-medium text-muted-foreground sm:table-cell">
                         %
                       </th>
-                      <th className="w-24 px-3 py-2 font-medium text-muted-foreground">
+                      <th className="hidden w-24 px-3 py-2 font-medium text-muted-foreground sm:table-cell">
                         Progress
                       </th>
                     </tr>
@@ -703,12 +703,12 @@ export default async function BudgetDetailPage({
                         <td className="px-3 py-2 text-right">
                           <VarianceCell variance={line.variance} />
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                        <td className="hidden px-3 py-2 text-right tabular-nums text-muted-foreground sm:table-cell">
                           {line.variancePercent !== null
                             ? `${line.variancePercent.toFixed(0)}%`
                             : "\u2014"}
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="hidden px-3 py-2 sm:table-cell">
                           <ProgressBar
                             actual={line.actual}
                             budgeted={line.budgeted}
@@ -734,12 +734,12 @@ export default async function BudgetDetailPage({
                               variance={subtotalBudgeted - subtotalActual}
                             />
                           </td>
-                          <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                          <td className="hidden px-3 py-2 text-right tabular-nums text-muted-foreground sm:table-cell">
                             {subtotalBudgeted > 0
                               ? `${((subtotalActual / subtotalBudgeted) * 100).toFixed(0)}%`
                               : "\u2014"}
                           </td>
-                          <td className="px-3 py-2" />
+                          <td className="hidden px-3 py-2 sm:table-cell" />
                         </tr>
                       );
                     })()}
