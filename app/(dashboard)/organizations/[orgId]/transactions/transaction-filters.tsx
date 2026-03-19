@@ -46,6 +46,8 @@ export function TransactionFilters({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
   const currentAccountId = searchParams.get("account_id") ?? "all";
   const currentStatus = searchParams.get("status") ?? "all";
   const currentCategoryId = searchParams.get("category_id") ?? "all";
@@ -82,8 +84,6 @@ export function TransactionFilters({
     const qs = params.toString();
     router.push(qs ? `${pathname}?${qs}` : pathname);
   }
-
-  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const activeFilterCount = [
     currentAccountId !== "all",

@@ -59,6 +59,7 @@ export function ReportFilters({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const currentAccountId = searchParams.get("account_id") ?? "all";
   const currentStatus = searchParams.get("status") ?? "all";
@@ -157,8 +158,6 @@ export function ReportFilters({
     currentStartDate !== "" ||
     currentEndDate !== "" ||
     currentPreset !== "custom";
-
-  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const activeFilterCount = [
     currentPreset !== "custom",

@@ -146,8 +146,8 @@ export function Pagination({
             </Button>
 
             {/* Mobile: compact page indicator */}
-            <span className="px-2 text-sm text-muted-foreground sm:hidden">
-              {currentPage} / {totalPages}
+            <span className="px-2 text-sm text-muted-foreground sm:hidden" aria-live="polite">
+              Page {currentPage} of {totalPages}
             </span>
 
             {/* Desktop: page number buttons */}

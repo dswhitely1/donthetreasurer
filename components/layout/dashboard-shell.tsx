@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { usePathname } from "next/navigation";
 
 import { useOrganizations } from "@/hooks/use-organizations";
@@ -24,12 +24,18 @@ export function DashboardShell({
 
   const showSidebar = currentOrgId !== null;
 
+  const handleToggleSidebar = useCallback(
+    () => setSidebarOpen((prev) => !prev),
+    []
+  );
+  const handleCloseSidebar = useCallback(() => setSidebarOpen(false), []);
+
   return (
     <div className="min-h-screen bg-background">
       <Header
         displayName={displayName}
         currentOrgId={currentOrgId}
-        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+        onToggleSidebar={handleToggleSidebar}
         showSidebarToggle={showSidebar}
       />
       <div className="flex flex-1">
@@ -39,7 +45,7 @@ export function DashboardShell({
             orgName={currentOrg?.name ?? ""}
             seasonsEnabled={currentOrg?.seasons_enabled ?? false}
             isOpen={sidebarOpen}
-            onClose={() => setSidebarOpen(false)}
+            onClose={handleCloseSidebar}
           />
         )}
         <main

@@ -17,7 +17,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 
-import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import {
@@ -354,6 +354,16 @@ export function TransactionTable({
 
         {/* Mobile card view */}
         <div className="space-y-2 lg:hidden">
+          {selectableTransactions.length > 0 && (
+            <label className="flex items-center gap-2 px-1 py-1 text-sm text-muted-foreground">
+              <Checkbox
+                checked={allSelectableSelected && selectableTransactions.length > 0}
+                onCheckedChange={toggleSelectAll}
+                aria-label="Select all transactions"
+              />
+              Select all
+            </label>
+          )}
           {transactions.map((txn) => {
             const lineItems = txn.transaction_line_items ?? [];
             const isIncome = txn.transaction_type === "income";
@@ -373,15 +383,11 @@ export function TransactionTable({
                 {/* Checkbox */}
                 <div
                   className="pt-0.5"
+                  role="presentation"
                   onClick={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ")
-                      e.stopPropagation();
-                  }}
                 >
                   <Checkbox
                     checked={isSelected}
-                    onCheckedChange={() => toggleSelect(txn.id)}
                     disabled={isReconciled}
                     aria-label={`Select ${txn.description}`}
                     onClick={(e) => {
@@ -398,11 +404,12 @@ export function TransactionTable({
                       {txn.description}
                     </p>
                     <span
-                      className={`shrink-0 font-medium tabular-nums text-sm ${
+                      className={cn(
+                        "shrink-0 font-medium tabular-nums text-sm",
                         isIncome
                           ? "text-green-600 dark:text-green-400"
                           : "text-red-600 dark:text-red-400"
-                      }`}
+                      )}
                     >
                       {isIncome ? "+" : "-"}
                       {formatCurrency(txn.amount)}
