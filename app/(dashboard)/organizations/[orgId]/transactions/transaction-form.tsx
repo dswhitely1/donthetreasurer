@@ -628,7 +628,7 @@ export function TransactionForm({
             </div>
 
             {/* Submit */}
-            <div className="mt-2 flex gap-3">
+            <div className="mt-2 flex flex-col gap-3 sm:flex-row">
               <Button
                 type="submit"
                 name="_intent"

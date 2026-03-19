@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { SlidersHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,15 +83,25 @@ export function TransactionFilters({
     router.push(qs ? `${pathname}?${qs}` : pathname);
   }
 
-  return (
-    <div className="flex flex-wrap items-end gap-3">
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const activeFilterCount = [
+    currentAccountId !== "all",
+    currentStatus !== "all",
+    currentCategoryId !== "all",
+    currentStartDate !== "",
+    currentEndDate !== "",
+  ].filter(Boolean).length;
+
+  const filterControls = (
+    <>
       <div className="space-y-1">
         <Label className="text-xs text-muted-foreground">Account</Label>
         <Select
           value={currentAccountId}
           onValueChange={(v) => updateParam("account_id", v)}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="All Accounts" />
           </SelectTrigger>
           <SelectContent>
@@ -109,7 +121,7 @@ export function TransactionFilters({
           value={currentStatus}
           onValueChange={(v) => updateParam("status", v)}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
           <SelectContent>
@@ -128,7 +140,7 @@ export function TransactionFilters({
           value={currentCategoryId}
           onValueChange={(v) => updateParam("category_id", v)}
         >
-          <SelectTrigger className="w-[220px]">
+          <SelectTrigger className="w-full sm:w-[220px]">
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
           <SelectContent>
@@ -146,7 +158,7 @@ export function TransactionFilters({
         <Label className="text-xs text-muted-foreground">Start Date</Label>
         <Input
           type="date"
-          className="w-[160px]"
+          className="w-full sm:w-[160px]"
           value={currentStartDate}
           onChange={(e) => updateParam("start_date", e.target.value)}
         />
@@ -156,7 +168,7 @@ export function TransactionFilters({
         <Label className="text-xs text-muted-foreground">End Date</Label>
         <Input
           type="date"
-          className="w-[160px]"
+          className="w-full sm:w-[160px]"
           value={currentEndDate}
           onChange={(e) => updateParam("end_date", e.target.value)}
         />
@@ -167,6 +179,30 @@ export function TransactionFilters({
           Clear Filters
         </Button>
       )}
+    </>
+  );
+
+  return (
+    <div>
+      {/* Mobile: collapsible filter toggle */}
+      <div className="sm:hidden">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setFiltersOpen((prev) => !prev)}
+        >
+          <SlidersHorizontal className="mr-1.5 h-4 w-4" />
+          Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+        </Button>
+        {filtersOpen && (
+          <div className="mt-3 space-y-3">{filterControls}</div>
+        )}
+      </div>
+
+      {/* Desktop: inline flex-wrap */}
+      <div className="hidden sm:flex sm:flex-wrap sm:items-end sm:gap-3">
+        {filterControls}
+      </div>
     </div>
   );
 }
