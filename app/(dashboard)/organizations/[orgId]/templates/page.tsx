@@ -94,16 +94,16 @@ export default async function TemplatesPage({
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
                   Description
                 </th>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                <th className="hidden px-3 py-2.5 text-left font-medium text-muted-foreground sm:table-cell">
                   Account
                 </th>
                 <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
                   Amount
                 </th>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                <th className="hidden px-3 py-2.5 text-left font-medium text-muted-foreground sm:table-cell">
                   Frequency
                 </th>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                <th className="hidden px-3 py-2.5 text-left font-medium text-muted-foreground md:table-cell">
                   Next Occurrence
                 </th>
                 <th className="px-3 py-2.5 text-center font-medium text-muted-foreground">
@@ -142,7 +142,7 @@ export default async function TemplatesPage({
                         {tmpl.description}
                       </Link>
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
+                    <td className="hidden px-3 py-2.5 whitespace-nowrap text-muted-foreground sm:table-cell">
                       {accountName}
                     </td>
                     <td
@@ -155,10 +155,10 @@ export default async function TemplatesPage({
                       {isIncome ? "+" : "-"}
                       {formatCurrency(tmpl.amount)}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
+                    <td className="hidden px-3 py-2.5 whitespace-nowrap text-muted-foreground sm:table-cell">
                       {ruleLabel}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
+                    <td className="hidden px-3 py-2.5 whitespace-nowrap text-muted-foreground md:table-cell">
                       {tmpl.next_occurrence_date
                         ? formatDate(tmpl.next_occurrence_date)
                         : "\u2014"}

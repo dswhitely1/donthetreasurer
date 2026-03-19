@@ -299,7 +299,7 @@ export function TransactionTable({
       <div>
         {/* Bulk action bar */}
         {selectedIds.size > 0 && (
-          <div className="mb-2 flex items-center gap-3 rounded-lg border border-border bg-muted/50 p-3">
+          <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/50 p-3 sm:gap-3">
             <span className="text-sm font-medium">
               {selectedIds.size} selected
             </span>
@@ -309,7 +309,7 @@ export function TransactionTable({
               disabled={isMutating}
               onClick={() => handleBulkAction("cleared")}
             >
-              Mark as Cleared
+              Mark Cleared
             </Button>
             <Button
               size="sm"
@@ -317,7 +317,7 @@ export function TransactionTable({
               disabled={isMutating}
               onClick={() => handleBulkAction("reconciled")}
             >
-              Mark as Reconciled
+              Mark Reconciled
             </Button>
             <Button
               size="sm"
@@ -325,7 +325,7 @@ export function TransactionTable({
               disabled={isMutating}
               onClick={() => handleBulkAction("delete")}
             >
-              Delete Selected
+              Delete
             </Button>
             {bulkError && (
               <span className="text-sm text-destructive">{bulkError}</span>
@@ -352,7 +352,80 @@ export function TransactionTable({
           </Button>
         </div>
 
-        <div className="overflow-x-auto rounded-lg border border-border">
+        {/* Mobile card view */}
+        <div className="space-y-2 lg:hidden">
+          {transactions.map((txn) => {
+            const lineItems = txn.transaction_line_items ?? [];
+            const isIncome = txn.transaction_type === "income";
+            const isReconciled = txn.status === "reconciled";
+            const isSelected = selectedIds.has(txn.id);
+            const { text: categoryText } = buildCategoryDisplay(
+              lineItems,
+              categoryNameMap
+            );
+
+            return (
+              <Link
+                key={txn.id}
+                href={`/organizations/${orgId}/transactions/${txn.id}`}
+                className="flex items-start gap-3 rounded-lg border border-border p-3 hover:bg-muted/30 active:bg-muted/50"
+              >
+                {/* Checkbox */}
+                <div
+                  className="pt-0.5"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ")
+                      e.stopPropagation();
+                  }}
+                >
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggleSelect(txn.id)}
+                    disabled={isReconciled}
+                    aria-label={`Select ${txn.description}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (!isReconciled) toggleSelect(txn.id);
+                    }}
+                  />
+                </div>
+                {/* Content */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="truncate font-medium text-sm">
+                      {txn.description}
+                    </p>
+                    <span
+                      className={`shrink-0 font-medium tabular-nums text-sm ${
+                        isIncome
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-red-600 dark:text-red-400"
+                      }`}
+                    >
+                      {isIncome ? "+" : "-"}
+                      {formatCurrency(txn.amount)}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                    <span>{formatDate(txn.transaction_date)}</span>
+                    <span>&middot;</span>
+                    <span>{txn.accounts?.name ?? "Unknown"}</span>
+                    <span>&middot;</span>
+                    <span className="truncate">{categoryText}</span>
+                  </div>
+                  <div className="mt-1">
+                    <StatusIcon status={txn.status} />
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Desktop table view */}
+        <div className="hidden overflow-x-auto rounded-lg border border-border lg:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">

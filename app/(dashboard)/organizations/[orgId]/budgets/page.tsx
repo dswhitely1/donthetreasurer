@@ -92,19 +92,19 @@ export default async function BudgetsPage({
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
                   Name
                 </th>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                <th className="hidden px-3 py-2.5 text-left font-medium text-muted-foreground sm:table-cell">
                   Date Range
                 </th>
                 <th className="px-3 py-2.5 text-center font-medium text-muted-foreground">
                   Status
                 </th>
                 <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
-                  Budgeted Income
+                  Income
                 </th>
                 <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
-                  Budgeted Expenses
+                  Expenses
                 </th>
-                <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
+                <th className="hidden px-3 py-2.5 text-right font-medium text-muted-foreground md:table-cell">
                   Items
                 </th>
               </tr>
@@ -144,7 +144,7 @@ export default async function BudgetsPage({
                         {budget.name}
                       </Link>
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
+                    <td className="hidden px-3 py-2.5 whitespace-nowrap text-muted-foreground sm:table-cell">
                       {formatDate(budget.start_date)} &ndash;{" "}
                       {formatDate(budget.end_date)}
                     </td>
@@ -163,7 +163,7 @@ export default async function BudgetsPage({
                         ? formatCurrency(budgetedExpenses)
                         : "\u2014"}
                     </td>
-                    <td className="px-3 py-2.5 text-right text-muted-foreground">
+                    <td className="hidden px-3 py-2.5 text-right text-muted-foreground md:table-cell">
                       {lineItems.length}
                     </td>
                   </tr>
