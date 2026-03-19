@@ -105,8 +105,8 @@ export function Pagination({
       </p>
 
       <div className="flex items-center gap-2">
-        {/* Per-page selector */}
-        <div className="flex items-center gap-2">
+        {/* Per-page selector — hidden on mobile */}
+        <div className="hidden items-center gap-2 sm:flex">
           <span className="text-sm text-muted-foreground">Per page</span>
           <Select value={String(limit)} onValueChange={changeLimit}>
             <SelectTrigger className="w-[70px]" size="sm">
@@ -131,6 +131,7 @@ export function Pagination({
               onClick={() => navigate(1)}
               disabled={currentPage <= 1}
               aria-label="First page"
+              className="hidden sm:inline-flex"
             >
               <ChevronsLeft className="h-4 w-4" />
             </Button>
@@ -144,11 +145,17 @@ export function Pagination({
               <ChevronLeft className="h-4 w-4" />
             </Button>
 
+            {/* Mobile: compact page indicator */}
+            <span className="px-2 text-sm text-muted-foreground sm:hidden">
+              {currentPage} / {totalPages}
+            </span>
+
+            {/* Desktop: page number buttons */}
             {pageNumbers.map((item, idx) =>
               item === "ellipsis" ? (
                 <span
                   key={`ellipsis-${idx}`}
-                  className="px-1 text-muted-foreground"
+                  className="hidden px-1 text-muted-foreground sm:inline"
                 >
                   &hellip;
                 </span>
@@ -160,6 +167,7 @@ export function Pagination({
                   onClick={() => navigate(item)}
                   aria-label={`Page ${item}`}
                   aria-current={item === currentPage ? "page" : undefined}
+                  className="hidden sm:inline-flex"
                 >
                   {item}
                 </Button>
@@ -181,6 +189,7 @@ export function Pagination({
               onClick={() => navigate(totalPages)}
               disabled={currentPage >= totalPages}
               aria-label="Last page"
+              className="hidden sm:inline-flex"
             >
               <ChevronsRight className="h-4 w-4" />
             </Button>

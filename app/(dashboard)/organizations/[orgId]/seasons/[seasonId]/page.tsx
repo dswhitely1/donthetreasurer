@@ -185,7 +185,7 @@ export default async function SeasonDetailPage({
       </div>
 
       {/* Summary Cards */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg border border-border p-4">
           <p className="text-sm text-muted-foreground">Enrolled Students</p>
           <p className="mt-1 text-2xl font-bold tabular-nums">

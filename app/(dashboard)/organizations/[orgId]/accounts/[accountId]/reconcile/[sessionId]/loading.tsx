@@ -7,7 +7,7 @@ export default function ReconcileMatchingLoading() {
       <Skeleton className="mt-4 h-8 w-64" />
       <Skeleton className="mt-2 h-4 w-48" />
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
