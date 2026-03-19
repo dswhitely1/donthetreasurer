@@ -124,6 +124,17 @@
   }
 }
 
+/* Mobile touch targets: ensure 44px minimum tap area on touch devices */
+@media (pointer: coarse) {
+  [data-slot="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  a[class*="rounded"] {
+    min-height: 44px;
+  }
+}
+
 /* Fix Radix UI popover/select z-index in Tailwind v4 CSS layers.
    Radix Popper creates a wrapper div that reads z-index from child
    computed styles, which can fail under CSS cascade layers. Target

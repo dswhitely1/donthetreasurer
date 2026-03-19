@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -77,7 +78,7 @@ function SidebarContent({
               key={item.label}
               href={fullHref}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-md px-3 py-3 text-sm font-medium transition-colors lg:py-2",
                 isActive
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
@@ -94,6 +95,17 @@ function SidebarContent({
 }
 
 export function Sidebar({ orgId, orgName, seasonsEnabled, isOpen, onClose }: Readonly<SidebarProps>) {
+  const pathname = usePathname();
+  const prevPathname = useRef(pathname);
+
+  // Auto-close mobile sidebar on route change
+  useEffect(() => {
+    if (prevPathname.current !== pathname && isOpen) {
+      onClose();
+    }
+    prevPathname.current = pathname;
+  }, [pathname, isOpen, onClose]);
+
   return (
     <>
       {/* Desktop sidebar */}

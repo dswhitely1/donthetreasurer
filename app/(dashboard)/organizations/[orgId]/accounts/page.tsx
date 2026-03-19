@@ -58,7 +58,7 @@ export default async function AccountsPage({
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">
             Accounts
@@ -67,7 +67,7 @@ export default async function AccountsPage({
             Manage financial accounts for {organization.name}.
           </p>
         </div>
-        <Button asChild>
+        <Button asChild className="self-start sm:self-auto">
           <Link href={`/organizations/${orgId}/accounts/new`}>
             <Plus className="mr-2 h-4 w-4" />
             New Account

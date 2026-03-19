@@ -326,7 +326,7 @@ export default async function TransactionsPage({
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">
             Transactions
@@ -335,7 +335,7 @@ export default async function TransactionsPage({
             Manage transactions for {organization.name}.
           </p>
         </div>
-        <Button asChild>
+        <Button asChild className="self-start sm:self-auto">
           <Link href={`/organizations/${orgId}/transactions/new`}>
             <Plus className="mr-2 h-4 w-4" />
             New Transaction

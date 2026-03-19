@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, Settings } from "lucide-react";
+import { LogOut, Menu, Settings } from "lucide-react";
 
 import { signOut } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
@@ -53,7 +53,10 @@ export function Header({
             </Link>
           </Button>
           <form action={signOut}>
-            <Button variant="ghost" size="sm" type="submit">
+            <Button variant="ghost" size="icon-sm" type="submit" className="sm:hidden" aria-label="Sign out">
+              <LogOut className="size-4" />
+            </Button>
+            <Button variant="ghost" size="sm" type="submit" className="hidden sm:inline-flex">
               Sign out
             </Button>
           </form>

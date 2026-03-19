@@ -28,7 +28,7 @@ export default async function OrganizationsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">
             Organizations
@@ -37,7 +37,7 @@ export default async function OrganizationsPage() {
             Manage your nonprofit organizations.
           </p>
         </div>
-        <Button asChild>
+        <Button asChild className="self-start sm:self-auto">
           <Link href="/organizations/new">
             <Plus className="mr-2 h-4 w-4" />
             New Organization

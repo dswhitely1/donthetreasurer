@@ -61,11 +61,11 @@ export default async function TemplatesPage({
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-2xl font-bold tracking-tight text-foreground">
           Recurring Templates
         </h2>
-        <Button asChild>
+        <Button asChild className="self-start sm:self-auto">
           <Link href={`/organizations/${orgId}/templates/new`}>
             <Plus className="mr-2 h-4 w-4" />
             New Template

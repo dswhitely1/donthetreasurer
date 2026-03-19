@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function CategoriesLoading() {
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Skeleton className="h-8 w-40" />
           <Skeleton className="mt-2 h-4 w-64" />

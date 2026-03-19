@@ -31,9 +31,9 @@ export default async function StudentsPage({
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Students</h1>
-        <Button asChild>
+        <Button asChild className="self-start sm:self-auto">
           <Link href={`/organizations/${orgId}/students/new`}>
             Add Student
           </Link>
