@@ -1,13 +1,12 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Lock } from "lucide-react";
-
+import { Lock, Repeat } from "lucide-react";
 import Link from "next/link";
-import { Repeat } from "lucide-react";
 
 import { deleteTransaction } from "../actions";
 import { TransactionForm } from "../transaction-form";
+import { CategoryReassignForm } from "./category-reassign-form";
 import { Button } from "@/components/ui/button";
 
 import type { Tables } from "@/types/database";
@@ -54,6 +53,7 @@ export function TransactionActions({
   categories: Category[];
 }>) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isReassigning, setIsReassigning] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   const [deleteState, deleteAction, deletePending] = useActionState(
@@ -88,14 +88,37 @@ export function TransactionActions({
     );
   }
 
+  if (isReassigning) {
+    return (
+      <div className="mt-6 border-t border-border pt-6">
+        <CategoryReassignForm
+          transactionId={transaction.id}
+          orgId={orgId}
+          transactionAmount={transaction.amount}
+          transactionType={transaction.transaction_type}
+          lineItems={lineItems}
+          categories={categories}
+          onCancel={() => setIsReassigning(false)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="mt-6 border-t border-border pt-6">
       {isReconciled ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Lock className="h-4 w-4" />
-          <span>
-            This transaction is reconciled and cannot be edited or deleted.
-          </span>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Lock className="h-4 w-4" />
+            <span>
+              This transaction is reconciled. Only category reassignment is allowed.
+            </span>
+          </div>
+          <div>
+            <Button variant="outline" onClick={() => setIsReassigning(true)}>
+              Reassign Categories
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="flex flex-col gap-3">

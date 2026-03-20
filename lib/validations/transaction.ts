@@ -92,9 +92,16 @@ export const inlineUpdateTransactionSchema = z.object({
   value: z.string(),
 });
 
+export const reassignLineItemsSchema = z.object({
+  transaction_id: z.string().uuid("Invalid transaction ID."),
+  organization_id: z.string().uuid("Invalid organization ID."),
+  line_items: z.string().min(1, "Line items are required."),
+});
+
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>;
 export type UpdateTransactionInput = z.infer<typeof updateTransactionSchema>;
 export type LineItemInput = z.infer<typeof lineItemSchema>;
 export type InlineUpdateTransactionInput = z.infer<
   typeof inlineUpdateTransactionSchema
 >;
+export type ReassignLineItemsInput = z.infer<typeof reassignLineItemsSchema>;
