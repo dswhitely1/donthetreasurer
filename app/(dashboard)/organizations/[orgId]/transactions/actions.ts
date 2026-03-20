@@ -907,7 +907,7 @@ export async function reassignLineItemCategories(
   const parsed = reassignLineItemsSchema.safeParse(raw);
   if (!parsed.success) {
     return {
-      error: parsed.error.errors.map((e) => e.message).join(", "),
+      error: parsed.error.issues[0].message,
     };
   }
 
