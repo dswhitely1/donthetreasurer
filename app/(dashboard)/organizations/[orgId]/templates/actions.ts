@@ -343,10 +343,14 @@ export async function updateTemplate(
   }
 
   // Delete existing line items and re-insert
-  await supabase
+  const { error: deleteLineItemsError } = await supabase
     .from("recurring_template_line_items")
     .delete()
     .eq("template_id", parsed.data.id);
+
+  if (deleteLineItemsError) {
+    return { error: "Failed to update line items. Please try again." };
+  }
 
   const lineItemInserts = parsedLineItems.data.map((li) => ({
     template_id: parsed.data.id,
@@ -673,7 +677,7 @@ export async function generateFromTemplate(
         .single();
 
       if (feeCat?.is_active) {
-        const { data: feeTxn } = await supabase
+        const { data: feeTxn, error: feeTxnError } = await supabase
           .from("transactions")
           .insert({
             account_id: template.account_id,
@@ -687,12 +691,21 @@ export async function generateFromTemplate(
           .select("id")
           .single();
 
-        if (feeTxn) {
-          await supabase.from("transaction_line_items").insert({
+        if (feeTxnError || !feeTxn) {
+          return { error: "Transaction was created, but the processing fee could not be created. Please add the fee manually." };
+        }
+
+        const { error: feeLiError } = await supabase
+          .from("transaction_line_items")
+          .insert({
             transaction_id: feeTxn.id,
             category_id: account.fee_category_id,
             amount: feeAmount,
           });
+
+        if (feeLiError) {
+          await supabase.from("transactions").delete().eq("id", feeTxn.id);
+          return { error: "Transaction was created, but the processing fee line item failed. Please add the fee manually." };
         }
       }
     }
@@ -706,13 +719,17 @@ export async function generateFromTemplate(
     template.end_date
   );
 
-  await supabase
+  const { error: advanceError } = await supabase
     .from("recurring_templates")
     .update({
       next_occurrence_date: nextOccurrence,
       is_active: nextOccurrence !== null,
     })
     .eq("id", template.id);
+
+  if (advanceError) {
+    return { error: "Transaction was created, but the template schedule could not be updated. The next generation may create a duplicate — please check the template." };
+  }
 
   revalidatePath("/dashboard", "layout");
   return null;

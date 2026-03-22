@@ -192,7 +192,7 @@ export async function createTransaction(
         .single();
 
       if (feeCat?.is_active) {
-        const { data: feeTxn } = await supabase
+        const { data: feeTxn, error: feeTxnError } = await supabase
           .from("transactions")
           .insert({
             account_id: parsed.data.account_id,
@@ -206,12 +206,21 @@ export async function createTransaction(
           .select("id")
           .single();
 
-        if (feeTxn) {
-          await supabase.from("transaction_line_items").insert({
+        if (feeTxnError || !feeTxn) {
+          return { error: "Income transaction was created, but the processing fee could not be created. Please add the fee manually." };
+        }
+
+        const { error: feeLiError } = await supabase
+          .from("transaction_line_items")
+          .insert({
             transaction_id: feeTxn.id,
             category_id: account.fee_category_id,
             amount: feeAmount,
           });
+
+        if (feeLiError) {
+          await supabase.from("transactions").delete().eq("id", feeTxn.id);
+          return { error: "Income transaction was created, but the processing fee line item failed. Please add the fee manually." };
         }
       }
     }
@@ -384,10 +393,14 @@ export async function updateTransaction(
   }
 
   // Delete existing line items and re-insert
-  await supabase
+  const { error: deleteLineItemsError } = await supabase
     .from("transaction_line_items")
     .delete()
     .eq("transaction_id", parsed.data.id);
+
+  if (deleteLineItemsError) {
+    return { error: "Failed to update line items. Please try again." };
+  }
 
   const lineItemInserts = parsedLineItems.data.map((li) => ({
     transaction_id: parsed.data.id,
@@ -579,10 +592,14 @@ export async function bulkUpdateStatus(
       clearedAt = null;
     }
 
-    await supabase
+    const { error: statusError } = await supabase
       .from("transactions")
       .update({ status: newStatus, cleared_at: clearedAt })
       .eq("id", txn.id);
+
+    if (statusError) {
+      return { error: "Failed to update transaction status. Some transactions may have been updated before this error." };
+    }
   }
 
   revalidatePath("/dashboard", "layout");

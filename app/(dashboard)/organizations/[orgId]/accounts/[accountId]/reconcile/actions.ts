@@ -184,10 +184,14 @@ export async function finishReconciliation(
     // Set cleared_at if null (was uncleared)
     const clearedAt = txn.cleared_at ?? new Date().toISOString();
 
-    await supabase
+    const { error: txnUpdateError } = await supabase
       .from("transactions")
       .update({ status: "reconciled", cleared_at: clearedAt })
       .eq("id", txnId);
+
+    if (txnUpdateError) {
+      return { error: "Failed to reconcile a transaction. Some transactions may have been reconciled before this error. Please review and try again." };
+    }
   }
 
   // Update session to completed
