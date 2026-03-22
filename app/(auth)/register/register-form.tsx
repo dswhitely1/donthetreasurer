@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 
 import { signUp } from "../actions";
 
@@ -91,8 +92,9 @@ export default function RegisterForm() {
         <button
           type="submit"
           disabled={pending}
-          className="mt-2 rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 disabled:opacity-50"
+          className="mt-2 flex items-center justify-center gap-2 rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
         >
+          {pending && <Loader2 className="h-4 w-4 animate-spin" />}
           {pending ? "Creating account\u2026" : "Create account"}
         </button>
       </form>
