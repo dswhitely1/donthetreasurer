@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useEffect } from "react";
+import { useActionState, useState, useEffect, useRef } from "react";
 
 import { createCategoryInline } from "./actions";
 import {
@@ -66,9 +66,19 @@ export function CreateCategoryDialog({
     (c) => c.category_type === categoryType
   );
 
+  // Track which creation we've already handled (by category ID) to prevent
+  // repeated firing when unstable callback refs change between renders.
+  const lastHandledId = useRef<string | null>(null);
+
   // On successful creation, call onCreated and close
   useEffect(() => {
-    if (state && "data" in state && state.data) {
+    if (
+      state &&
+      "data" in state &&
+      state.data &&
+      state.data.id !== lastHandledId.current
+    ) {
+      lastHandledId.current = state.data.id;
       onCreated(state.data);
       onOpenChange(false);
     }
