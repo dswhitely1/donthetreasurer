@@ -518,6 +518,12 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
     writeSectionHeader(rightRow, 4, "INCOME BY CATEGORY");
     rightRow++;
     for (const group of summary.incomeByCategory) {
+      // Collapsed root: single flat row
+      if (group.children.length === 0) {
+        writeAmountRow(rightRow, 4, group.parentName, group.subtotal, { color: "FF16A34A" });
+        rightRow++;
+        continue;
+      }
       writeLabelRow(rightRow, 4, group.parentName, { bold: true });
       rightRow++;
       for (const child of group.children) {
@@ -537,6 +543,12 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
     writeSectionHeader(rightRow, 4, "EXPENSES BY CATEGORY");
     rightRow++;
     for (const group of summary.expensesByCategory) {
+      // Collapsed root: single flat row
+      if (group.children.length === 0) {
+        writeAmountRow(rightRow, 4, group.parentName, group.subtotal, { color: "FFDC2626" });
+        rightRow++;
+        continue;
+      }
       writeLabelRow(rightRow, 4, group.parentName, { bold: true });
       rightRow++;
       for (const child of group.children) {

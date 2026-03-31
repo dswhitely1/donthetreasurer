@@ -68,6 +68,12 @@ export function buildCategorySummaries(
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([name, total]) => ({ name, total }));
       const subtotal = children.reduce((sum, c) => sum + c.total, 0);
+
+      // Collapse: if the only child is "(root)", show as flat parent row
+      if (children.length === 1 && children[0].name === "(root)") {
+        return { parentName, children: [], subtotal };
+      }
+
       return { parentName, children, subtotal };
     });
 }

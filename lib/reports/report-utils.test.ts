@@ -144,7 +144,7 @@ describe("buildCategorySummaries", () => {
     ]);
   });
 
-  it("handles root category (no parent)", () => {
+  it("collapses root category (no parent) to flat row with no children", () => {
     const result = buildCategorySummaries(
       { c4: 500 },
       nameMap,
@@ -152,7 +152,8 @@ describe("buildCategorySummaries", () => {
     );
     expect(result).toHaveLength(1);
     expect(result[0].parentName).toBe("Grants");
-    expect(result[0].children[0].name).toBe("(root)");
+    expect(result[0].children).toHaveLength(0);
+    expect(result[0].subtotal).toBe(500);
   });
 
   it("returns empty array for no amounts", () => {

@@ -477,6 +477,14 @@ export function generateReportPdf(
     rightY = drawColumnSectionHeader("INCOME BY CATEGORY", RIGHT_X, rightY);
     const incomeRows: CellInput[][] = [];
     for (const group of summary.incomeByCategory) {
+      // Collapsed root: single flat row
+      if (group.children.length === 0) {
+        incomeRows.push([
+          group.parentName,
+          { content: formatCurrency(group.subtotal), styles: { textColor: GREEN } },
+        ]);
+        continue;
+      }
       incomeRows.push([
         { content: group.parentName, styles: { fontStyle: "bold" } },
         "",
@@ -502,6 +510,14 @@ export function generateReportPdf(
     rightY = drawColumnSectionHeader("EXPENSES BY CATEGORY", RIGHT_X, rightY);
     const expenseRows: CellInput[][] = [];
     for (const group of summary.expensesByCategory) {
+      // Collapsed root: single flat row
+      if (group.children.length === 0) {
+        expenseRows.push([
+          group.parentName,
+          { content: formatCurrency(group.subtotal), styles: { textColor: RED } },
+        ]);
+        continue;
+      }
       expenseRows.push([
         { content: group.parentName, styles: { fontStyle: "bold" } },
         "",
