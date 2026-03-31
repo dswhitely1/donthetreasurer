@@ -56,7 +56,7 @@ export function DashboardShell({
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-screen flex-col bg-background">
       <Header
         displayName={displayName}
         currentOrgId={currentOrgId}
