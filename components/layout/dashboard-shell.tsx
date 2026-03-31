@@ -56,14 +56,14 @@ export function DashboardShell({
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex h-screen flex-col bg-background">
       <Header
         displayName={displayName}
         currentOrgId={currentOrgId}
         onToggleSidebar={handleToggleSidebar}
         showSidebarToggle={showSidebar}
       />
-      <div className="flex flex-1">
+      <div className="flex min-h-0 flex-1">
         {showSidebar && (
           <Sidebar
             orgId={currentOrgId}
@@ -78,8 +78,8 @@ export function DashboardShell({
         <main
           className={
             showSidebar
-              ? "flex-1 px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8"
-              : "mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8"
+              ? "flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8"
+              : "mx-auto w-full max-w-7xl overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8"
           }
         >
           {children}

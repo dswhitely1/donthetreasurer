@@ -155,7 +155,7 @@ export function Sidebar({
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          "hidden lg:flex lg:shrink-0 lg:flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200 lg:sticky lg:top-0 lg:h-screen",
+          "hidden lg:flex lg:shrink-0 lg:flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200",
           collapsed ? "lg:w-16" : "lg:w-64"
         )}
       >
