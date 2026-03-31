@@ -79,13 +79,13 @@ describe("finishReconciliationSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects empty transaction_ids", () => {
+  it("accepts empty transaction_ids (zero-transaction reconciliation allowed when balanced)", () => {
     const result = finishReconciliationSchema.safeParse({
       session_id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
       account_id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12",
       transaction_ids: "",
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it("rejects invalid session UUID", () => {
