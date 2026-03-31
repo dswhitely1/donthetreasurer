@@ -404,10 +404,11 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
   sheet.mergeCells("A1:E1");
 
   // Row 2: Org name + date range
+  const dateBasisLabel = data.dateBasis === "transaction_date" ? "Transaction Date" : "Cleared Date";
   const infoRow = sheet.getRow(2);
   const dateRangeText = data.fiscalYearLabel
-    ? `${data.organizationName}  |  ${data.fiscalYearLabel}  |  ${formatExcelDate(data.startDate)} to ${formatExcelDate(data.endDate)}`
-    : `${data.organizationName}  |  ${formatExcelDate(data.startDate)} to ${formatExcelDate(data.endDate)}`;
+    ? `${data.organizationName}  |  ${data.fiscalYearLabel}  |  ${formatExcelDate(data.startDate)} to ${formatExcelDate(data.endDate)}  |  Date Basis: ${dateBasisLabel}`
+    : `${data.organizationName}  |  ${formatExcelDate(data.startDate)} to ${formatExcelDate(data.endDate)}  |  Date Basis: ${dateBasisLabel}`;
   infoRow.getCell(1).value = dateRangeText;
   infoRow.getCell(1).font = { size: 9, italic: true, color: { argb: "FF666666" } };
   infoRow.getCell(1).alignment = { horizontal: "center" };

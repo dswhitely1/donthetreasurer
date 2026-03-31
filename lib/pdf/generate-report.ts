@@ -81,9 +81,14 @@ export function generateReportPdf(
   doc.setFont("helvetica", "normal");
   doc.text("Transaction Report", MARGIN, MARGIN + 28);
 
-  const dateRangeText = data.fiscalYearLabel
-    ? `${data.fiscalYearLabel} — Cleared: ${formatPdfDate(data.startDate)} to ${formatPdfDate(data.endDate)} (includes all uncleared)`
-    : `Cleared: ${formatPdfDate(data.startDate)} to ${formatPdfDate(data.endDate)} (includes all uncleared)`;
+  const dateBasisLabel = data.dateBasis === "transaction_date" ? "Transaction Date" : "Cleared Date";
+  const dateRangeText = data.dateBasis === "transaction_date"
+    ? (data.fiscalYearLabel
+      ? `${data.fiscalYearLabel} — ${formatPdfDate(data.startDate)} to ${formatPdfDate(data.endDate)} (by Transaction Date)`
+      : `${formatPdfDate(data.startDate)} to ${formatPdfDate(data.endDate)} (by Transaction Date)`)
+    : (data.fiscalYearLabel
+      ? `${data.fiscalYearLabel} — Cleared: ${formatPdfDate(data.startDate)} to ${formatPdfDate(data.endDate)} (includes all uncleared)`
+      : `Cleared: ${formatPdfDate(data.startDate)} to ${formatPdfDate(data.endDate)} (includes all uncleared)`);
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "italic");
@@ -91,7 +96,7 @@ export function generateReportPdf(
 
   doc.setTextColor(102, 102, 102);
   doc.text(
-    `Generated: ${new Date(data.generatedAt).toLocaleString()}`,
+    `Generated: ${new Date(data.generatedAt).toLocaleString()}  |  Date Basis: ${dateBasisLabel}`,
     MARGIN,
     MARGIN + 55
   );

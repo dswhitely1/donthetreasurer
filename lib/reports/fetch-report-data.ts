@@ -102,54 +102,69 @@ export async function fetchReportData(
     txnQuery = txnQuery.eq("account_id", params.account_id);
   }
 
-  // Determine which statuses the user wants
-  const requestedStatuses = params.status; // undefined = all
-  const includeUncleared =
-    !requestedStatuses || requestedStatuses.includes("uncleared");
-  const clearedStatuses = requestedStatuses
-    ? requestedStatuses.filter((s) => s !== "uncleared")
-    : ["cleared", "reconciled"];
-
-  // Build OR filter (a transaction appears if ANY condition matches):
-  //   1. uncleared — transaction_date on or before the report end date
-  //   2. cleared/reconciled — cleared_at within the report period
-  //   3. any status — transaction_date within the report period
   const endDateExclusive = getNextDay(params.end_date);
-  const orParts: string[] = [];
+  const dateMode = params.date_mode ?? "cleared_date";
 
-  if (includeUncleared) {
-    orParts.push(
-      `and(status.eq.uncleared,transaction_date.lt.${endDateExclusive})`
-    );
-  }
+  if (dateMode === "transaction_date") {
+    // Simple: filter all transactions by transaction_date within range
+    txnQuery = txnQuery
+      .gte("transaction_date", params.start_date)
+      .lt("transaction_date", endDateExclusive);
 
-  if (clearedStatuses.length > 0) {
-    const statusPart =
-      clearedStatuses.length === 1
-        ? `status.eq.${clearedStatuses[0]}`
-        : `status.in.(${clearedStatuses.join(",")})`;
-    orParts.push(
-      `and(${statusPart},cleared_at.gte.${params.start_date},cleared_at.lt.${endDateExclusive})`
-    );
-  }
-
-  // Also include transactions written (transaction_date) within the report period
-  if (requestedStatuses) {
-    const allStatusPart =
-      requestedStatuses.length === 1
-        ? `status.eq.${requestedStatuses[0]}`
-        : `status.in.(${requestedStatuses.join(",")})`;
-    orParts.push(
-      `and(${allStatusPart},transaction_date.gte.${params.start_date},transaction_date.lt.${endDateExclusive})`
-    );
+    // Apply status filter if specified
+    const requestedStatuses = params.status;
+    if (requestedStatuses) {
+      if (requestedStatuses.length === 1) {
+        txnQuery = txnQuery.eq("status", requestedStatuses[0]);
+      } else {
+        txnQuery = txnQuery.in("status", requestedStatuses);
+      }
+    }
   } else {
-    orParts.push(
-      `and(transaction_date.gte.${params.start_date},transaction_date.lt.${endDateExclusive})`
-    );
-  }
+    // cleared_date mode: existing complex OR logic
+    const requestedStatuses = params.status; // undefined = all
+    const includeUncleared =
+      !requestedStatuses || requestedStatuses.includes("uncleared");
+    const clearedStatuses = requestedStatuses
+      ? requestedStatuses.filter((s) => s !== "uncleared")
+      : ["cleared", "reconciled"];
 
-  if (orParts.length > 0) {
-    txnQuery = txnQuery.or(orParts.join(","));
+    const orParts: string[] = [];
+
+    if (includeUncleared) {
+      orParts.push(
+        `and(status.eq.uncleared,transaction_date.lt.${endDateExclusive})`
+      );
+    }
+
+    if (clearedStatuses.length > 0) {
+      const statusPart =
+        clearedStatuses.length === 1
+          ? `status.eq.${clearedStatuses[0]}`
+          : `status.in.(${clearedStatuses.join(",")})`;
+      orParts.push(
+        `and(${statusPart},cleared_at.gte.${params.start_date},cleared_at.lt.${endDateExclusive})`
+      );
+    }
+
+    // Also include transactions written (transaction_date) within the report period
+    if (requestedStatuses) {
+      const allStatusPart =
+        requestedStatuses.length === 1
+          ? `status.eq.${requestedStatuses[0]}`
+          : `status.in.(${requestedStatuses.join(",")})`;
+      orParts.push(
+        `and(${allStatusPart},transaction_date.gte.${params.start_date},transaction_date.lt.${endDateExclusive})`
+      );
+    } else {
+      orParts.push(
+        `and(transaction_date.gte.${params.start_date},transaction_date.lt.${endDateExclusive})`
+      );
+    }
+
+    if (orParts.length > 0) {
+      txnQuery = txnQuery.or(orParts.join(","));
+    }
   }
 
   txnQuery = txnQuery
@@ -174,14 +189,24 @@ export async function fetchReportData(
     const account = transactions[0]?.accounts;
     const openingBalance = account?.opening_balance ?? 0;
 
-    // Fetch pre-period cleared/reconciled transactions to compute the true
-    // starting balance at the beginning of the report date range
-    const { data: prePeriodForRunning } = await supabase
-      .from("transactions")
-      .select("amount, transaction_type")
-      .eq("account_id", params.account_id)
-      .in("status", ["cleared", "reconciled"])
-      .lt("cleared_at", params.start_date);
+    // Fetch pre-period transactions to compute the true starting balance
+    let prePeriodForRunning;
+    if (dateMode === "transaction_date") {
+      const { data } = await supabase
+        .from("transactions")
+        .select("amount, transaction_type")
+        .eq("account_id", params.account_id)
+        .lt("transaction_date", params.start_date);
+      prePeriodForRunning = data;
+    } else {
+      const { data } = await supabase
+        .from("transactions")
+        .select("amount, transaction_type")
+        .eq("account_id", params.account_id)
+        .in("status", ["cleared", "reconciled"])
+        .lt("cleared_at", params.start_date);
+      prePeriodForRunning = data;
+    }
 
     let prePeriodNet = 0;
     for (const txn of prePeriodForRunning ?? []) {
@@ -251,13 +276,24 @@ export async function fetchReportData(
     }
 
     if (accountIds.size > 0) {
-      // Query pre-period cleared/reconciled transactions for starting balance
-      const { data: prePeriodTxns } = await supabase
-        .from("transactions")
-        .select("account_id, amount, transaction_type")
-        .in("account_id", Array.from(accountIds))
-        .in("status", ["cleared", "reconciled"])
-        .lt("cleared_at", params.start_date);
+      // Query pre-period transactions for starting balance
+      let prePeriodTxns;
+      if (dateMode === "transaction_date") {
+        const { data } = await supabase
+          .from("transactions")
+          .select("account_id, amount, transaction_type")
+          .in("account_id", Array.from(accountIds))
+          .lt("transaction_date", params.start_date);
+        prePeriodTxns = data;
+      } else {
+        const { data } = await supabase
+          .from("transactions")
+          .select("account_id, amount, transaction_type")
+          .in("account_id", Array.from(accountIds))
+          .in("status", ["cleared", "reconciled"])
+          .lt("cleared_at", params.start_date);
+        prePeriodTxns = data;
+      }
 
       // Compute starting balances: opening_balance + net of pre-period cleared/reconciled
       const prePeriodNet = new Map<string, number>();
@@ -302,5 +338,6 @@ export async function fetchReportData(
     transactions: reportTransactions,
     summary,
     accountBalances,
+    dateBasis: dateMode,
   };
 }

@@ -61,6 +61,7 @@ export function ReportFilters({
   const searchParams = useSearchParams();
   const [filtersOpen, setFiltersOpen] = useState(false);
 
+  const currentDateMode = searchParams.get("date_mode") ?? "cleared_date";
   const currentAccountId = searchParams.get("account_id") ?? "all";
   const currentStatus = searchParams.get("status") ?? "all";
   const currentCategoryId = searchParams.get("category_id") ?? "all";
@@ -138,6 +139,9 @@ export function ReportFilters({
     if (currentBudgetId !== "none") {
       params.set("budget_id", currentBudgetId);
     }
+    if (currentDateMode !== "cleared_date") {
+      params.set("date_mode", currentDateMode);
+    }
     return params;
   }
 
@@ -152,6 +156,7 @@ export function ReportFilters({
   }
 
   const hasActiveFilters =
+    currentDateMode !== "cleared_date" ||
     currentAccountId !== "all" ||
     currentStatus !== "all" ||
     currentCategoryId !== "all" ||
@@ -160,6 +165,7 @@ export function ReportFilters({
     currentPreset !== "custom";
 
   const activeFilterCount = [
+    currentDateMode !== "cleared_date",
     currentPreset !== "custom",
     currentStartDate !== "",
     currentEndDate !== "",
@@ -171,6 +177,22 @@ export function ReportFilters({
 
   const filterControls = (
     <>
+      <div className="space-y-1">
+        <Label className="text-xs text-muted-foreground">Date Basis</Label>
+        <Select
+          value={currentDateMode}
+          onValueChange={(v) => updateParam("date_mode", v === "cleared_date" ? "" : v)}
+        >
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="cleared_date">Cleared Date</SelectItem>
+            <SelectItem value="transaction_date">Transaction Date</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="space-y-1">
         <Label className="text-xs text-muted-foreground">Date Preset</Label>
         <Select value={currentPreset} onValueChange={handlePresetChange}>
@@ -189,7 +211,7 @@ export function ReportFilters({
 
       <div className="space-y-1">
         <Label className="text-xs text-muted-foreground">
-          Cleared From <span className="text-destructive">*</span>
+          {currentDateMode === "transaction_date" ? "From" : "Cleared From"} <span className="text-destructive">*</span>
         </Label>
         <Input
           type="date"
@@ -201,7 +223,7 @@ export function ReportFilters({
 
       <div className="space-y-1">
         <Label className="text-xs text-muted-foreground">
-          Cleared To <span className="text-destructive">*</span>
+          {currentDateMode === "transaction_date" ? "To" : "Cleared To"} <span className="text-destructive">*</span>
         </Label>
         <Input
           type="date"

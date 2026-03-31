@@ -20,6 +20,9 @@ export const reportParamsSchema = z.object({
     }),
   preset: z.string().optional(),
   budget_id: z.string().uuid("Invalid budget ID.").optional(),
+  date_mode: z
+    .enum(["transaction_date", "cleared_date"])
+    .default("cleared_date"),
 });
 
 export type ReportParams = z.infer<typeof reportParamsSchema>;

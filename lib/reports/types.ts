@@ -54,6 +54,7 @@ export interface ReportData {
   transactions: ReportTransaction[];
   summary: ReportSummary;
   accountBalances: AccountBalanceSummary[] | null;
+  dateBasis: "transaction_date" | "cleared_date";
 }
 
 export interface SeasonTotals {

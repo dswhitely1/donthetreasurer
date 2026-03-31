@@ -24,6 +24,7 @@ interface SearchParams {
   end_date?: string;
   preset?: string;
   budget_id?: string;
+  date_mode?: string;
 }
 
 export default async function ReportsPage({
@@ -41,6 +42,7 @@ export default async function ReportsPage({
     start_date,
     end_date,
     budget_id,
+    date_mode,
   } = await searchParams;
 
   const supabase = await createClient();
@@ -122,6 +124,7 @@ export default async function ReportsPage({
       category_id: category_id || undefined,
       status: status || undefined,
       budget_id: budget_id || undefined,
+      date_mode: date_mode || undefined,
     });
 
     if (!parsed.success) {

@@ -33,6 +33,7 @@ export async function GET(
     status: url.searchParams.get("status") ?? undefined,
     preset: url.searchParams.get("preset") ?? undefined,
     budget_id: url.searchParams.get("budget_id") ?? undefined,
+    date_mode: url.searchParams.get("date_mode") ?? undefined,
   };
 
   const parsed = reportParamsSchema.safeParse(rawParams);
