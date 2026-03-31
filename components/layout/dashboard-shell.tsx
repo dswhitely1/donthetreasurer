@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { usePathname } from "next/navigation";
 
 import { useOrganizations } from "@/hooks/use-organizations";
@@ -14,7 +14,20 @@ export function DashboardShell({
   children,
 }: Readonly<{ displayName: string; children: React.ReactNode }>) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const pathname = usePathname();
+
+  // Sync collapsed state with localStorage after mount (SSR-safe)
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("sidebar-collapsed");
+      if (stored === "true") {
+        setSidebarCollapsed(true);
+      }
+    } catch {
+      // localStorage unavailable (private browsing, etc.)
+    }
+  }, []);
 
   const orgIdMatch = pathname.match(ORG_ID_PATTERN);
   const currentOrgId = orgIdMatch?.[1] ?? null;
@@ -29,6 +42,18 @@ export function DashboardShell({
     []
   );
   const handleCloseSidebar = useCallback(() => setSidebarOpen(false), []);
+
+  const handleToggleCollapse = useCallback(() => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("sidebar-collapsed", String(next));
+      } catch {
+        // localStorage unavailable
+      }
+      return next;
+    });
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -46,6 +71,8 @@ export function DashboardShell({
             seasonsEnabled={currentOrg?.seasons_enabled ?? false}
             isOpen={sidebarOpen}
             onClose={handleCloseSidebar}
+            collapsed={sidebarCollapsed}
+            onToggleCollapse={handleToggleCollapse}
           />
         )}
         <main

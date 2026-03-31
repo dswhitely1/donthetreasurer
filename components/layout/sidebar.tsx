@@ -14,10 +14,17 @@ import {
   Calendar,
   Users,
   X,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const navItems = [
   { label: "Overview", href: "", icon: LayoutDashboard, exact: true },
@@ -45,13 +52,21 @@ interface SidebarProps {
   seasonsEnabled: boolean;
   isOpen: boolean;
   onClose: () => void;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
 }
 
 function SidebarContent({
   orgId,
   orgName,
   seasonsEnabled,
-}: Readonly<{ orgId: string; orgName: string; seasonsEnabled: boolean }>) {
+  collapsed,
+}: Readonly<{
+  orgId: string;
+  orgName: string;
+  seasonsEnabled: boolean;
+  collapsed: boolean;
+}>) {
   const pathname = usePathname();
   const basePath = `/organizations/${orgId}`;
 
@@ -61,40 +76,69 @@ function SidebarContent({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-sidebar-border px-4 py-3">
-        <p className="truncate text-sm font-semibold text-sidebar-foreground">
-          {orgName}
-        </p>
-      </div>
-      <nav className="flex-1 space-y-1 px-2 py-3">
+      {!collapsed && (
+        <div className="border-b border-sidebar-border px-4 py-3">
+          <p className="truncate text-sm font-semibold text-sidebar-foreground">
+            {orgName}
+          </p>
+        </div>
+      )}
+      <nav
+        className={cn(
+          "flex-1 space-y-1 py-3",
+          collapsed ? "px-1" : "px-2"
+        )}
+      >
         {allItems.map((item) => {
           const fullHref = basePath + item.href;
           const isActive = item.exact
             ? pathname === fullHref
             : pathname.startsWith(fullHref) && item.href !== "";
 
-          return (
+          const linkContent = (
             <Link
               key={item.label}
               href={fullHref}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-3 text-sm font-medium transition-colors lg:py-2",
+                "flex items-center rounded-md text-sm font-medium transition-colors",
+                collapsed
+                  ? "justify-center px-2 py-2"
+                  : "gap-3 px-3 py-3 lg:py-2",
                 isActive
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
               )}
             >
               <item.icon className="size-4 shrink-0" />
-              {item.label}
+              {!collapsed && item.label}
             </Link>
           );
+
+          if (collapsed) {
+            return (
+              <Tooltip key={item.label}>
+                <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
+                <TooltipContent side="right">{item.label}</TooltipContent>
+              </Tooltip>
+            );
+          }
+
+          return linkContent;
         })}
       </nav>
     </div>
   );
 }
 
-export function Sidebar({ orgId, orgName, seasonsEnabled, isOpen, onClose }: Readonly<SidebarProps>) {
+export function Sidebar({
+  orgId,
+  orgName,
+  seasonsEnabled,
+  isOpen,
+  onClose,
+  collapsed,
+  onToggleCollapse,
+}: Readonly<SidebarProps>) {
   const pathname = usePathname();
   const prevPathname = useRef(pathname);
 
@@ -109,8 +153,47 @@ export function Sidebar({ orgId, orgName, seasonsEnabled, isOpen, onClose }: Rea
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:shrink-0 lg:flex-col border-r border-sidebar-border bg-sidebar">
-        <SidebarContent orgId={orgId} orgName={orgName} seasonsEnabled={seasonsEnabled} />
+      <aside
+        className={cn(
+          "hidden lg:flex lg:shrink-0 lg:flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200",
+          collapsed ? "lg:w-16" : "lg:w-64"
+        )}
+      >
+        <SidebarContent
+          orgId={orgId}
+          orgName={orgName}
+          seasonsEnabled={seasonsEnabled}
+          collapsed={collapsed}
+        />
+        <div
+          className={cn(
+            "border-t border-sidebar-border p-2",
+            collapsed && "flex justify-center"
+          )}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={onToggleCollapse}
+                aria-label={
+                  collapsed ? "Expand sidebar" : "Collapse sidebar"
+                }
+                className="text-sidebar-foreground/50 hover:text-sidebar-foreground"
+              >
+                {collapsed ? (
+                  <ChevronsRight className="size-4" />
+                ) : (
+                  <ChevronsLeft className="size-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </aside>
 
       {/* Mobile sidebar overlay */}
@@ -137,7 +220,12 @@ export function Sidebar({ orgId, orgName, seasonsEnabled, isOpen, onClose }: Rea
                 <X className="size-4" />
               </Button>
             </div>
-            <SidebarContent orgId={orgId} orgName={orgName} seasonsEnabled={seasonsEnabled} />
+            <SidebarContent
+              orgId={orgId}
+              orgName={orgName}
+              seasonsEnabled={seasonsEnabled}
+              collapsed={false}
+            />
           </aside>
         </>
       )}
