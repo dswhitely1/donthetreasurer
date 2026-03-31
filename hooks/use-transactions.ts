@@ -6,6 +6,7 @@ import {
   bulkUpdateStatus,
   bulkDeleteTransactions,
   inlineUpdateTransaction,
+  updateClearedDate,
 } from "@/app/(dashboard)/organizations/[orgId]/transactions/actions";
 import { transactionKeys, accountKeys, reportKeys } from "./query-keys";
 
@@ -213,6 +214,34 @@ export function useInlineUpdateTransaction(orgId: string) {
       });
       queryClient.invalidateQueries({ queryKey: reportKeys.all });
       router.refresh();
+    },
+  });
+}
+
+export function useUpdateClearedDate(orgId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      transactionId,
+      clearedAt,
+    }: {
+      transactionId: string;
+      clearedAt: string;
+    }) => {
+      const formData = new FormData();
+      formData.set("transaction_id", transactionId);
+      formData.set("organization_id", orgId);
+      formData.set("cleared_at", clearedAt);
+
+      const result = await updateClearedDate(null, formData);
+      if (result?.error) {
+        throw new Error(result.error);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: transactionKeys.all });
+      queryClient.invalidateQueries({ queryKey: reportKeys.all });
     },
   });
 }

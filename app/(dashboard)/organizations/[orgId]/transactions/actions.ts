@@ -10,6 +10,7 @@ import {
   lineItemsArraySchema,
   inlineUpdateTransactionSchema,
   reassignLineItemsSchema,
+  updateClearedDateSchema,
   TRANSACTION_STATUSES,
 } from "@/lib/validations/transaction";
 import { calculateFee } from "@/lib/validations/account";
@@ -1035,6 +1036,73 @@ export async function reassignLineItemCategories(
 
   if (insertError) {
     return { error: "Failed to insert updated line items. Please try again." };
+  }
+
+  revalidatePath("/dashboard", "layout");
+  return null;
+}
+
+export async function updateClearedDate(
+  _prevState: { error: string } | null,
+  formData: FormData
+) {
+  const raw = {
+    transaction_id: formData.get("transaction_id") as string,
+    organization_id: formData.get("organization_id") as string,
+    cleared_at: formData.get("cleared_at") as string,
+  };
+
+  const parsed = updateClearedDateSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be signed in." };
+  }
+
+  // Fetch existing transaction
+  const { data: existing } = await supabase
+    .from("transactions")
+    .select("id, status, account_id")
+    .eq("id", parsed.data.transaction_id)
+    .single();
+
+  if (!existing) {
+    return { error: "Transaction not found." };
+  }
+
+  // Only allow on reconciled transactions
+  if (existing.status !== "reconciled") {
+    return { error: "Only reconciled transactions can have their cleared date edited this way." };
+  }
+
+  // Verify account belongs to the org
+  const { data: account } = await supabase
+    .from("accounts")
+    .select("id, organization_id")
+    .eq("id", existing.account_id)
+    .single();
+
+  if (!account || account.organization_id !== parsed.data.organization_id) {
+    return { error: "Transaction does not belong to this organization." };
+  }
+
+  // Convert YYYY-MM-DD to ISO timestamp
+  const clearedAtTimestamp = parsed.data.cleared_at + "T00:00:00.000Z";
+
+  const { error: updateError } = await supabase
+    .from("transactions")
+    .update({ cleared_at: clearedAtTimestamp })
+    .eq("id", parsed.data.transaction_id);
+
+  if (updateError) {
+    return { error: "Failed to update cleared date. Please try again." };
   }
 
   revalidatePath("/dashboard", "layout");

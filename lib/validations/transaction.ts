@@ -98,6 +98,14 @@ export const reassignLineItemsSchema = z.object({
   line_items: z.string().min(1, "Line items are required."),
 });
 
+export const updateClearedDateSchema = z.object({
+  transaction_id: z.string().uuid("Invalid transaction ID."),
+  organization_id: z.string().uuid("Invalid organization ID."),
+  cleared_at: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Cleared date must be YYYY-MM-DD format."),
+});
+
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>;
 export type UpdateTransactionInput = z.infer<typeof updateTransactionSchema>;
 export type LineItemInput = z.infer<typeof lineItemSchema>;
@@ -105,3 +113,4 @@ export type InlineUpdateTransactionInput = z.infer<
   typeof inlineUpdateTransactionSchema
 >;
 export type ReassignLineItemsInput = z.infer<typeof reassignLineItemsSchema>;
+export type UpdateClearedDateInput = z.infer<typeof updateClearedDateSchema>;

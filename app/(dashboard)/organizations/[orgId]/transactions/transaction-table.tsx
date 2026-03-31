@@ -30,6 +30,7 @@ import {
   useBulkUpdateStatus,
   useBulkDeleteTransactions,
   useInlineUpdateTransaction,
+  useUpdateClearedDate,
 } from "@/hooks/use-transactions";
 import { InlineEditCell } from "./inline-edit-cell";
 
@@ -180,6 +181,7 @@ export function TransactionTable({
   const bulkUpdateMutation = useBulkUpdateStatus(orgId);
   const bulkDeleteMutation = useBulkDeleteTransactions(orgId);
   const inlineUpdateMutation = useInlineUpdateTransaction(orgId);
+  const updateClearedDateMutation = useUpdateClearedDate(orgId);
   const isMutating = bulkUpdateMutation.isPending || bulkDeleteMutation.isPending;
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -244,13 +246,22 @@ export function TransactionTable({
 
   const handleSave = useCallback(
     async (transactionId: string, field: string, value: string) => {
+      // Route reconciled cleared_at edits through dedicated action
+      const txn = transactions.find((t) => t.id === transactionId);
+      if (txn?.status === "reconciled" && field === "cleared_at") {
+        await updateClearedDateMutation.mutateAsync({
+          transactionId,
+          clearedAt: value,
+        });
+        return;
+      }
       await inlineUpdateMutation.mutateAsync({
         id: transactionId,
         field,
         value,
       });
     },
-    [inlineUpdateMutation]
+    [inlineUpdateMutation, updateClearedDateMutation, transactions]
   );
 
   function handleSort(field: SortField) {
@@ -821,7 +832,7 @@ function TransactionRow({
             </span>
           }
           fieldType="date"
-          isEditable={!isReconciled && txn.status !== "uncleared"}
+          isEditable={txn.status !== "uncleared"}
           isEditing={isEditingField("cleared_at")}
           onStartEdit={() => onStartEdit(txn.id, "cleared_at")}
           onEndEdit={onEndEdit}
