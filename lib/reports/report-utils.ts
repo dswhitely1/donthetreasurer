@@ -1,9 +1,10 @@
+import { addDays, format } from "date-fns";
+
 import type { ReportTransaction, ReportCategorySummary, ReportSummary } from "./types";
 
 export function getNextDay(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d.toISOString().split("T")[0];
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return format(addDays(new Date(y, m - 1, d), 1), "yyyy-MM-dd");
 }
 
 export function resolveCategoryLabel(

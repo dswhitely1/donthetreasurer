@@ -39,6 +39,12 @@ describe("getNextDay", () => {
     expect(getNextDay("2025-04-30")).toBe("2025-05-01");
     expect(getNextDay("2025-06-30")).toBe("2025-07-01");
   });
+
+  it("does not shift dates near timezone boundaries", () => {
+    // Regression guard: these dates are near US DST transitions
+    expect(getNextDay("2025-03-09")).toBe("2025-03-10"); // US DST spring forward
+    expect(getNextDay("2025-11-02")).toBe("2025-11-03"); // US DST fall back
+  });
 });
 
 describe("resolveCategoryLabel", () => {
