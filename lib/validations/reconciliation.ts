@@ -17,7 +17,7 @@ export const createReconciliationSchema = z.object({
 export const finishReconciliationSchema = z.object({
   session_id: z.string().uuid("Invalid session ID."),
   account_id: z.string().uuid("Invalid account ID."),
-  transaction_ids: z.string().min(1, "At least one transaction must be selected."),
+  transaction_ids: z.string().default(""),
 });
 
 export const cancelReconciliationSchema = z.object({

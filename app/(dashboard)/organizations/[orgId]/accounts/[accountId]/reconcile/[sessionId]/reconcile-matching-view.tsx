@@ -57,6 +57,7 @@ export function ReconcileMatchingView({
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showZeroConfirm, setShowZeroConfirm] = useState(false);
 
   const { data: transactions, isLoading } = useReconciliationTransactions(
     session.accountId,
@@ -113,10 +114,23 @@ export function ReconcileMatchingView({
   }, [transactions, checkedIds, session.startingBalance, session.statementEndingBalance]);
 
   const handleFinish = () => {
+    if (checkedIds.size === 0) {
+      setShowZeroConfirm(true);
+      return;
+    }
     finishMutation.mutate({
       sessionId: session.id,
       accountId: session.accountId,
       transactionIds: Array.from(checkedIds),
+    });
+  };
+
+  const handleConfirmZeroFinish = () => {
+    setShowZeroConfirm(false);
+    finishMutation.mutate({
+      sessionId: session.id,
+      accountId: session.accountId,
+      transactionIds: [],
     });
   };
 
@@ -221,7 +235,7 @@ export function ReconcileMatchingView({
       <div className="mt-6 flex flex-wrap items-center gap-2">
         <Button
           onClick={handleFinish}
-          disabled={!isBalanced || checkedIds.size === 0 || finishMutation.isPending}
+          disabled={!isBalanced || finishMutation.isPending}
         >
           {finishMutation.isPending ? "Finishing..." : "Finish Reconciliation"}
         </Button>
@@ -256,6 +270,28 @@ export function ReconcileMatchingView({
               variant="ghost"
               size="sm"
               onClick={() => setShowCancelConfirm(false)}
+            >
+              No
+            </Button>
+          </div>
+        )}
+        {showZeroConfirm && (
+          <div className="flex items-center gap-2 rounded-md border border-yellow-500/50 bg-yellow-50 px-3 py-1.5 dark:bg-yellow-950/20">
+            <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+            <span className="text-sm text-yellow-800 dark:text-yellow-200">
+              No transactions selected. Complete with zero transactions?
+            </span>
+            <Button
+              size="sm"
+              onClick={handleConfirmZeroFinish}
+              disabled={finishMutation.isPending}
+            >
+              {finishMutation.isPending ? "Finishing..." : "Yes, Complete"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowZeroConfirm(false)}
             >
               No
             </Button>

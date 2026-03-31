@@ -152,7 +152,7 @@ export async function finishReconciliation(
   // Verify session exists and is in_progress
   const { data: session } = await supabase
     .from("reconciliation_sessions")
-    .select("id, status")
+    .select("id, status, starting_balance, statement_ending_balance")
     .eq("id", parsed.data.session_id)
     .eq("account_id", parsed.data.account_id)
     .single();
@@ -166,8 +166,14 @@ export async function finishReconciliation(
   }
 
   const transactionIds = parsed.data.transaction_ids.split(",").filter(Boolean);
+
+  // Allow zero transactions only when starting balance matches statement ending balance
   if (transactionIds.length === 0) {
-    return { error: "No transactions selected." };
+    const startBal = Number(session.starting_balance);
+    const endBal = Number(session.statement_ending_balance);
+    if (Math.abs(startBal - endBal) >= 0.01) {
+      return { error: "No transactions selected and balance does not match." };
+    }
   }
 
   // Bulk update checked transactions to reconciled
