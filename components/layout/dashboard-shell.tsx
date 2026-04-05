@@ -78,8 +78,8 @@ export function DashboardShell({
         <main
           className={
             showSidebar
-              ? "flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10"
-              : "mx-auto w-full max-w-7xl overflow-y-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10"
+              ? "animate-fade-in-up flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10"
+              : "animate-fade-in-up mx-auto w-full max-w-7xl overflow-y-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10"
           }
         >
           {children}
