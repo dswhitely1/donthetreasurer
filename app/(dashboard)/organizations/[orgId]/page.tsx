@@ -9,6 +9,7 @@ import {
   Lock,
   PiggyBank,
   Plus,
+  Receipt,
   Repeat,
   GitBranch,
 } from "lucide-react";
@@ -34,6 +35,7 @@ import {
   RECURRENCE_RULE_LABELS,
 } from "@/lib/validations/recurring-template";
 import { OrganizationActions } from "./organization-actions";
+import { EmptyState } from "@/components/ui/empty-state";
 
 import type { RecurrenceRule } from "@/lib/recurrence";
 
@@ -465,16 +467,13 @@ export default async function OrganizationOverviewPage({
           </div>
 
           {recentTransactions.length === 0 ? (
-            <div className="mt-4 rounded-lg border border-dashed border-border p-8 text-center">
-              <p className="text-sm text-muted-foreground">
-                No transactions yet. Record your first transaction to start tracking finances.
-              </p>
-              <Button asChild className="mt-3" size="sm">
-                <Link href={`/organizations/${orgId}/transactions/new`}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Transaction
-                </Link>
-              </Button>
+            <div className="mt-4">
+              <EmptyState
+                icon={Receipt}
+                title="No transactions yet"
+                description="Record your first transaction to start tracking finances."
+                action={{ label: "New Transaction", href: `/organizations/${orgId}/transactions/new` }}
+              />
             </div>
           ) : (
             <div className="mt-3 overflow-x-auto rounded-lg border border-border">

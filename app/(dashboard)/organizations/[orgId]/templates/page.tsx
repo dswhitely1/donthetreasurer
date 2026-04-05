@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { CalendarClock, Plus } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -73,17 +74,13 @@ export default async function TemplatesPage({
       </PageHeader>
 
       {templateList.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-dashed border-border p-8 text-center">
-          <p className="text-sm text-muted-foreground">
-            No recurring templates yet. Create a template to automate
-            transaction entry.
-          </p>
-          <Button asChild className="mt-3" size="sm">
-            <Link href={`/organizations/${orgId}/templates/new`}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Template
-            </Link>
-          </Button>
+        <div className="mt-6">
+          <EmptyState
+            icon={CalendarClock}
+            title="No recurring templates yet"
+            description="Create a template to automate transaction entry."
+            action={{ label: "New Template", href: `/organizations/${orgId}/templates/new` }}
+          />
         </div>
       ) : (
         <div className="mt-6 overflow-x-auto rounded-lg border border-border">

@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Trophy } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function SeasonsPage({
   params,
@@ -46,11 +47,13 @@ export default async function SeasonsPage({
       </PageHeader>
 
       {!seasons || seasons.length === 0 ? (
-        <div className="mt-8 rounded-lg border border-dashed border-border p-8 text-center">
-          <p className="text-muted-foreground">
-            No seasons yet. Create your first season to start tracking student
-            enrollment and payments.
-          </p>
+        <div className="mt-8">
+          <EmptyState
+            icon={Trophy}
+            title="No seasons yet"
+            description="Create your first season to start tracking student enrollment and payments."
+            action={{ label: "New Season", href: `/organizations/${orgId}/seasons/new` }}
+          />
         </div>
       ) : (
         <div className="mt-6 overflow-x-auto rounded-lg border border-border">

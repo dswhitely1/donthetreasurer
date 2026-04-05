@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { Users } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/page-header";
@@ -13,6 +14,7 @@ import { EnrollStudentsDialog } from "./enroll-students-dialog";
 import { RecordPaymentDialog } from "./record-payment-dialog";
 import { PaymentHistoryDialog } from "./payment-history-dialog";
 import { EnrollmentActions } from "./enrollment-actions";
+import { EmptyState } from "@/components/ui/empty-state";
 
 import type { Tables } from "@/types/database";
 
@@ -262,11 +264,12 @@ export default async function SeasonDetailPage({
         </div>
 
         {!hasEnrollments ? (
-          <div className="mt-4 rounded-lg border border-dashed border-border p-8 text-center">
-            <p className="text-muted-foreground">
-              No students enrolled yet. Use the &ldquo;Enroll Students&rdquo;
-              button to add students to this season.
-            </p>
+          <div className="mt-4">
+            <EmptyState
+              icon={Users}
+              title="No students enrolled yet"
+              description='Use the "Enroll Students" button to add students to this season.'
+            />
           </div>
         ) : (
           <div className="mt-4 overflow-x-auto rounded-lg border border-border">

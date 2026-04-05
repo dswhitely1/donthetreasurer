@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
+import { Wallet } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
 import { TransactionForm } from "../transaction-form";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function NewTransactionPage({
   params,
@@ -47,19 +47,12 @@ export default async function NewTransactionPage({
   if (!accounts || accounts.length === 0) {
     return (
       <div className="mx-auto max-w-lg">
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border p-12 text-center">
-          <h3 className="text-lg font-semibold text-foreground">
-            No accounts yet
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Create an account before adding transactions.
-          </p>
-          <Button asChild className="mt-4">
-            <Link href={`/organizations/${orgId}/accounts/new`}>
-              Create Account
-            </Link>
-          </Button>
-        </div>
+        <EmptyState
+          icon={Wallet}
+          title="No accounts yet"
+          description="Create an account before adding transactions."
+          action={{ label: "Create Account", href: `/organizations/${orgId}/accounts/new` }}
+        />
       </div>
     );
   }

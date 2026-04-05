@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Circle, CircleCheck, Lock, Plus } from "lucide-react";
+import { Circle, CircleCheck, Lock, Plus, Wallet } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/validations/account";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function AccountsPage({
   params,
@@ -69,19 +70,13 @@ export default async function AccountsPage({
       </PageHeader>
 
       {!accounts || accounts.length === 0 ? (
-        <div className="mt-12 flex flex-col items-center justify-center rounded-lg border border-dashed border-border p-12 text-center">
-          <h3 className="text-lg font-medium text-foreground">
-            No accounts yet
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Create your first account to start tracking transactions.
-          </p>
-          <Button asChild className="mt-4">
-            <Link href={`/organizations/${orgId}/accounts/new`}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Account
-            </Link>
-          </Button>
+        <div className="mt-12">
+          <EmptyState
+            icon={Wallet}
+            title="No accounts yet"
+            description="Create your first account to start tracking transactions."
+            action={{ label: "New Account", href: `/organizations/${orgId}/accounts/new` }}
+          />
         </div>
       ) : (
         <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

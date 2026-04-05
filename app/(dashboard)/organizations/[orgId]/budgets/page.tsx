@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { PiggyBank, Plus } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -8,6 +8,7 @@ import { BUDGET_STATUS_LABELS } from "@/lib/validations/budget";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 import type { BudgetStatus } from "@/lib/validations/budget";
 
@@ -70,17 +71,13 @@ export default async function BudgetsPage({
       </PageHeader>
 
       {budgetList.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-dashed border-border p-8 text-center">
-          <p className="text-sm text-muted-foreground">
-            No budgets yet. Create a budget to plan and track your
-            organization&apos;s finances.
-          </p>
-          <Button asChild className="mt-3" size="sm">
-            <Link href={`/organizations/${orgId}/budgets/new`}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Budget
-            </Link>
-          </Button>
+        <div className="mt-6">
+          <EmptyState
+            icon={PiggyBank}
+            title="No budgets yet"
+            description="Create a budget to plan and track your organization's finances."
+            action={{ label: "New Budget", href: `/organizations/${orgId}/budgets/new` }}
+          />
         </div>
       ) : (
         <div className="mt-6 overflow-x-auto rounded-lg border border-border">

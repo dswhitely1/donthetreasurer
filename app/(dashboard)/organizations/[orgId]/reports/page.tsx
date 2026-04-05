@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { FileBarChart } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { reportParamsSchema } from "@/lib/validations/report";
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { ReportFilters } from "./report-filters";
 import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 import type { SeasonsReportData } from "@/lib/reports/types";
 import type { CategoryOption, BudgetOption } from "./report-filters";
@@ -170,14 +172,12 @@ export default async function ReportsPage({
       </div>
 
       {!hasDateRange && (
-        <div className="mt-12 flex flex-col items-center justify-center rounded-lg border border-dashed border-border p-12 text-center">
-          <h3 className="text-lg font-medium text-foreground">
-            Select a cleared date range
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Choose a cleared-from and cleared-to date above to preview your
-            report. All uncleared transactions will be included automatically.
-          </p>
+        <div className="mt-12">
+          <EmptyState
+            icon={FileBarChart}
+            title="Select a cleared date range"
+            description="Choose a cleared-from and cleared-to date above to preview your report. All uncleared transactions will be included automatically."
+          />
         </div>
       )}
 

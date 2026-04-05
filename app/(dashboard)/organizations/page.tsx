@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Building2, Plus } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -39,19 +40,13 @@ export default async function OrganizationsPage() {
       </PageHeader>
 
       {!organizations || organizations.length === 0 ? (
-        <div className="mt-12 flex flex-col items-center justify-center rounded-lg border border-dashed border-border p-12 text-center">
-          <h3 className="text-lg font-medium text-foreground">
-            No organizations yet
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Create your first organization to get started.
-          </p>
-          <Button asChild className="mt-4">
-            <Link href="/organizations/new">
-              <Plus className="mr-2 h-4 w-4" />
-              New Organization
-            </Link>
-          </Button>
+        <div className="mt-12">
+          <EmptyState
+            icon={Building2}
+            title="No organizations yet"
+            description="Create your first organization to get started."
+            action={{ label: "New Organization", href: "/organizations/new" }}
+          />
         </div>
       ) : (
         <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
