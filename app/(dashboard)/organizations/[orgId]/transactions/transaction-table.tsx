@@ -389,7 +389,7 @@ export function TransactionTable({
               <Link
                 key={txn.id}
                 href={`/organizations/${orgId}/transactions/${txn.id}`}
-                className="flex items-start gap-3 rounded-lg border border-border p-3 hover:bg-muted/30 active:bg-muted/50"
+                className="flex items-start gap-3 rounded-lg border border-border p-3 hover:bg-muted/30 active:bg-muted/50 transition-colors duration-150"
               >
                 {/* Checkbox */}
                 <div
@@ -635,7 +635,7 @@ function TransactionRow({
 
   return (
     <>
-      <tr className="border-b border-border last:border-b-0 hover:bg-muted/30">
+      <tr className="border-b border-border last:border-b-0 hover:bg-muted/30 transition-colors duration-150">
         {/* Expand toggle */}
         <td className="px-2 py-3">
           {hasSplit ? (
