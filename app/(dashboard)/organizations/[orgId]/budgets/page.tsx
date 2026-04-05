@@ -153,12 +153,12 @@ export default async function BudgetsPage({
                         {statusLabel}
                       </Badge>
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-right font-medium tabular-nums text-green-600 dark:text-green-400">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-right font-medium tabular-nums text-income">
                       {budgetedIncome > 0
                         ? formatCurrency(budgetedIncome)
                         : "\u2014"}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-right font-medium tabular-nums text-red-600 dark:text-red-400">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-right font-medium tabular-nums text-expense">
                       {budgetedExpenses > 0
                         ? formatCurrency(budgetedExpenses)
                         : "\u2014"}

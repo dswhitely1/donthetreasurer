@@ -126,15 +126,15 @@ export default async function AccountsPage({
                   </div>
                   <div className="mt-3 flex items-center gap-4 border-t border-border pt-3 text-xs text-muted-foreground">
                     <span className="inline-flex items-center gap-1 tabular-nums">
-                      <Circle className="h-3 w-3 text-yellow-600 dark:text-yellow-400" />
+                      <Circle className="h-3 w-3 text-uncleared" />
                       {formatCurrency(balanceMap.get(account.id)?.statusNet.uncleared ?? 0)}
                     </span>
                     <span className="inline-flex items-center gap-1 tabular-nums">
-                      <CircleCheck className="h-3 w-3 text-green-600 dark:text-green-400" />
+                      <CircleCheck className="h-3 w-3 text-cleared" />
                       {formatCurrency(balanceMap.get(account.id)?.statusNet.cleared ?? 0)}
                     </span>
                     <span className="inline-flex items-center gap-1 tabular-nums">
-                      <Lock className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                      <Lock className="h-3 w-3 text-reconciled" />
                       {formatCurrency(balanceMap.get(account.id)?.statusNet.reconciled ?? 0)}
                     </span>
                   </div>

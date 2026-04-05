@@ -261,8 +261,8 @@ export function CategoryReassignForm({
         <div
           className={`text-sm tabular-nums ${
             isBalanced
-              ? "text-green-600 dark:text-green-400"
-              : "text-red-600 dark:text-red-400"
+              ? "text-income"
+              : "text-expense"
           }`}
         >
           Line items: {formatCurrency(lineItemsTotal)} / {formatCurrency(transactionAmount)}

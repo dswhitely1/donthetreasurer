@@ -372,13 +372,13 @@ export function BudgetForm({
               <div className="grid grid-cols-3 gap-2 rounded-md bg-muted/50 p-2 text-sm">
                 <div>
                   <span className="text-muted-foreground">Income: </span>
-                  <span className="font-medium tabular-nums text-green-600 dark:text-green-400">
+                  <span className="font-medium tabular-nums text-income">
                     {formatCurrency(totalIncome)}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Expenses: </span>
-                  <span className="font-medium tabular-nums text-red-600 dark:text-red-400">
+                  <span className="font-medium tabular-nums text-expense">
                     {formatCurrency(totalExpenses)}
                   </span>
                 </div>
@@ -387,8 +387,8 @@ export function BudgetForm({
                   <span
                     className={`font-medium tabular-nums ${
                       totalIncome - totalExpenses >= 0
-                        ? "text-green-600 dark:text-green-400"
-                        : "text-red-600 dark:text-red-400"
+                        ? "text-income"
+                        : "text-expense"
                     }`}
                   >
                     {formatCurrency(totalIncome - totalExpenses)}
@@ -450,7 +450,7 @@ export function BudgetForm({
                           <SelectContent>
                             {incomeCategories.length > 0 && (
                               <SelectGroup>
-                                <SelectLabel className="text-green-600 dark:text-green-400">
+                                <SelectLabel className="text-income">
                                   Income
                                 </SelectLabel>
                                 {renderCategoryOptions(incomeTree)}
@@ -458,7 +458,7 @@ export function BudgetForm({
                             )}
                             {expenseCategories.length > 0 && (
                               <SelectGroup>
-                                <SelectLabel className="text-red-600 dark:text-red-400">
+                                <SelectLabel className="text-expense">
                                   Expenses
                                 </SelectLabel>
                                 {renderCategoryOptions(expenseTree)}

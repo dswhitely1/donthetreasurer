@@ -31,7 +31,7 @@ function FormMessage({ error, success }: Readonly<{ error?: string; success?: bo
   }
   if (success) {
     return (
-      <div className="flex items-center gap-2 rounded-md bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+      <div className="flex items-center gap-2 rounded-md bg-income/10 px-3 py-2 text-sm text-income">
         <CheckCircle2 className="h-4 w-4 shrink-0" />
         Updated successfully.
       </div>

@@ -128,7 +128,7 @@ export default async function AccountDetailPage({
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
-                <Circle className="h-3 w-3 text-yellow-600 dark:text-yellow-400" />
+                <Circle className="h-3 w-3 text-uncleared" />
                 Uncleared
               </span>
             </CardTitle>
@@ -143,7 +143,7 @@ export default async function AccountDetailPage({
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
-                <CircleCheck className="h-3 w-3 text-green-600 dark:text-green-400" />
+                <CircleCheck className="h-3 w-3 text-cleared" />
                 Cleared
               </span>
             </CardTitle>
@@ -158,7 +158,7 @@ export default async function AccountDetailPage({
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
-                <Lock className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                <Lock className="h-3 w-3 text-reconciled" />
                 Reconciled
               </span>
             </CardTitle>
@@ -183,7 +183,7 @@ export default async function AccountDetailPage({
                 <dt className="font-medium text-muted-foreground">
                   Total Income
                 </dt>
-                <dd className="mt-1 tabular-nums text-green-600 dark:text-green-400">
+                <dd className="mt-1 tabular-nums text-income">
                   {formatCurrency(totalIncome)}
                 </dd>
               </div>
@@ -191,7 +191,7 @@ export default async function AccountDetailPage({
                 <dt className="font-medium text-muted-foreground">
                   Total Expenses
                 </dt>
-                <dd className="mt-1 tabular-nums text-red-600 dark:text-red-400">
+                <dd className="mt-1 tabular-nums text-expense">
                   {formatCurrency(totalExpense)}
                 </dd>
               </div>

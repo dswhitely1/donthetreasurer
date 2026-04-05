@@ -203,7 +203,7 @@ export default async function ReportsPage({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                <p className="text-2xl font-bold text-income">
                   {formatCurrency(reportData.summary.totalIncome)}
                 </p>
               </CardContent>
@@ -215,7 +215,7 @@ export default async function ReportsPage({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                <p className="text-2xl font-bold text-expense">
                   {formatCurrency(reportData.summary.totalExpenses)}
                 </p>
               </CardContent>
@@ -230,8 +230,8 @@ export default async function ReportsPage({
                 <p
                   className={`text-2xl font-bold ${
                     reportData.summary.netChange >= 0
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400"
+                      ? "text-income"
+                      : "text-expense"
                   }`}
                 >
                   {formatCurrency(reportData.summary.netChange)}
@@ -279,8 +279,8 @@ export default async function ReportsPage({
                             <dd
                               className={`tabular-nums ${
                                 netChange >= 0
-                                  ? "text-green-600 dark:text-green-400"
-                                  : "text-red-600 dark:text-red-400"
+                                  ? "text-income"
+                                  : "text-expense"
                               }`}
                             >
                               {formatCurrency(netChange)}
@@ -434,10 +434,10 @@ export default async function ReportsPage({
                           <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(season.baseFee)}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{season.enrolledCount}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(season.totalExpected)}</td>
-                          <td className="px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400">
+                          <td className="px-3 py-2 text-right tabular-nums text-income">
                             {formatCurrency(season.totalCollected)}
                           </td>
-                          <td className="px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400">
+                          <td className="px-3 py-2 text-right tabular-nums text-expense">
                             {formatCurrency(season.totalOutstanding)}
                           </td>
                           <td className="px-3 py-2 text-right tabular-nums">
@@ -450,10 +450,10 @@ export default async function ReportsPage({
                           <td className="px-3 py-2" colSpan={3}>Grand Total</td>
                           <td className="px-3 py-2 text-right tabular-nums">{seasonsData.grandTotals.enrolledCount}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(seasonsData.grandTotals.totalExpected)}</td>
-                          <td className="px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400">
+                          <td className="px-3 py-2 text-right tabular-nums text-income">
                             {formatCurrency(seasonsData.grandTotals.totalCollected)}
                           </td>
-                          <td className="px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400">
+                          <td className="px-3 py-2 text-right tabular-nums text-expense">
                             {formatCurrency(seasonsData.grandTotals.totalOutstanding)}
                           </td>
                           <td className="px-3 py-2 text-right tabular-nums">
@@ -557,12 +557,12 @@ export default async function ReportsPage({
                               <td className="px-3 py-2 text-muted-foreground">
                                 {li.memo ?? ""}
                               </td>
-                              <td className="px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400">
+                              <td className="px-3 py-2 text-right tabular-nums text-income">
                                 {txn.transactionType === "income"
                                   ? formatCurrency(li.amount)
                                   : ""}
                               </td>
-                              <td className="px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400">
+                              <td className="px-3 py-2 text-right tabular-nums text-expense">
                                 {txn.transactionType === "expense"
                                   ? formatCurrency(li.amount)
                                   : ""}

@@ -44,11 +44,11 @@ const MONTH_NAMES = [
 function StatusIcon({ status }: Readonly<{ status: string }>) {
   switch (status) {
     case "cleared":
-      return <CircleCheck className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />;
+      return <CircleCheck className="h-3.5 w-3.5 text-cleared" />;
     case "reconciled":
-      return <Lock className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />;
+      return <Lock className="h-3.5 w-3.5 text-reconciled" />;
     default:
-      return <Circle className="h-3.5 w-3.5 text-yellow-600 dark:text-yellow-400" />;
+      return <Circle className="h-3.5 w-3.5 text-uncleared" />;
   }
 }
 
@@ -232,7 +232,7 @@ export default async function OrganizationOverviewPage({
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
-                  <Circle className="h-3 w-3 text-yellow-600 dark:text-yellow-400" />
+                  <Circle className="h-3 w-3 text-uncleared" />
                   Uncleared
                 </span>
               </CardTitle>
@@ -247,7 +247,7 @@ export default async function OrganizationOverviewPage({
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
-                  <CircleCheck className="h-3 w-3 text-green-600 dark:text-green-400" />
+                  <CircleCheck className="h-3 w-3 text-cleared" />
                   Cleared
                 </span>
               </CardTitle>
@@ -262,7 +262,7 @@ export default async function OrganizationOverviewPage({
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
-                  <Lock className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                  <Lock className="h-3 w-3 text-reconciled" />
                   Reconciled
                 </span>
               </CardTitle>
@@ -348,7 +348,7 @@ export default async function OrganizationOverviewPage({
                         <span className="text-xs text-muted-foreground">
                           Income
                         </span>
-                        <p className="font-medium tabular-nums text-green-600 dark:text-green-400">
+                        <p className="font-medium tabular-nums text-income">
                           {formatCurrency(budgetedIncome)}
                         </p>
                       </div>
@@ -356,7 +356,7 @@ export default async function OrganizationOverviewPage({
                         <span className="text-xs text-muted-foreground">
                           Expenses
                         </span>
-                        <p className="font-medium tabular-nums text-red-600 dark:text-red-400">
+                        <p className="font-medium tabular-nums text-expense">
                           {formatCurrency(budgetedExpenses)}
                         </p>
                       </div>
@@ -433,8 +433,8 @@ export default async function OrganizationOverviewPage({
                         <td
                           className={`px-3 py-2.5 whitespace-nowrap text-right font-medium tabular-nums ${
                             isIncome
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-red-600 dark:text-red-400"
+                              ? "text-income"
+                              : "text-expense"
                           }`}
                         >
                           {isIncome ? "+" : "-"}
@@ -603,8 +603,8 @@ export default async function OrganizationOverviewPage({
                         <td
                           className={`px-3 py-2.5 whitespace-nowrap text-right font-medium tabular-nums ${
                             isIncome
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-red-600 dark:text-red-400"
+                              ? "text-income"
+                              : "text-expense"
                           }`}
                         >
                           {isIncome ? "+" : "-"}

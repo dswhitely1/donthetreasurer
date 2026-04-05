@@ -200,13 +200,13 @@ export default async function SeasonDetailPage({
         </div>
         <div className="rounded-lg border border-border p-4">
           <p className="text-sm text-muted-foreground">Total Collected</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-green-600 dark:text-green-400">
+          <p className="mt-1 text-2xl font-bold tabular-nums text-income">
             {formatCurrency(totalCollected)}
           </p>
         </div>
         <div className="rounded-lg border border-border p-4">
           <p className="text-sm text-muted-foreground">Total Outstanding</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-red-600 dark:text-red-400">
+          <p className="mt-1 text-2xl font-bold tabular-nums text-expense">
             {formatCurrency(totalOutstanding)}
           </p>
         </div>

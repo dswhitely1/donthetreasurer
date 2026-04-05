@@ -98,21 +98,21 @@ function StatusIcon({ status }: Readonly<{ status: string }>) {
   switch (status) {
     case "cleared":
       return (
-        <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400">
+        <span className="inline-flex items-center gap-1 text-cleared">
           <CircleCheck className="h-4 w-4" />
           <span>Cleared</span>
         </span>
       );
     case "reconciled":
       return (
-        <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
+        <span className="inline-flex items-center gap-1 text-reconciled">
           <Lock className="h-4 w-4" />
           <span>Reconciled</span>
         </span>
       );
     default:
       return (
-        <span className="inline-flex items-center gap-1 text-yellow-600 dark:text-yellow-400">
+        <span className="inline-flex items-center gap-1 text-uncleared">
           <Circle className="h-4 w-4" />
           <span>Uncleared</span>
         </span>
@@ -418,8 +418,8 @@ export function TransactionTable({
                       className={cn(
                         "shrink-0 font-medium tabular-nums text-sm",
                         isIncome
-                          ? "text-green-600 dark:text-green-400"
-                          : "text-red-600 dark:text-red-400"
+                          ? "text-income"
+                          : "text-expense"
                       )}
                     >
                       {isIncome ? "+" : "-"}
@@ -790,8 +790,8 @@ function TransactionRow({
             <span
               className={`font-medium tabular-nums ${
                 isIncome
-                  ? "text-green-600 dark:text-green-400"
-                  : "text-red-600 dark:text-red-400"
+                  ? "text-income"
+                  : "text-expense"
               }`}
             >
               {isIncome ? "+" : "-"}

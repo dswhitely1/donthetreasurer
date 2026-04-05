@@ -148,8 +148,8 @@ export default async function TemplatesPage({
                     <td
                       className={`px-3 py-2.5 whitespace-nowrap text-right font-medium tabular-nums ${
                         isIncome
-                          ? "text-green-600 dark:text-green-400"
-                          : "text-red-600 dark:text-red-400"
+                          ? "text-income"
+                          : "text-expense"
                       }`}
                     >
                       {isIncome ? "+" : "-"}
