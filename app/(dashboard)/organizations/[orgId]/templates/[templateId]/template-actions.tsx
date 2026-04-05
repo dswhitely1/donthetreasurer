@@ -80,25 +80,25 @@ export function TemplateDetailActions({
     if (generateState?.error) {
       toast.error("Failed to generate transaction", { description: generateState.error });
     }
-  }, [generateState?.error]);
+  }, [generateState]);
 
   useEffect(() => {
     if (pauseState?.error) {
       toast.error("Failed to pause template", { description: pauseState.error });
     }
-  }, [pauseState?.error]);
+  }, [pauseState]);
 
   useEffect(() => {
     if (resumeState?.error) {
       toast.error("Failed to resume template", { description: resumeState.error });
     }
-  }, [resumeState?.error]);
+  }, [resumeState]);
 
   useEffect(() => {
     if (deleteState?.error) {
       toast.error("Failed to delete template", { description: deleteState.error });
     }
-  }, [deleteState?.error]);
+  }, [deleteState]);
 
   if (isEditing) {
     return (
@@ -257,19 +257,19 @@ export function TemplateRowActions({
     if (generateState?.error) {
       toast.error("Failed to generate transaction", { description: generateState.error });
     }
-  }, [generateState?.error]);
+  }, [generateState]);
 
   useEffect(() => {
     if (pauseState?.error) {
       toast.error("Failed to pause template", { description: pauseState.error });
     }
-  }, [pauseState?.error]);
+  }, [pauseState]);
 
   useEffect(() => {
     if (resumeState?.error) {
       toast.error("Failed to resume template", { description: resumeState.error });
     }
-  }, [resumeState?.error]);
+  }, [resumeState]);
 
   return (
     <div className="flex items-center justify-end gap-1">

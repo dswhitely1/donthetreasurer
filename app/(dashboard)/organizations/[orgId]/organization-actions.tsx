@@ -46,13 +46,13 @@ export function OrganizationActions({
     if (updateState?.error) {
       toast.error("Failed to update organization", { description: updateState.error });
     }
-  }, [updateState?.error]);
+  }, [updateState]);
 
   useEffect(() => {
     if (archiveState?.error) {
       toast.error("Failed to archive organization", { description: archiveState.error });
     }
-  }, [archiveState?.error]);
+  }, [archiveState]);
 
   return (
     <div className="mt-6 border-t border-border pt-6">

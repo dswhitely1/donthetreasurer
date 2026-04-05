@@ -66,7 +66,7 @@ export function TransactionActions({
     if (deleteState?.error) {
       toast.error("Failed to delete transaction", { description: deleteState.error });
     }
-  }, [deleteState?.error]);
+  }, [deleteState]);
 
   const isReconciled = transaction.status === "reconciled";
 

@@ -190,6 +190,12 @@
   animation: fadeInUp var(--transition-slow) both;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up {
+    animation: none;
+  }
+}
+
 /* Mobile touch targets: ensure 44px minimum tap area on touch devices */
 @media (pointer: coarse) {
   [data-slot="button"] {

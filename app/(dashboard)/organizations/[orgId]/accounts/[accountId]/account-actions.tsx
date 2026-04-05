@@ -46,13 +46,13 @@ export function AccountActions({
     if (updateState?.error) {
       toast.error("Failed to update account", { description: updateState.error });
     }
-  }, [updateState?.error]);
+  }, [updateState]);
 
   useEffect(() => {
     if (deactivateState?.error) {
       toast.error("Failed to deactivate account", { description: deactivateState.error });
     }
-  }, [deactivateState?.error]);
+  }, [deactivateState]);
 
   return (
     <div className="mt-6 border-t border-border pt-6">
