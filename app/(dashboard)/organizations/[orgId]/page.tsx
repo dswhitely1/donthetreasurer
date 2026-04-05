@@ -9,6 +9,7 @@ import {
   Lock,
   PiggyBank,
   Plus,
+  Receipt,
   Repeat,
   GitBranch,
 } from "lucide-react";
@@ -23,6 +24,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/layout/page-header";
 import {
   Tooltip,
   TooltipContent,
@@ -33,6 +35,7 @@ import {
   RECURRENCE_RULE_LABELS,
 } from "@/lib/validations/recurring-template";
 import { OrganizationActions } from "./organization-actions";
+import { EmptyState } from "@/components/ui/empty-state";
 
 import type { RecurrenceRule } from "@/lib/recurrence";
 
@@ -44,11 +47,11 @@ const MONTH_NAMES = [
 function StatusIcon({ status }: Readonly<{ status: string }>) {
   switch (status) {
     case "cleared":
-      return <CircleCheck className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />;
+      return <CircleCheck className="h-3.5 w-3.5 text-cleared" />;
     case "reconciled":
-      return <Lock className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />;
+      return <Lock className="h-3.5 w-3.5 text-reconciled" />;
     default:
-      return <Circle className="h-3.5 w-3.5 text-yellow-600 dark:text-yellow-400" />;
+      return <Circle className="h-3.5 w-3.5 text-uncleared" />;
   }
 }
 
@@ -192,35 +195,28 @@ export default async function OrganizationOverviewPage({
     <TooltipProvider>
       <div>
         {/* Page header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">
-              {organization.name}
-            </h2>
-            <div className="mt-1 flex items-center gap-2">
-              {organization.ein && (
-                <span className="text-sm text-muted-foreground">
-                  EIN: {organization.ein}
-                </span>
-              )}
-              <Badge variant="secondary" className="text-xs">
-                FY starts{" "}
-                {MONTH_NAMES[(organization.fiscal_year_start_month ?? 1) - 1]}
-              </Badge>
-            </div>
-          </div>
-        </div>
+        <PageHeader title={organization.name}>
+          {organization.ein && (
+            <span className="text-sm text-muted-foreground">
+              EIN: {organization.ein}
+            </span>
+          )}
+          <Badge variant="secondary" className="text-xs">
+            FY starts{" "}
+            {MONTH_NAMES[(organization.fiscal_year_start_month ?? 1) - 1]}
+          </Badge>
+        </PageHeader>
 
         {/* Summary balance cards */}
         <div className="mt-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
-          <Card>
+          <Card className="rounded-xl shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Total Balance
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold tabular-nums text-foreground">
+              <p className="text-2xl font-semibold tabular-nums text-foreground">
                 {formatCurrency(totalBalance)}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -228,47 +224,47 @@ export default async function OrganizationOverviewPage({
               </p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="rounded-xl shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
-                  <Circle className="h-3 w-3 text-yellow-600 dark:text-yellow-400" />
+                  <Circle className="h-3 w-3 text-uncleared" />
                   Uncleared
                 </span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold tabular-nums text-foreground">
+              <p className="text-2xl font-semibold tabular-nums text-uncleared">
                 {formatCurrency(statusNet.uncleared)}
               </p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="rounded-xl shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
-                  <CircleCheck className="h-3 w-3 text-green-600 dark:text-green-400" />
+                  <CircleCheck className="h-3 w-3 text-cleared" />
                   Cleared
                 </span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold tabular-nums text-foreground">
+              <p className="text-2xl font-semibold tabular-nums text-cleared">
                 {formatCurrency(statusNet.cleared)}
               </p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="rounded-xl shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
-                  <Lock className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                  <Lock className="h-3 w-3 text-reconciled" />
                   Reconciled
                 </span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold tabular-nums text-foreground">
+              <p className="text-2xl font-semibold tabular-nums text-reconciled">
                 {formatCurrency(statusNet.reconciled)}
               </p>
             </CardContent>
@@ -305,9 +301,9 @@ export default async function OrganizationOverviewPage({
 
         {/* Budget Snapshot */}
         {activeBudgets.length > 0 && (
-          <div className="mt-8">
+          <div className="mt-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-foreground">
+              <h3 className="text-lg font-medium text-foreground">
                 Budget Snapshot
               </h3>
               <Button variant="ghost" size="sm" asChild>
@@ -334,7 +330,7 @@ export default async function OrganizationOverviewPage({
                   <Link
                     key={b.id}
                     href={`/organizations/${orgId}/budgets/${b.id}`}
-                    className="rounded-lg border border-border p-4 transition-colors hover:bg-muted/30"
+                    className="rounded-xl border border-border p-4 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:border-primary/30"
                   >
                     <div className="flex items-center gap-2">
                       <PiggyBank className="h-4 w-4 text-muted-foreground" />
@@ -348,7 +344,7 @@ export default async function OrganizationOverviewPage({
                         <span className="text-xs text-muted-foreground">
                           Income
                         </span>
-                        <p className="font-medium tabular-nums text-green-600 dark:text-green-400">
+                        <p className="font-medium tabular-nums text-income">
                           {formatCurrency(budgetedIncome)}
                         </p>
                       </div>
@@ -356,7 +352,7 @@ export default async function OrganizationOverviewPage({
                         <span className="text-xs text-muted-foreground">
                           Expenses
                         </span>
-                        <p className="font-medium tabular-nums text-red-600 dark:text-red-400">
+                        <p className="font-medium tabular-nums text-expense">
                           {formatCurrency(budgetedExpenses)}
                         </p>
                       </div>
@@ -370,9 +366,9 @@ export default async function OrganizationOverviewPage({
 
         {/* Upcoming recurring transactions */}
         {upcomingTemplates.length > 0 && (
-          <div className="mt-8">
+          <div className="mt-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-foreground">
+              <h3 className="text-lg font-medium text-foreground">
                 Upcoming Transactions
               </h3>
               <Button variant="ghost" size="sm" asChild>
@@ -433,8 +429,8 @@ export default async function OrganizationOverviewPage({
                         <td
                           className={`px-3 py-2.5 whitespace-nowrap text-right font-medium tabular-nums ${
                             isIncome
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-red-600 dark:text-red-400"
+                              ? "text-income"
+                              : "text-expense"
                           }`}
                         >
                           {isIncome ? "+" : "-"}
@@ -458,9 +454,9 @@ export default async function OrganizationOverviewPage({
         )}
 
         {/* Recent transactions */}
-        <div className="mt-8">
+        <div className="mt-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-foreground">
+            <h3 className="text-lg font-medium text-foreground">
               Recent Transactions
             </h3>
             <Button variant="ghost" size="sm" asChild>
@@ -471,16 +467,13 @@ export default async function OrganizationOverviewPage({
           </div>
 
           {recentTransactions.length === 0 ? (
-            <div className="mt-4 rounded-lg border border-dashed border-border p-8 text-center">
-              <p className="text-sm text-muted-foreground">
-                No transactions yet. Record your first transaction to start tracking finances.
-              </p>
-              <Button asChild className="mt-3" size="sm">
-                <Link href={`/organizations/${orgId}/transactions/new`}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Transaction
-                </Link>
-              </Button>
+            <div className="mt-4">
+              <EmptyState
+                icon={Receipt}
+                title="No transactions yet"
+                description="Record your first transaction to start tracking finances."
+                action={{ label: "New Transaction", href: `/organizations/${orgId}/transactions/new` }}
+              />
             </div>
           ) : (
             <div className="mt-3 overflow-x-auto rounded-lg border border-border">
@@ -603,8 +596,8 @@ export default async function OrganizationOverviewPage({
                         <td
                           className={`px-3 py-2.5 whitespace-nowrap text-right font-medium tabular-nums ${
                             isIncome
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-red-600 dark:text-red-400"
+                              ? "text-income"
+                              : "text-expense"
                           }`}
                         >
                           {isIncome ? "+" : "-"}
@@ -632,8 +625,8 @@ export default async function OrganizationOverviewPage({
         </div>
 
         {/* Organization settings */}
-        <div className="mt-8">
-          <Card>
+        <div className="mt-6">
+          <Card className="rounded-xl shadow-sm">
             <CardHeader>
               <CardTitle className="text-base">Organization Settings</CardTitle>
             </CardHeader>

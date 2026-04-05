@@ -36,7 +36,7 @@ export function StudentForm({
       <input type="hidden" name="organization_id" value={orgId} />
 
       {showSaved && !state?.error && (
-        <div className="rounded-md bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+        <div className="rounded-md bg-income/10 px-3 py-2 text-sm text-income">
           Student saved successfully. Add another below.
         </div>
       )}

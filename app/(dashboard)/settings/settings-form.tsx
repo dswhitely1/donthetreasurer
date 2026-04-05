@@ -31,7 +31,7 @@ function FormMessage({ error, success }: Readonly<{ error?: string; success?: bo
   }
   if (success) {
     return (
-      <div className="flex items-center gap-2 rounded-md bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+      <div className="flex items-center gap-2 rounded-md bg-income/10 px-3 py-2 text-sm text-income">
         <CheckCircle2 className="h-4 w-4 shrink-0" />
         Updated successfully.
       </div>
@@ -53,7 +53,7 @@ export function SettingsForm({ name, email }: Readonly<SettingsFormProps>) {
   return (
     <div className="space-y-6">
       {/* Profile section */}
-      <Card>
+      <Card className="rounded-xl shadow-sm">
         <CardHeader>
           <CardTitle className="text-base">Profile</CardTitle>
           <CardDescription>Your account information.</CardDescription>
@@ -97,7 +97,7 @@ export function SettingsForm({ name, email }: Readonly<SettingsFormProps>) {
       </Card>
 
       {/* Password section */}
-      <Card>
+      <Card className="rounded-xl shadow-sm">
         <CardHeader>
           <CardTitle className="text-base">Password</CardTitle>
           <CardDescription>Change your account password.</CardDescription>
@@ -159,7 +159,7 @@ export function SettingsForm({ name, email }: Readonly<SettingsFormProps>) {
       </Card>
 
       {/* Danger zone */}
-      <Card className="border-destructive/50">
+      <Card className="rounded-xl shadow-sm border-destructive/50">
         <CardHeader>
           <CardTitle className="text-base text-destructive">Danger Zone</CardTitle>
           <CardDescription>

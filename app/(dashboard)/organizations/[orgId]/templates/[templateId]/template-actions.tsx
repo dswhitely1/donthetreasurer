@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 
 import {
   deleteTemplate,
@@ -74,6 +75,30 @@ export function TemplateDetailActions({
     generateFromTemplate,
     null
   );
+
+  useEffect(() => {
+    if (generateState?.error) {
+      toast.error("Failed to generate transaction", { description: generateState.error });
+    }
+  }, [generateState]);
+
+  useEffect(() => {
+    if (pauseState?.error) {
+      toast.error("Failed to pause template", { description: pauseState.error });
+    }
+  }, [pauseState]);
+
+  useEffect(() => {
+    if (resumeState?.error) {
+      toast.error("Failed to resume template", { description: resumeState.error });
+    }
+  }, [resumeState]);
+
+  useEffect(() => {
+    if (deleteState?.error) {
+      toast.error("Failed to delete template", { description: deleteState.error });
+    }
+  }, [deleteState]);
 
   if (isEditing) {
     return (
@@ -227,6 +252,24 @@ export function TemplateRowActions({
     resumeTemplate,
     null
   );
+
+  useEffect(() => {
+    if (generateState?.error) {
+      toast.error("Failed to generate transaction", { description: generateState.error });
+    }
+  }, [generateState]);
+
+  useEffect(() => {
+    if (pauseState?.error) {
+      toast.error("Failed to pause template", { description: pauseState.error });
+    }
+  }, [pauseState]);
+
+  useEffect(() => {
+    if (resumeState?.error) {
+      toast.error("Failed to resume template", { description: resumeState.error });
+    }
+  }, [resumeState]);
 
   return (
     <div className="flex items-center justify-end gap-1">

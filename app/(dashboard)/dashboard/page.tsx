@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/layout/page-header";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -29,12 +30,10 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold tracking-tight text-foreground">
-        Dashboard
-      </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Welcome to Treasurer. {hasOrgs ? "Select an organization to manage." : "Create your first organization to get started."}
-      </p>
+      <PageHeader
+        title="Dashboard"
+        description={hasOrgs ? "Select an organization to manage." : "Create your first organization to get started."}
+      />
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {hasOrgs &&

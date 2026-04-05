@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AccountActions } from "./account-actions";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default async function AccountDetailPage({
   params,
@@ -85,31 +86,22 @@ export default async function AccountDetailPage({
       </Link>
 
       {/* Page header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">
-            {account.name}
-          </h2>
-          <div className="mt-1 flex items-center gap-2">
-            <Badge variant="secondary">{typeLabel}</Badge>
-            {account.description && (
-              <span className="text-sm text-muted-foreground">
-                {account.description}
-              </span>
-            )}
-          </div>
-        </div>
+      <PageHeader
+        title={account.name}
+        description={account.description ?? undefined}
+      >
+        <Badge variant="secondary">{typeLabel}</Badge>
         <Button asChild variant="outline">
           <Link href={`/organizations/${orgId}/accounts/${accountId}/reconcile`}>
             <Scale className="mr-1.5 h-4 w-4" />
             Reconcile
           </Link>
         </Button>
-      </div>
+      </PageHeader>
 
       {/* Status balance cards */}
       <div className="mt-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="rounded-xl shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Current Balance
@@ -124,11 +116,11 @@ export default async function AccountDetailPage({
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-xl shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
-                <Circle className="h-3 w-3 text-yellow-600 dark:text-yellow-400" />
+                <Circle className="h-3 w-3 text-uncleared" />
                 Uncleared
               </span>
             </CardTitle>
@@ -139,11 +131,11 @@ export default async function AccountDetailPage({
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-xl shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
-                <CircleCheck className="h-3 w-3 text-green-600 dark:text-green-400" />
+                <CircleCheck className="h-3 w-3 text-cleared" />
                 Cleared
               </span>
             </CardTitle>
@@ -154,11 +146,11 @@ export default async function AccountDetailPage({
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-xl shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
-                <Lock className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                <Lock className="h-3 w-3 text-reconciled" />
                 Reconciled
               </span>
             </CardTitle>
@@ -173,7 +165,7 @@ export default async function AccountDetailPage({
 
       {/* Account details */}
       <div className="mt-6">
-        <Card>
+        <Card className="rounded-xl shadow-sm">
           <CardHeader>
             <CardTitle className="text-base">Account Details</CardTitle>
           </CardHeader>
@@ -183,7 +175,7 @@ export default async function AccountDetailPage({
                 <dt className="font-medium text-muted-foreground">
                   Total Income
                 </dt>
-                <dd className="mt-1 tabular-nums text-green-600 dark:text-green-400">
+                <dd className="mt-1 tabular-nums text-income">
                   {formatCurrency(totalIncome)}
                 </dd>
               </div>
@@ -191,7 +183,7 @@ export default async function AccountDetailPage({
                 <dt className="font-medium text-muted-foreground">
                   Total Expenses
                 </dt>
-                <dd className="mt-1 tabular-nums text-red-600 dark:text-red-400">
+                <dd className="mt-1 tabular-nums text-expense">
                   {formatCurrency(totalExpense)}
                 </dd>
               </div>
@@ -288,7 +280,7 @@ async function ReconciliationHistory({
 
   return (
     <div className="mt-6">
-      <Card>
+      <Card className="rounded-xl shadow-sm">
         <CardHeader>
           <CardTitle className="text-base">Reconciliation History</CardTitle>
         </CardHeader>

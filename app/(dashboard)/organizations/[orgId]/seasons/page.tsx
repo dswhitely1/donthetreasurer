@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { Plus, Trophy } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function SeasonsPage({
   params,
@@ -34,22 +37,26 @@ export default async function SeasonsPage({
 
   return (
     <div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Seasons</h1>
-        <Button asChild className="self-start sm:self-auto">
-          <Link href={`/organizations/${orgId}/seasons/new`}>New Season</Link>
+      <PageHeader title="Seasons">
+        <Button asChild>
+          <Link href={`/organizations/${orgId}/seasons/new`}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Season
+          </Link>
         </Button>
-      </div>
+      </PageHeader>
 
       {!seasons || seasons.length === 0 ? (
-        <div className="mt-8 rounded-lg border border-dashed border-border p-8 text-center">
-          <p className="text-muted-foreground">
-            No seasons yet. Create your first season to start tracking student
-            enrollment and payments.
-          </p>
+        <div className="mt-8">
+          <EmptyState
+            icon={Trophy}
+            title="No seasons yet"
+            description="Create your first season to start tracking student enrollment and payments."
+            action={{ label: "New Season", href: `/organizations/${orgId}/seasons/new` }}
+          />
         </div>
       ) : (
-        <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+        <div className="mt-6 overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Receipt } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { computeRunningBalances } from "@/lib/balances";
@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
 import { TransactionFilters } from "./transaction-filters";
 import { TransactionTable } from "./transaction-table";
+import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 import type { CategoryOption } from "./transaction-filters";
 
@@ -326,22 +328,14 @@ export default async function TransactionsPage({
 
   return (
     <div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">
-            Transactions
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage transactions for {organization.name}.
-          </p>
-        </div>
-        <Button asChild className="self-start sm:self-auto">
+      <PageHeader title="Transactions" description={`Manage transactions for ${organization.name}.`}>
+        <Button asChild>
           <Link href={`/organizations/${orgId}/transactions/new`}>
             <Plus className="mr-2 h-4 w-4" />
             New Transaction
           </Link>
         </Button>
-      </div>
+      </PageHeader>
 
       <div className="mt-4">
         <TransactionFilters
@@ -351,19 +345,13 @@ export default async function TransactionsPage({
       </div>
 
       {totalCount === 0 ? (
-        <div className="mt-12 flex flex-col items-center justify-center rounded-lg border border-dashed border-border p-12 text-center">
-          <h3 className="text-lg font-semibold text-foreground">
-            No transactions yet
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Record your first transaction to start tracking finances.
-          </p>
-          <Button asChild className="mt-4">
-            <Link href={`/organizations/${orgId}/transactions/new`}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Transaction
-            </Link>
-          </Button>
+        <div className="mt-12">
+          <EmptyState
+            icon={Receipt}
+            title="No transactions yet"
+            description="Record your first transaction to start tracking finances."
+            action={{ label: "New Transaction", href: `/organizations/${orgId}/transactions/new` }}
+          />
         </div>
       ) : (
         <div className="mt-4">

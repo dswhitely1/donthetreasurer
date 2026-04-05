@@ -3,15 +3,13 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { toast } from "sonner";
 import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
   ChevronRight,
   ChevronDown,
-  Circle,
-  CircleCheck,
-  Lock,
   GitBranch,
   Download,
   ExternalLink,
@@ -98,23 +96,20 @@ function StatusIcon({ status }: Readonly<{ status: string }>) {
   switch (status) {
     case "cleared":
       return (
-        <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400">
-          <CircleCheck className="h-4 w-4" />
-          <span>Cleared</span>
+        <span className="inline-flex items-center rounded-full bg-cleared-bg px-2.5 py-0.5 text-xs font-medium text-cleared">
+          Cleared
         </span>
       );
     case "reconciled":
       return (
-        <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
-          <Lock className="h-4 w-4" />
-          <span>Reconciled</span>
+        <span className="inline-flex items-center rounded-full bg-reconciled-bg px-2.5 py-0.5 text-xs font-medium text-reconciled">
+          Reconciled
         </span>
       );
     default:
       return (
-        <span className="inline-flex items-center gap-1 text-yellow-600 dark:text-yellow-400">
-          <Circle className="h-4 w-4" />
-          <span>Uncleared</span>
+        <span className="inline-flex items-center rounded-full bg-uncleared-bg px-2.5 py-0.5 text-xs font-medium text-uncleared">
+          Uncleared
         </span>
       );
   }
@@ -290,18 +285,22 @@ export function TransactionTable({
   async function handleBulkAction(action: "cleared" | "reconciled" | "delete") {
     setBulkError(null);
     const ids = Array.from(selectedIds);
+    const count = ids.length;
 
     try {
       if (action === "delete") {
         await bulkDeleteMutation.mutateAsync({ ids });
+        toast.success(`${count} transaction${count === 1 ? "" : "s"} deleted`);
       } else {
         await bulkUpdateMutation.mutateAsync({ ids, status: action });
+        const label = action === "cleared" ? "cleared" : "reconciled";
+        toast.success(`${count} transaction${count === 1 ? "" : "s"} marked ${label}`);
       }
       setSelectedIds(new Set());
     } catch (err) {
-      setBulkError(
-        err instanceof Error ? err.message : "An error occurred."
-      );
+      const message = err instanceof Error ? err.message : "An error occurred.";
+      setBulkError(message);
+      toast.error("Failed to update transactions", { description: message });
     }
   }
 
@@ -389,7 +388,7 @@ export function TransactionTable({
               <Link
                 key={txn.id}
                 href={`/organizations/${orgId}/transactions/${txn.id}`}
-                className="flex items-start gap-3 rounded-lg border border-border p-3 hover:bg-muted/30 active:bg-muted/50"
+                className="flex items-start gap-3 rounded-lg border border-border p-3 hover:bg-muted/30 active:bg-muted/50 transition-colors duration-150"
               >
                 {/* Checkbox */}
                 <div
@@ -418,11 +417,11 @@ export function TransactionTable({
                       className={cn(
                         "shrink-0 font-medium tabular-nums text-sm",
                         isIncome
-                          ? "text-green-600 dark:text-green-400"
-                          : "text-red-600 dark:text-red-400"
+                          ? "text-income"
+                          : "text-expense"
                       )}
                     >
-                      {isIncome ? "+" : "-"}
+                      {isIncome ? "+" : "\u2212"}
                       {formatCurrency(txn.amount)}
                     </span>
                   </div>
@@ -635,7 +634,7 @@ function TransactionRow({
 
   return (
     <>
-      <tr className="border-b border-border last:border-b-0 hover:bg-muted/30">
+      <tr className="border-b border-border last:border-b-0 hover:bg-muted/30 transition-colors duration-150">
         {/* Expand toggle */}
         <td className="px-2 py-3">
           {hasSplit ? (
@@ -790,11 +789,11 @@ function TransactionRow({
             <span
               className={`font-medium tabular-nums ${
                 isIncome
-                  ? "text-green-600 dark:text-green-400"
-                  : "text-red-600 dark:text-red-400"
+                  ? "text-income"
+                  : "text-expense"
               }`}
             >
-              {isIncome ? "+" : "-"}
+              {isIncome ? "+" : "\u2212"}
               {formatCurrency(txn.amount)}
             </span>
           }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Tag } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { CATEGORY_TYPE_LABELS } from "@/lib/validations/category";
@@ -12,6 +12,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function CategoriesPage({
   params,
@@ -57,37 +59,23 @@ export default async function CategoriesPage({
 
   return (
     <div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">
-            Categories
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage transaction categories for {organization.name}.
-          </p>
-        </div>
-        <Button asChild className="self-start sm:self-auto">
+      <PageHeader title="Categories" description={`Manage transaction categories for ${organization.name}.`}>
+        <Button asChild>
           <Link href={`/organizations/${orgId}/categories/new`}>
             <Plus className="mr-2 h-4 w-4" />
             New Category
           </Link>
         </Button>
-      </div>
+      </PageHeader>
 
       {allCategories.length === 0 ? (
-        <div className="mt-12 flex flex-col items-center justify-center rounded-lg border border-dashed border-border p-12 text-center">
-          <h3 className="text-lg font-semibold text-foreground">
-            No categories yet
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Create your first category to start organizing transactions.
-          </p>
-          <Button asChild className="mt-4">
-            <Link href={`/organizations/${orgId}/categories/new`}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Category
-            </Link>
-          </Button>
+        <div className="mt-12">
+          <EmptyState
+            icon={Tag}
+            title="No categories yet"
+            description="Create your first category to start organizing transactions."
+            action={{ label: "New Category", href: `/organizations/${orgId}/categories/new` }}
+          />
         </div>
       ) : (
         <div className="mt-6 space-y-8">
@@ -131,7 +119,7 @@ function CategorySection({
 
   return (
     <div>
-      <h3 className="mb-3 text-lg font-semibold text-foreground">{title}</h3>
+      <h3 className="mb-3 text-lg font-medium text-foreground">{title}</h3>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {parents.map((parent) => {
           const children = childrenMap.get(parent.id) ?? [];

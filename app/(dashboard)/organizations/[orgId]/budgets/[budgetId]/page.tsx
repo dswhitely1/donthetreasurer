@@ -59,8 +59,8 @@ function VarianceCell({ variance }: Readonly<{ variance: number }>) {
     <span
       className={`tabular-nums ${
         isFavorable
-          ? "text-green-600 dark:text-green-400"
-          : "text-red-600 dark:text-red-400"
+          ? "text-income"
+          : "text-expense"
       }`}
     >
       {variance >= 0 ? "+" : ""}
@@ -74,8 +74,8 @@ function NetCell({ value }: Readonly<{ value: number }>) {
     <span
       className={`tabular-nums ${
         value >= 0
-          ? "text-green-600 dark:text-green-400"
-          : "text-red-600 dark:text-red-400"
+          ? "text-income"
+          : "text-expense"
       }`}
     >
       {formatCurrency(value)}
@@ -98,11 +98,11 @@ function ProgressBar({
         className={`h-2 rounded-full transition-all ${
           isOver
             ? type === "expense"
-              ? "bg-red-500"
-              : "bg-green-500"
+              ? "bg-expense"
+              : "bg-income"
             : type === "expense"
-              ? "bg-blue-500"
-              : "bg-green-500"
+              ? "bg-reconciled"
+              : "bg-income"
         }`}
         style={{ width: `${Math.min(pct, 100)}%` }}
       />
@@ -418,7 +418,7 @@ export default async function BudgetDetailPage({
               <p className="text-xs font-medium text-muted-foreground">
                 Budgeted Income
               </p>
-              <p className="text-lg font-bold tabular-nums text-green-600 dark:text-green-400">
+              <p className="text-lg font-bold tabular-nums text-income">
                 {formatCurrency(budgetedIncome)}
               </p>
               <p className="text-xs text-muted-foreground">
@@ -429,7 +429,7 @@ export default async function BudgetDetailPage({
               <p className="text-xs font-medium text-muted-foreground">
                 Budgeted Expenses
               </p>
-              <p className="text-lg font-bold tabular-nums text-red-600 dark:text-red-400">
+              <p className="text-lg font-bold tabular-nums text-expense">
                 {formatCurrency(budgetedExpenses)}
               </p>
               <p className="text-xs text-muted-foreground">
@@ -443,8 +443,8 @@ export default async function BudgetDetailPage({
               <p
                 className={`text-lg font-bold tabular-nums ${
                   netBudget >= 0
-                    ? "text-green-600 dark:text-green-400"
-                    : "text-red-600 dark:text-red-400"
+                    ? "text-income"
+                    : "text-expense"
                 }`}
               >
                 {formatCurrency(netBudget)}
@@ -498,16 +498,16 @@ export default async function BudgetDetailPage({
                         className="border-b border-border last:border-b-0"
                       >
                         <td className="px-3 py-2">{line.categoryName}</td>
-                        <td className="hidden px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400 sm:table-cell">
+                        <td className="hidden px-3 py-2 text-right tabular-nums text-income sm:table-cell">
                           {formatCurrency(line.incomeBudgeted)}
                         </td>
-                        <td className="hidden px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400 sm:table-cell">
+                        <td className="hidden px-3 py-2 text-right tabular-nums text-income sm:table-cell">
                           {formatCurrency(line.incomeActual)}
                         </td>
-                        <td className="hidden px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400 sm:table-cell">
+                        <td className="hidden px-3 py-2 text-right tabular-nums text-expense sm:table-cell">
                           {formatCurrency(line.expenseBudgeted)}
                         </td>
-                        <td className="hidden px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400 sm:table-cell">
+                        <td className="hidden px-3 py-2 text-right tabular-nums text-expense sm:table-cell">
                           {formatCurrency(line.expenseActual)}
                         </td>
                         <td className="px-3 py-2 text-right">
@@ -523,22 +523,22 @@ export default async function BudgetDetailPage({
                     ))}
                     <tr className="bg-muted/30 font-medium">
                       <td className="px-3 py-2">Combined Total</td>
-                      <td className="hidden px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400 sm:table-cell">
+                      <td className="hidden px-3 py-2 text-right tabular-nums text-income sm:table-cell">
                         {formatCurrency(
                           combinedLines.reduce((s, l) => s + l.incomeBudgeted, 0)
                         )}
                       </td>
-                      <td className="hidden px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400 sm:table-cell">
+                      <td className="hidden px-3 py-2 text-right tabular-nums text-income sm:table-cell">
                         {formatCurrency(
                           combinedLines.reduce((s, l) => s + l.incomeActual, 0)
                         )}
                       </td>
-                      <td className="hidden px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400 sm:table-cell">
+                      <td className="hidden px-3 py-2 text-right tabular-nums text-expense sm:table-cell">
                         {formatCurrency(
                           combinedLines.reduce((s, l) => s + l.expenseBudgeted, 0)
                         )}
                       </td>
-                      <td className="hidden px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400 sm:table-cell">
+                      <td className="hidden px-3 py-2 text-right tabular-nums text-expense sm:table-cell">
                         {formatCurrency(
                           combinedLines.reduce((s, l) => s + l.expenseActual, 0)
                         )}
@@ -787,8 +787,8 @@ export default async function BudgetDetailPage({
                         <td
                           className={`px-3 py-2 text-right tabular-nums ${
                             item.categoryType === "income"
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-red-600 dark:text-red-400"
+                              ? "text-income"
+                              : "text-expense"
                           }`}
                         >
                           {formatCurrency(item.actual)}

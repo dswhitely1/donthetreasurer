@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { FileBarChart } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { reportParamsSchema } from "@/lib/validations/report";
@@ -12,6 +13,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ReportFilters } from "./report-filters";
+import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 import type { SeasonsReportData } from "@/lib/reports/types";
 import type { CategoryOption, BudgetOption } from "./report-filters";
@@ -153,16 +156,10 @@ export default async function ReportsPage({
 
   return (
     <div>
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">
-          Reports
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Generate and export transaction reports for {organization.name}.
-          Includes all transactions written or cleared within the date range,
-          plus all outstanding uncleared transactions through the end date.
-        </p>
-      </div>
+      <PageHeader
+        title="Reports"
+        description={`Generate and export transaction reports for ${organization.name}. Includes all transactions written or cleared within the date range, plus all outstanding uncleared transactions through the end date.`}
+      />
 
       <div className="mt-4">
         <ReportFilters
@@ -175,14 +172,12 @@ export default async function ReportsPage({
       </div>
 
       {!hasDateRange && (
-        <div className="mt-12 flex flex-col items-center justify-center rounded-lg border border-dashed border-border p-12 text-center">
-          <h3 className="text-lg font-semibold text-foreground">
-            Select a cleared date range
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Choose a cleared-from and cleared-to date above to preview your
-            report. All uncleared transactions will be included automatically.
-          </p>
+        <div className="mt-12">
+          <EmptyState
+            icon={FileBarChart}
+            title="Select a cleared date range"
+            description="Choose a cleared-from and cleared-to date above to preview your report. All uncleared transactions will be included automatically."
+          />
         </div>
       )}
 
@@ -203,7 +198,7 @@ export default async function ReportsPage({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                <p className="text-2xl font-bold text-income">
                   {formatCurrency(reportData.summary.totalIncome)}
                 </p>
               </CardContent>
@@ -215,7 +210,7 @@ export default async function ReportsPage({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                <p className="text-2xl font-bold text-expense">
                   {formatCurrency(reportData.summary.totalExpenses)}
                 </p>
               </CardContent>
@@ -230,8 +225,8 @@ export default async function ReportsPage({
                 <p
                   className={`text-2xl font-bold ${
                     reportData.summary.netChange >= 0
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400"
+                      ? "text-income"
+                      : "text-expense"
                   }`}
                 >
                   {formatCurrency(reportData.summary.netChange)}
@@ -279,8 +274,8 @@ export default async function ReportsPage({
                             <dd
                               className={`tabular-nums ${
                                 netChange >= 0
-                                  ? "text-green-600 dark:text-green-400"
-                                  : "text-red-600 dark:text-red-400"
+                                  ? "text-income"
+                                  : "text-expense"
                               }`}
                             >
                               {formatCurrency(netChange)}
@@ -434,10 +429,10 @@ export default async function ReportsPage({
                           <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(season.baseFee)}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{season.enrolledCount}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(season.totalExpected)}</td>
-                          <td className="px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400">
+                          <td className="px-3 py-2 text-right tabular-nums text-income">
                             {formatCurrency(season.totalCollected)}
                           </td>
-                          <td className="px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400">
+                          <td className="px-3 py-2 text-right tabular-nums text-expense">
                             {formatCurrency(season.totalOutstanding)}
                           </td>
                           <td className="px-3 py-2 text-right tabular-nums">
@@ -450,10 +445,10 @@ export default async function ReportsPage({
                           <td className="px-3 py-2" colSpan={3}>Grand Total</td>
                           <td className="px-3 py-2 text-right tabular-nums">{seasonsData.grandTotals.enrolledCount}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(seasonsData.grandTotals.totalExpected)}</td>
-                          <td className="px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400">
+                          <td className="px-3 py-2 text-right tabular-nums text-income">
                             {formatCurrency(seasonsData.grandTotals.totalCollected)}
                           </td>
-                          <td className="px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400">
+                          <td className="px-3 py-2 text-right tabular-nums text-expense">
                             {formatCurrency(seasonsData.grandTotals.totalOutstanding)}
                           </td>
                           <td className="px-3 py-2 text-right tabular-nums">
@@ -557,12 +552,12 @@ export default async function ReportsPage({
                               <td className="px-3 py-2 text-muted-foreground">
                                 {li.memo ?? ""}
                               </td>
-                              <td className="px-3 py-2 text-right tabular-nums text-green-600 dark:text-green-400">
+                              <td className="px-3 py-2 text-right tabular-nums text-income">
                                 {txn.transactionType === "income"
                                   ? formatCurrency(li.amount)
                                   : ""}
                               </td>
-                              <td className="px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400">
+                              <td className="px-3 py-2 text-right tabular-nums text-expense">
                                 {txn.transactionType === "expense"
                                   ? formatCurrency(li.amount)
                                   : ""}

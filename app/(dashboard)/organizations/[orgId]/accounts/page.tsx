@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Circle, CircleCheck, Lock, Plus } from "lucide-react";
+import { Circle, CircleCheck, Lock, Plus, Wallet } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/validations/account";
@@ -15,6 +15,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function AccountsPage({
   params,
@@ -58,46 +60,32 @@ export default async function AccountsPage({
 
   return (
     <div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">
-            Accounts
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage financial accounts for {organization.name}.
-          </p>
-        </div>
-        <Button asChild className="self-start sm:self-auto">
+      <PageHeader title="Accounts" description={`Manage financial accounts for ${organization.name}.`}>
+        <Button asChild>
           <Link href={`/organizations/${orgId}/accounts/new`}>
             <Plus className="mr-2 h-4 w-4" />
             New Account
           </Link>
         </Button>
-      </div>
+      </PageHeader>
 
       {!accounts || accounts.length === 0 ? (
-        <div className="mt-12 flex flex-col items-center justify-center rounded-lg border border-dashed border-border p-12 text-center">
-          <h3 className="text-lg font-semibold text-foreground">
-            No accounts yet
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Create your first account to start tracking transactions.
-          </p>
-          <Button asChild className="mt-4">
-            <Link href={`/organizations/${orgId}/accounts/new`}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Account
-            </Link>
-          </Button>
+        <div className="mt-12">
+          <EmptyState
+            icon={Wallet}
+            title="No accounts yet"
+            description="Create your first account to start tracking transactions."
+            action={{ label: "New Account", href: `/organizations/${orgId}/accounts/new` }}
+          />
         </div>
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {accounts.map((account) => (
             <Link
               key={account.id}
               href={`/organizations/${orgId}/accounts/${account.id}`}
             >
-              <Card className="transition-colors hover:border-primary/30">
+              <Card className="rounded-xl shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:border-primary/30">
                 <CardHeader>
                   <CardTitle className="text-base">{account.name}</CardTitle>
                   {account.description && (
@@ -126,15 +114,15 @@ export default async function AccountsPage({
                   </div>
                   <div className="mt-3 flex items-center gap-4 border-t border-border pt-3 text-xs text-muted-foreground">
                     <span className="inline-flex items-center gap-1 tabular-nums">
-                      <Circle className="h-3 w-3 text-yellow-600 dark:text-yellow-400" />
+                      <Circle className="h-3 w-3 text-uncleared" />
                       {formatCurrency(balanceMap.get(account.id)?.statusNet.uncleared ?? 0)}
                     </span>
                     <span className="inline-flex items-center gap-1 tabular-nums">
-                      <CircleCheck className="h-3 w-3 text-green-600 dark:text-green-400" />
+                      <CircleCheck className="h-3 w-3 text-cleared" />
                       {formatCurrency(balanceMap.get(account.id)?.statusNet.cleared ?? 0)}
                     </span>
                     <span className="inline-flex items-center gap-1 tabular-nums">
-                      <Lock className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                      <Lock className="h-3 w-3 text-reconciled" />
                       {formatCurrency(balanceMap.get(account.id)?.statusNet.reconciled ?? 0)}
                     </span>
                   </div>

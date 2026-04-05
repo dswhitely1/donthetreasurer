@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getReconciledBalance } from "@/lib/balances";
 import { ReconcileSetupForm } from "./reconcile-setup-form";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default async function ReconcileSetupPage({
   params,
@@ -73,12 +74,10 @@ export default async function ReconcileSetupPage({
         Back to account
       </Link>
 
-      <h2 className="text-2xl font-bold tracking-tight text-foreground">
-        Reconcile: {account.name}
-      </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Enter your bank statement details to begin reconciliation.
-      </p>
+      <PageHeader
+        title={`Reconcile: ${account.name}`}
+        description="Enter your bank statement details to begin reconciliation."
+      />
 
       <ReconcileSetupForm
         accountId={accountId}

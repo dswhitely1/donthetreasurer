@@ -1,6 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { CalendarClock, Plus } from "lucide-react";
+
+import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -61,33 +64,26 @@ export default async function TemplatesPage({
 
   return (
     <div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">
-          Recurring Templates
-        </h2>
-        <Button asChild className="self-start sm:self-auto">
+      <PageHeader title="Recurring Templates">
+        <Button asChild>
           <Link href={`/organizations/${orgId}/templates/new`}>
             <Plus className="mr-2 h-4 w-4" />
             New Template
           </Link>
         </Button>
-      </div>
+      </PageHeader>
 
       {templateList.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-dashed border-border p-8 text-center">
-          <p className="text-sm text-muted-foreground">
-            No recurring templates yet. Create a template to automate
-            transaction entry.
-          </p>
-          <Button asChild className="mt-3" size="sm">
-            <Link href={`/organizations/${orgId}/templates/new`}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Template
-            </Link>
-          </Button>
+        <div className="mt-6">
+          <EmptyState
+            icon={CalendarClock}
+            title="No recurring templates yet"
+            description="Create a template to automate transaction entry."
+            action={{ label: "New Template", href: `/organizations/${orgId}/templates/new` }}
+          />
         </div>
       ) : (
-        <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+        <div className="mt-6 overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
@@ -148,8 +144,8 @@ export default async function TemplatesPage({
                     <td
                       className={`px-3 py-2.5 whitespace-nowrap text-right font-medium tabular-nums ${
                         isIncome
-                          ? "text-green-600 dark:text-green-400"
-                          : "text-red-600 dark:text-red-400"
+                          ? "text-income"
+                          : "text-expense"
                       }`}
                     >
                       {isIncome ? "+" : "-"}

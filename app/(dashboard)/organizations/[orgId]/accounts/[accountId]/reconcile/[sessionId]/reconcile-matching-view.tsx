@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PageHeader } from "@/components/layout/page-header";
 import {
   useReconciliationTransactions,
   useFinishReconciliation,
@@ -158,12 +159,10 @@ export function ReconcileMatchingView({
         Back to account
       </Link>
 
-      <h2 className="text-2xl font-bold tracking-tight text-foreground">
-        Reconcile: {account.name}
-      </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Statement date: {formatDate(session.statementDate)}
-      </p>
+      <PageHeader
+        title={`Reconcile: ${account.name}`}
+        description={`Statement date: ${formatDate(session.statementDate)}`}
+      />
 
       {/* Summary panel */}
       <div className="mt-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
@@ -216,14 +215,14 @@ export function ReconcileMatchingView({
             <p
               className={`text-xl font-bold tabular-nums ${
                 isBalanced
-                  ? "text-green-600 dark:text-green-400"
-                  : "text-red-600 dark:text-red-400"
+                  ? "text-income"
+                  : "text-expense"
               }`}
             >
               {formatCurrency(difference)}
             </p>
             {isBalanced && (
-              <p className="mt-1 text-xs text-green-600 dark:text-green-400">
+              <p className="mt-1 text-xs text-income">
                 Balanced
               </p>
             )}
@@ -370,8 +369,8 @@ export function ReconcileMatchingView({
                     <span
                       className={`w-28 shrink-0 text-right text-sm font-medium tabular-nums ${
                         isIncome
-                          ? "text-green-600 dark:text-green-400"
-                          : "text-red-600 dark:text-red-400"
+                          ? "text-income"
+                          : "text-expense"
                       }`}
                     >
                       {isIncome ? "+" : "-"}

@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import type { Tables } from "@/types/database";
 import { updateAccount, deactivateAccount } from "../actions";
@@ -40,6 +41,18 @@ export function AccountActions({
   );
   const [deactivateState, deactivateAction, deactivatePending] =
     useActionState(deactivateAccount, null);
+
+  useEffect(() => {
+    if (updateState?.error) {
+      toast.error("Failed to update account", { description: updateState.error });
+    }
+  }, [updateState]);
+
+  useEffect(() => {
+    if (deactivateState?.error) {
+      toast.error("Failed to deactivate account", { description: deactivateState.error });
+    }
+  }, [deactivateState]);
 
   return (
     <div className="mt-6 border-t border-border pt-6">
