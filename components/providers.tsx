@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "sonner";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -21,6 +22,12 @@ export function Providers({ children }: Readonly<{ children: React.ReactNode }>)
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         {children}
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            className: "!bg-card !text-card-foreground !border-border !shadow-lg",
+          }}
+        />
       </TooltipProvider>
     </QueryClientProvider>
   );

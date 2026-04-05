@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import type { Tables } from "@/types/database";
 import { updateOrganization, deleteOrganization } from "../actions";
@@ -40,6 +41,18 @@ export function OrganizationActions({
     deleteOrganization,
     null
   );
+
+  useEffect(() => {
+    if (updateState?.error) {
+      toast.error("Failed to update organization", { description: updateState.error });
+    }
+  }, [updateState?.error]);
+
+  useEffect(() => {
+    if (archiveState?.error) {
+      toast.error("Failed to archive organization", { description: archiveState.error });
+    }
+  }, [archiveState?.error]);
 
   return (
     <div className="mt-6 border-t border-border pt-6">

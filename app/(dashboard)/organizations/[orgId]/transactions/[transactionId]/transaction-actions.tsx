@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Lock, Repeat } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 
 import { deleteTransaction } from "../actions";
 import { TransactionForm } from "../transaction-form";
@@ -60,6 +61,12 @@ export function TransactionActions({
     deleteTransaction,
     null
   );
+
+  useEffect(() => {
+    if (deleteState?.error) {
+      toast.error("Failed to delete transaction", { description: deleteState.error });
+    }
+  }, [deleteState?.error]);
 
   const isReconciled = transaction.status === "reconciled";
 

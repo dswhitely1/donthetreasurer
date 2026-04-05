@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { toast } from "sonner";
 import {
   ArrowUp,
   ArrowDown,
@@ -284,18 +285,22 @@ export function TransactionTable({
   async function handleBulkAction(action: "cleared" | "reconciled" | "delete") {
     setBulkError(null);
     const ids = Array.from(selectedIds);
+    const count = ids.length;
 
     try {
       if (action === "delete") {
         await bulkDeleteMutation.mutateAsync({ ids });
+        toast.success(`${count} transaction${count === 1 ? "" : "s"} deleted`);
       } else {
         await bulkUpdateMutation.mutateAsync({ ids, status: action });
+        const label = action === "cleared" ? "cleared" : "reconciled";
+        toast.success(`${count} transaction${count === 1 ? "" : "s"} marked ${label}`);
       }
       setSelectedIds(new Set());
     } catch (err) {
-      setBulkError(
-        err instanceof Error ? err.message : "An error occurred."
-      );
+      const message = err instanceof Error ? err.message : "An error occurred.";
+      setBulkError(message);
+      toast.error("Failed to update transactions", { description: message });
     }
   }
 
