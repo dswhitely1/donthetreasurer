@@ -9,9 +9,6 @@ import {
   ArrowUpDown,
   ChevronRight,
   ChevronDown,
-  Circle,
-  CircleCheck,
-  Lock,
   GitBranch,
   Download,
   ExternalLink,
@@ -98,23 +95,20 @@ function StatusIcon({ status }: Readonly<{ status: string }>) {
   switch (status) {
     case "cleared":
       return (
-        <span className="inline-flex items-center gap-1 text-cleared">
-          <CircleCheck className="h-4 w-4" />
-          <span>Cleared</span>
+        <span className="inline-flex items-center rounded-full bg-cleared-bg px-2.5 py-0.5 text-xs font-medium text-cleared">
+          Cleared
         </span>
       );
     case "reconciled":
       return (
-        <span className="inline-flex items-center gap-1 text-reconciled">
-          <Lock className="h-4 w-4" />
-          <span>Reconciled</span>
+        <span className="inline-flex items-center rounded-full bg-reconciled-bg px-2.5 py-0.5 text-xs font-medium text-reconciled">
+          Reconciled
         </span>
       );
     default:
       return (
-        <span className="inline-flex items-center gap-1 text-uncleared">
-          <Circle className="h-4 w-4" />
-          <span>Uncleared</span>
+        <span className="inline-flex items-center rounded-full bg-uncleared-bg px-2.5 py-0.5 text-xs font-medium text-uncleared">
+          Uncleared
         </span>
       );
   }
@@ -422,7 +416,7 @@ export function TransactionTable({
                           : "text-expense"
                       )}
                     >
-                      {isIncome ? "+" : "-"}
+                      {isIncome ? "+" : "\u2212"}
                       {formatCurrency(txn.amount)}
                     </span>
                   </div>
@@ -794,7 +788,7 @@ function TransactionRow({
                   : "text-expense"
               }`}
             >
-              {isIncome ? "+" : "-"}
+              {isIncome ? "+" : "\u2212"}
               {formatCurrency(txn.amount)}
             </span>
           }
