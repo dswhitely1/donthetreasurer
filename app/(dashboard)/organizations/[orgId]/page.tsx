@@ -23,6 +23,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/layout/page-header";
 import {
   Tooltip,
   TooltipContent,
@@ -192,24 +193,17 @@ export default async function OrganizationOverviewPage({
     <TooltipProvider>
       <div>
         {/* Page header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">
-              {organization.name}
-            </h2>
-            <div className="mt-1 flex items-center gap-2">
-              {organization.ein && (
-                <span className="text-sm text-muted-foreground">
-                  EIN: {organization.ein}
-                </span>
-              )}
-              <Badge variant="secondary" className="text-xs">
-                FY starts{" "}
-                {MONTH_NAMES[(organization.fiscal_year_start_month ?? 1) - 1]}
-              </Badge>
-            </div>
-          </div>
-        </div>
+        <PageHeader title={organization.name}>
+          {organization.ein && (
+            <span className="text-sm text-muted-foreground">
+              EIN: {organization.ein}
+            </span>
+          )}
+          <Badge variant="secondary" className="text-xs">
+            FY starts{" "}
+            {MONTH_NAMES[(organization.fiscal_year_start_month ?? 1) - 1]}
+          </Badge>
+        </PageHeader>
 
         {/* Summary balance cards */}
         <div className="mt-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
@@ -307,7 +301,7 @@ export default async function OrganizationOverviewPage({
         {activeBudgets.length > 0 && (
           <div className="mt-8">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-foreground">
+              <h3 className="text-lg font-medium text-foreground">
                 Budget Snapshot
               </h3>
               <Button variant="ghost" size="sm" asChild>
@@ -372,7 +366,7 @@ export default async function OrganizationOverviewPage({
         {upcomingTemplates.length > 0 && (
           <div className="mt-8">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-foreground">
+              <h3 className="text-lg font-medium text-foreground">
                 Upcoming Transactions
               </h3>
               <Button variant="ghost" size="sm" asChild>
@@ -460,7 +454,7 @@ export default async function OrganizationOverviewPage({
         {/* Recent transactions */}
         <div className="mt-8">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-foreground">
+            <h3 className="text-lg font-medium text-foreground">
               Recent Transactions
             </h3>
             <Button variant="ghost" size="sm" asChild>

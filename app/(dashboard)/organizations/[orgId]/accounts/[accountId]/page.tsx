@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AccountActions } from "./account-actions";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default async function AccountDetailPage({
   params,
@@ -85,27 +86,18 @@ export default async function AccountDetailPage({
       </Link>
 
       {/* Page header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">
-            {account.name}
-          </h2>
-          <div className="mt-1 flex items-center gap-2">
-            <Badge variant="secondary">{typeLabel}</Badge>
-            {account.description && (
-              <span className="text-sm text-muted-foreground">
-                {account.description}
-              </span>
-            )}
-          </div>
-        </div>
+      <PageHeader
+        title={account.name}
+        description={account.description ?? undefined}
+      >
+        <Badge variant="secondary">{typeLabel}</Badge>
         <Button asChild variant="outline">
           <Link href={`/organizations/${orgId}/accounts/${accountId}/reconcile`}>
             <Scale className="mr-1.5 h-4 w-4" />
             Reconcile
           </Link>
         </Button>
-      </div>
+      </PageHeader>
 
       {/* Status balance cards */}
       <div className="mt-6 grid gap-4 grid-cols-2 lg:grid-cols-4">

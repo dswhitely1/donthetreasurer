@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { Plus } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default async function StudentsPage({
   params,
@@ -31,14 +33,14 @@ export default async function StudentsPage({
 
   return (
     <div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Students</h1>
-        <Button asChild className="self-start sm:self-auto">
+      <PageHeader title="Students">
+        <Button asChild>
           <Link href={`/organizations/${orgId}/students/new`}>
+            <Plus className="mr-2 h-4 w-4" />
             Add Student
           </Link>
         </Button>
-      </div>
+      </PageHeader>
 
       {!students || students.length === 0 ? (
         <div className="mt-8 rounded-lg border border-dashed border-border p-8 text-center">

@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default async function AccountsPage({
   params,
@@ -58,26 +59,18 @@ export default async function AccountsPage({
 
   return (
     <div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">
-            Accounts
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage financial accounts for {organization.name}.
-          </p>
-        </div>
-        <Button asChild className="self-start sm:self-auto">
+      <PageHeader title="Accounts" description={`Manage financial accounts for ${organization.name}.`}>
+        <Button asChild>
           <Link href={`/organizations/${orgId}/accounts/new`}>
             <Plus className="mr-2 h-4 w-4" />
             New Account
           </Link>
         </Button>
-      </div>
+      </PageHeader>
 
       {!accounts || accounts.length === 0 ? (
         <div className="mt-12 flex flex-col items-center justify-center rounded-lg border border-dashed border-border p-12 text-center">
-          <h3 className="text-lg font-semibold text-foreground">
+          <h3 className="text-lg font-medium text-foreground">
             No accounts yet
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">

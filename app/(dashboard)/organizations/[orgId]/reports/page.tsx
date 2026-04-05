@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ReportFilters } from "./report-filters";
+import { PageHeader } from "@/components/layout/page-header";
 
 import type { SeasonsReportData } from "@/lib/reports/types";
 import type { CategoryOption, BudgetOption } from "./report-filters";
@@ -153,16 +154,10 @@ export default async function ReportsPage({
 
   return (
     <div>
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">
-          Reports
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Generate and export transaction reports for {organization.name}.
-          Includes all transactions written or cleared within the date range,
-          plus all outstanding uncleared transactions through the end date.
-        </p>
-      </div>
+      <PageHeader
+        title="Reports"
+        description={`Generate and export transaction reports for ${organization.name}. Includes all transactions written or cleared within the date range, plus all outstanding uncleared transactions through the end date.`}
+      />
 
       <div className="mt-4">
         <ReportFilters
@@ -176,7 +171,7 @@ export default async function ReportsPage({
 
       {!hasDateRange && (
         <div className="mt-12 flex flex-col items-center justify-center rounded-lg border border-dashed border-border p-12 text-center">
-          <h3 className="text-lg font-semibold text-foreground">
+          <h3 className="text-lg font-medium text-foreground">
             Select a cleared date range
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">

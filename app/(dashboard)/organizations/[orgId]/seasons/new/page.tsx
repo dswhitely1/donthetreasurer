@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { SeasonForm } from "../season-form";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default async function NewSeasonPage({
   params,
@@ -25,7 +26,7 @@ export default async function NewSeasonPage({
 
   return (
     <div>
-      <h1 className="text-2xl font-bold tracking-tight">New Season</h1>
+      <PageHeader title="New Season" />
       <div className="mt-6 max-w-2xl">
         <SeasonForm mode="create" orgId={orgId} showSaved={saved === "true"} />
       </div>

@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { SeasonForm } from "../../season-form";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default async function EditSeasonPage({
   params,
@@ -30,7 +31,7 @@ export default async function EditSeasonPage({
 
   return (
     <div>
-      <h1 className="text-2xl font-bold tracking-tight">Edit Season</h1>
+      <PageHeader title="Edit Season" />
       <div className="mt-6 max-w-2xl">
         <SeasonForm mode="edit" orgId={orgId} defaultValues={season} />
       </div>

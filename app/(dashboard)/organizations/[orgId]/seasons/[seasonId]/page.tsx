@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/layout/page-header";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -142,39 +143,28 @@ export default async function SeasonDetailPage({
 
   return (
     <div>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">
-              {season.name}
-            </h1>
-            <Badge
-              variant={season.status === "active" ? "default" : "secondary"}
-            >
-              {season.status === "active" ? "Active" : "Archived"}
-            </Badge>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {formatDate(season.start_date)} &ndash;{" "}
-            {formatDate(season.end_date)}
-            {season.description && ` \u2014 ${season.description}`}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link
-              href={`/organizations/${orgId}/seasons/${seasonId}/edit`}
-            >
-              Edit
-            </Link>
-          </Button>
-          <EnrollStudentsDialog
-            seasonId={seasonId}
-            defaultFee={Number(season.fee_amount)}
-            availableStudents={filteredAvailable}
-          />
-        </div>
-      </div>
+      <PageHeader
+        title={season.name}
+        description={`${formatDate(season.start_date)} \u2013 ${formatDate(season.end_date)}${season.description ? ` \u2014 ${season.description}` : ""}`}
+      >
+        <Badge
+          variant={season.status === "active" ? "default" : "secondary"}
+        >
+          {season.status === "active" ? "Active" : "Archived"}
+        </Badge>
+        <Button variant="outline" asChild>
+          <Link
+            href={`/organizations/${orgId}/seasons/${seasonId}/edit`}
+          >
+            Edit
+          </Link>
+        </Button>
+        <EnrollStudentsDialog
+          seasonId={seasonId}
+          defaultFee={Number(season.fee_amount)}
+          availableStudents={filteredAvailable}
+        />
+      </PageHeader>
 
       <div className="mt-4">
         <SeasonActions
@@ -215,7 +205,7 @@ export default async function SeasonDetailPage({
       {/* Enrollment Table */}
       <div className="mt-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-lg font-semibold">Enrollments</h2>
+          <h2 className="text-lg font-medium">Enrollments</h2>
           {hasEnrollments && (
             <div className="flex flex-wrap gap-2">
               <div className="flex gap-1 rounded-md border border-border p-0.5 text-sm">

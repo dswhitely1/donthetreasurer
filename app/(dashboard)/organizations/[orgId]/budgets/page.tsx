@@ -7,6 +7,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { BUDGET_STATUS_LABELS } from "@/lib/validations/budget";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/layout/page-header";
 
 import type { BudgetStatus } from "@/lib/validations/budget";
 
@@ -59,17 +60,14 @@ export default async function BudgetsPage({
 
   return (
     <div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">
-          Budgets
-        </h2>
-        <Button asChild className="self-start sm:self-auto">
+      <PageHeader title="Budgets">
+        <Button asChild>
           <Link href={`/organizations/${orgId}/budgets/new`}>
             <Plus className="mr-2 h-4 w-4" />
             New Budget
           </Link>
         </Button>
-      </div>
+      </PageHeader>
 
       {budgetList.length === 0 ? (
         <div className="mt-6 rounded-lg border border-dashed border-border p-8 text-center">

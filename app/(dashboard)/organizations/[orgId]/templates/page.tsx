@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 
+import { PageHeader } from "@/components/layout/page-header";
+
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
@@ -61,17 +63,14 @@ export default async function TemplatesPage({
 
   return (
     <div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">
-          Recurring Templates
-        </h2>
-        <Button asChild className="self-start sm:self-auto">
+      <PageHeader title="Recurring Templates">
+        <Button asChild>
           <Link href={`/organizations/${orgId}/templates/new`}>
             <Plus className="mr-2 h-4 w-4" />
             New Template
           </Link>
         </Button>
-      </div>
+      </PageHeader>
 
       {templateList.length === 0 ? (
         <div className="mt-6 rounded-lg border border-dashed border-border p-8 text-center">

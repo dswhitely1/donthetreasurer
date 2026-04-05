@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/layout/page-header";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -28,26 +29,18 @@ export default async function OrganizationsPage() {
 
   return (
     <div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">
-            Organizations
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage your nonprofit organizations.
-          </p>
-        </div>
-        <Button asChild className="self-start sm:self-auto">
+      <PageHeader title="Organizations" description="Manage your nonprofit organizations.">
+        <Button asChild>
           <Link href="/organizations/new">
             <Plus className="mr-2 h-4 w-4" />
             New Organization
           </Link>
         </Button>
-      </div>
+      </PageHeader>
 
       {!organizations || organizations.length === 0 ? (
         <div className="mt-12 flex flex-col items-center justify-center rounded-lg border border-dashed border-border p-12 text-center">
-          <h3 className="text-lg font-semibold text-foreground">
+          <h3 className="text-lg font-medium text-foreground">
             No organizations yet
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">

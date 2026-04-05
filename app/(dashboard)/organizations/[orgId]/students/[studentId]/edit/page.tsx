@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { StudentForm } from "../../student-form";
 import { StudentEditActions } from "./student-edit-actions";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default async function EditStudentPage({
   params,
@@ -31,7 +32,7 @@ export default async function EditStudentPage({
 
   return (
     <div>
-      <h1 className="text-2xl font-bold tracking-tight">Edit Student</h1>
+      <PageHeader title="Edit Student" />
       <div className="mt-6 max-w-2xl">
         <StudentForm mode="edit" orgId={orgId} defaultValues={student} />
         <StudentEditActions student={student} orgId={orgId} />

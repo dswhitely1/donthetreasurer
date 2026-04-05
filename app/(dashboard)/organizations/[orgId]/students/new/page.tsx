@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { StudentForm } from "../student-form";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default async function NewStudentPage({
   params,
@@ -25,7 +26,7 @@ export default async function NewStudentPage({
 
   return (
     <div>
-      <h1 className="text-2xl font-bold tracking-tight">Add Student</h1>
+      <PageHeader title="Add Student" />
       <div className="mt-6 max-w-2xl">
         <StudentForm mode="create" orgId={orgId} showSaved={saved === "true"} />
       </div>
