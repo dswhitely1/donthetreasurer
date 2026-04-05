@@ -207,7 +207,7 @@ export default async function OrganizationOverviewPage({
 
         {/* Summary balance cards */}
         <div className="mt-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
-          <Card>
+          <Card className="rounded-xl shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Total Balance
@@ -222,7 +222,7 @@ export default async function OrganizationOverviewPage({
               </p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="rounded-xl shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
@@ -237,7 +237,7 @@ export default async function OrganizationOverviewPage({
               </p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="rounded-xl shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
@@ -252,7 +252,7 @@ export default async function OrganizationOverviewPage({
               </p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="rounded-xl shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
@@ -299,7 +299,7 @@ export default async function OrganizationOverviewPage({
 
         {/* Budget Snapshot */}
         {activeBudgets.length > 0 && (
-          <div className="mt-8">
+          <div className="mt-6">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium text-foreground">
                 Budget Snapshot
@@ -328,7 +328,7 @@ export default async function OrganizationOverviewPage({
                   <Link
                     key={b.id}
                     href={`/organizations/${orgId}/budgets/${b.id}`}
-                    className="rounded-lg border border-border p-4 transition-colors hover:bg-muted/30"
+                    className="rounded-xl border border-border p-4 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:border-primary/30"
                   >
                     <div className="flex items-center gap-2">
                       <PiggyBank className="h-4 w-4 text-muted-foreground" />
@@ -364,7 +364,7 @@ export default async function OrganizationOverviewPage({
 
         {/* Upcoming recurring transactions */}
         {upcomingTemplates.length > 0 && (
-          <div className="mt-8">
+          <div className="mt-6">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium text-foreground">
                 Upcoming Transactions
@@ -452,7 +452,7 @@ export default async function OrganizationOverviewPage({
         )}
 
         {/* Recent transactions */}
-        <div className="mt-8">
+        <div className="mt-6">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium text-foreground">
               Recent Transactions
@@ -626,8 +626,8 @@ export default async function OrganizationOverviewPage({
         </div>
 
         {/* Organization settings */}
-        <div className="mt-8">
-          <Card>
+        <div className="mt-6">
+          <Card className="rounded-xl shadow-sm">
             <CardHeader>
               <CardTitle className="text-base">Organization Settings</CardTitle>
             </CardHeader>

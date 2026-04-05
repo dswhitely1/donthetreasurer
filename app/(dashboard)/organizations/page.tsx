@@ -54,10 +54,10 @@ export default async function OrganizationsPage() {
           </Button>
         </div>
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {organizations.map((org) => (
             <Link key={org.id} href={`/organizations/${org.id}`}>
-              <Card className="transition-colors hover:border-primary/30">
+              <Card className="rounded-xl shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:border-primary/30">
                 <CardHeader>
                   <CardTitle className="text-base">{org.name}</CardTitle>
                   {org.ein && (

@@ -84,13 +84,13 @@ export default async function AccountsPage({
           </Button>
         </div>
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {accounts.map((account) => (
             <Link
               key={account.id}
               href={`/organizations/${orgId}/accounts/${account.id}`}
             >
-              <Card className="transition-colors hover:border-primary/30">
+              <Card className="rounded-xl shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:border-primary/30">
                 <CardHeader>
                   <CardTitle className="text-base">{account.name}</CardTitle>
                   {account.description && (

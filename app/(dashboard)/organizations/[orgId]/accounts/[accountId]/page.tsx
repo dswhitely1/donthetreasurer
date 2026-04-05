@@ -101,7 +101,7 @@ export default async function AccountDetailPage({
 
       {/* Status balance cards */}
       <div className="mt-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="rounded-xl shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Current Balance
@@ -116,7 +116,7 @@ export default async function AccountDetailPage({
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-xl shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
@@ -131,7 +131,7 @@ export default async function AccountDetailPage({
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-xl shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
@@ -146,7 +146,7 @@ export default async function AccountDetailPage({
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-xl shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
@@ -165,7 +165,7 @@ export default async function AccountDetailPage({
 
       {/* Account details */}
       <div className="mt-6">
-        <Card>
+        <Card className="rounded-xl shadow-sm">
           <CardHeader>
             <CardTitle className="text-base">Account Details</CardTitle>
           </CardHeader>
@@ -280,7 +280,7 @@ async function ReconciliationHistory({
 
   return (
     <div className="mt-6">
-      <Card>
+      <Card className="rounded-xl shadow-sm">
         <CardHeader>
           <CardTitle className="text-base">Reconciliation History</CardTitle>
         </CardHeader>
