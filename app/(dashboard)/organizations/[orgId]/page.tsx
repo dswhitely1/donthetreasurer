@@ -214,7 +214,7 @@ export default async function OrganizationOverviewPage({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold tabular-nums text-foreground">
+              <p className="text-2xl font-semibold tabular-nums text-foreground">
                 {formatCurrency(totalBalance)}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -232,7 +232,7 @@ export default async function OrganizationOverviewPage({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold tabular-nums text-foreground">
+              <p className="text-2xl font-semibold tabular-nums text-uncleared">
                 {formatCurrency(statusNet.uncleared)}
               </p>
             </CardContent>
@@ -247,7 +247,7 @@ export default async function OrganizationOverviewPage({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold tabular-nums text-foreground">
+              <p className="text-2xl font-semibold tabular-nums text-cleared">
                 {formatCurrency(statusNet.cleared)}
               </p>
             </CardContent>
@@ -262,7 +262,7 @@ export default async function OrganizationOverviewPage({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold tabular-nums text-foreground">
+              <p className="text-2xl font-semibold tabular-nums text-reconciled">
                 {formatCurrency(statusNet.reconciled)}
               </p>
             </CardContent>
