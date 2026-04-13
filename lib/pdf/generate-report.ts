@@ -4,7 +4,6 @@ import autoTable from "jspdf-autotable";
 import type { CellHookData, CellInput, UserOptions } from "jspdf-autotable";
 import type {
   AccountBalanceSummary,
-  MergedCategorySummary,
   ReportData,
   ReportTransaction,
   SeasonsReportData,
