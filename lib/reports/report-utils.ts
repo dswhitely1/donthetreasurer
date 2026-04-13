@@ -1,6 +1,6 @@
 import { addDays, format } from "date-fns";
 
-import type { ReportTransaction, ReportCategorySummary, ReportSummary } from "./types";
+import type { ReportTransaction, ReportCategorySummary, ReportSummary, MergedCategorySummary } from "./types";
 
 export function getNextDay(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -113,13 +113,45 @@ export function computeSummary(
   const incomeByCategory = buildCategorySummaries(incomeByCatId, categoryNameMap, categoryParentMap);
   const expensesByCategory = buildCategorySummaries(expenseByCatId, categoryNameMap, categoryParentMap);
 
+  // Detect parent names present in both income and expense
+  const incomeParentNames = new Set(incomeByCategory.map((g) => g.parentName));
+  const expenseParentNames = new Set(expensesByCategory.map((g) => g.parentName));
+  const mergedParentNames = new Set(
+    [...incomeParentNames].filter((name) => expenseParentNames.has(name))
+  );
+
+  // Build merged categories and filter originals
+  const netByCategory: MergedCategorySummary[] = [];
+
+  if (mergedParentNames.size > 0) {
+    const incomeByParent = new Map(incomeByCategory.map((g) => [g.parentName, g]));
+    const expenseByParent = new Map(expensesByCategory.map((g) => [g.parentName, g]));
+
+    for (const parentName of [...mergedParentNames].sort()) {
+      const incomeGroup = incomeByParent.get(parentName)!;
+      const expenseGroup = expenseByParent.get(parentName)!;
+
+      netByCategory.push({
+        parentName,
+        incomeChildren: incomeGroup.children,
+        expenseChildren: expenseGroup.children,
+        totalIncome: incomeGroup.subtotal,
+        totalExpenses: expenseGroup.subtotal,
+        net: incomeGroup.subtotal - expenseGroup.subtotal,
+      });
+    }
+  }
+
+  const filteredIncome = incomeByCategory.filter((g) => !mergedParentNames.has(g.parentName));
+  const filteredExpenses = expensesByCategory.filter((g) => !mergedParentNames.has(g.parentName));
+
   return {
     totalIncome,
     totalExpenses,
     netChange: totalIncome - totalExpenses,
     balanceByStatus,
-    incomeByCategory,
-    expensesByCategory,
-    netByCategory: [],
+    incomeByCategory: filteredIncome,
+    expensesByCategory: filteredExpenses,
+    netByCategory,
   };
 }
