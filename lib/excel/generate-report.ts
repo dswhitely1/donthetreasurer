@@ -1,6 +1,6 @@
 import ExcelJS from "exceljs";
 
-import type { AccountBalanceSummary, ReportData, ReportTransaction, SeasonsReportData } from "@/lib/reports/types";
+import type { AccountBalanceSummary, MergedCategorySummary, ReportData, ReportTransaction, SeasonsReportData } from "@/lib/reports/types";
 import type { BudgetReportData } from "@/lib/reports/fetch-budget-data";
 import type { CombinedBudgetLine } from "@/lib/reports/budget-combined";
 
@@ -18,6 +18,9 @@ export async function generateReportWorkbook(
 
   buildTransactionsSheet(workbook, data);
   buildSummarySheet(workbook, data);
+  if (data.summary.netByCategory.length > 0) {
+    buildNetByCategorySheet(workbook, data.summary.netByCategory);
+  }
   if (budgetData) {
     buildBudgetSheet(workbook, budgetData);
   }
@@ -662,6 +665,130 @@ function addCombinedBudgetSection(
   totalRow.getCell(6).font = { bold: true, color: { argb: totNetBudget >= 0 ? "FF16A34A" : "FFDC2626" } };
   totalRow.getCell(7).font = { bold: true, color: { argb: totNetActual >= 0 ? "FF16A34A" : "FFDC2626" } };
   totalRow.getCell(8).font = { bold: true, color: { argb: totNetVariance >= 0 ? "FF16A34A" : "FFDC2626" } };
+}
+
+function buildNetByCategorySheet(
+  workbook: ExcelJS.Workbook,
+  netByCategory: MergedCategorySummary[]
+) {
+  const sheet = workbook.addWorksheet("Net by Category");
+  const currencyFmt = "$#,##0.00";
+
+  sheet.getColumn(1).width = 32; // Label
+  sheet.getColumn(2).width = 4;  // Spacer
+  sheet.getColumn(3).width = 16; // Amount
+
+  const HEADER_FILL: ExcelJS.FillPattern = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF1E293B" },
+  };
+  const HEADER_FONT: Partial<ExcelJS.Font> = {
+    bold: true,
+    color: { argb: "FFFFFFFF" },
+    size: 10,
+  };
+
+  // Header row
+  const headerRow = sheet.getRow(1);
+  headerRow.getCell(1).value = "NET BY CATEGORY";
+  headerRow.getCell(1).font = { ...HEADER_FONT, size: 14 };
+  headerRow.getCell(1).fill = HEADER_FILL;
+  headerRow.getCell(2).fill = HEADER_FILL;
+  headerRow.getCell(3).fill = HEADER_FILL;
+  sheet.mergeCells("A1:C1");
+
+  sheet.views = [{ state: "frozen", ySplit: 1, xSplit: 0 }];
+
+  let row = 3;
+
+  function writeLabel(r: number, label: string, opts?: { bold?: boolean; italic?: boolean; indent?: boolean }) {
+    const cell = sheet.getRow(r).getCell(1);
+    cell.value = opts?.indent ? `  ${label}` : label;
+    const font: Partial<ExcelJS.Font> = {};
+    if (opts?.bold) font.bold = true;
+    if (opts?.italic) font.italic = true;
+    if (Object.keys(font).length > 0) cell.font = font;
+  }
+
+  function writeAmount(r: number, amount: number, opts?: { bold?: boolean; italic?: boolean; color?: string }) {
+    const cell = sheet.getRow(r).getCell(3);
+    cell.value = amount;
+    cell.numFmt = currencyFmt;
+    cell.alignment = { horizontal: "right" };
+    const font: Partial<ExcelJS.Font> = {};
+    if (opts?.bold) font.bold = true;
+    if (opts?.italic) font.italic = true;
+    if (opts?.color) font.color = { argb: opts.color };
+    if (Object.keys(font).length > 0) cell.font = font;
+  }
+
+  let combinedNet = 0;
+
+  for (const group of netByCategory) {
+    // Parent name
+    writeLabel(row, group.parentName, { bold: true });
+    row++;
+
+    // Income section
+    writeLabel(row, "Income:");
+    row++;
+
+    if (group.incomeChildren.length > 0) {
+      for (const child of group.incomeChildren) {
+        writeLabel(row, child.name, { indent: true });
+        writeAmount(row, child.total, { color: "FF16A34A" });
+        row++;
+      }
+      if (group.incomeChildren.length > 1) {
+        writeLabel(row, "Subtotal", { indent: true, italic: true });
+        writeAmount(row, group.totalIncome, { italic: true, color: "FF16A34A" });
+        row++;
+      }
+    } else {
+      writeLabel(row, "(root)", { indent: true });
+      writeAmount(row, group.totalIncome, { color: "FF16A34A" });
+      row++;
+    }
+
+    // Expense section
+    writeLabel(row, "Expenses:");
+    row++;
+
+    if (group.expenseChildren.length > 0) {
+      for (const child of group.expenseChildren) {
+        writeLabel(row, child.name, { indent: true });
+        writeAmount(row, child.total, { color: "FFDC2626" });
+        row++;
+      }
+      if (group.expenseChildren.length > 1) {
+        writeLabel(row, "Subtotal", { indent: true, italic: true });
+        writeAmount(row, group.totalExpenses, { italic: true, color: "FFDC2626" });
+        row++;
+      }
+    } else {
+      writeLabel(row, "(root)", { indent: true });
+      writeAmount(row, group.totalExpenses, { color: "FFDC2626" });
+      row++;
+    }
+
+    // Net row
+    const netColor = group.net >= 0 ? "FF16A34A" : "FFDC2626";
+    writeLabel(row, "Net", { bold: true });
+    writeAmount(row, group.net, { bold: true, color: netColor });
+    row++;
+
+    combinedNet += group.net;
+    row++; // blank separator
+  }
+
+  // Combined Net Total
+  const totalColor = combinedNet >= 0 ? "FF16A34A" : "FFDC2626";
+  writeLabel(row, "Combined Net Total", { bold: true });
+  writeAmount(row, combinedNet, { bold: true, color: totalColor });
+  sheet.getRow(row).getCell(3).border = {
+    top: { style: "double", color: { argb: "FF1E293B" } },
+  };
 }
 
 function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
