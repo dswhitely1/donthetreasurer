@@ -5,7 +5,7 @@ import { generateReportPdf } from "./generate-report";
 import type { ReportData } from "@/lib/reports/types";
 
 function makeReportData(overrides: Partial<ReportData> = {}): ReportData {
-  return {
+  const base: ReportData = {
     organizationName: "Test Foundation",
     startDate: "2025-01-01",
     endDate: "2025-12-31",
@@ -18,10 +18,12 @@ function makeReportData(overrides: Partial<ReportData> = {}): ReportData {
       balanceByStatus: { uncleared: 0, cleared: 0, reconciled: 0 },
       incomeByCategory: [],
       expensesByCategory: [],
+      netByCategory: [],
     },
     accountBalances: null,
-    ...overrides,
+    dateBasis: "transaction_date",
   };
+  return { ...base, ...overrides };
 }
 
 describe("generateReportPdf", () => {
@@ -111,6 +113,7 @@ describe("generateReportPdf", () => {
             subtotal: 2000,
           },
         ],
+        netByCategory: [],
       },
     });
 

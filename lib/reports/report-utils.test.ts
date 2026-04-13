@@ -184,6 +184,7 @@ describe("computeSummary", () => {
       createdAt: null,
       accountName: "Checking",
       checkNumber: null,
+      vendor: null,
       description: "Test",
       transactionType: "expense",
       amount: 100,

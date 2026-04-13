@@ -32,6 +32,15 @@ export interface ReportCategorySummary {
   subtotal: number;
 }
 
+export interface MergedCategorySummary {
+  parentName: string;
+  incomeChildren: { name: string; total: number }[];
+  expenseChildren: { name: string; total: number }[];
+  totalIncome: number;
+  totalExpenses: number;
+  net: number;
+}
+
 export interface ReportSummary {
   totalIncome: number;
   totalExpenses: number;
@@ -43,6 +52,7 @@ export interface ReportSummary {
   };
   incomeByCategory: ReportCategorySummary[];
   expensesByCategory: ReportCategorySummary[];
+  netByCategory: MergedCategorySummary[];
 }
 
 export interface ReportData {

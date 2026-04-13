@@ -19,6 +19,7 @@ vi.mock("@/lib/excel/generate-report", () => ({
 import { createClient } from "@/lib/supabase/server";
 import { fetchReportData } from "@/lib/reports/fetch-report-data";
 import { generateReportWorkbook } from "@/lib/excel/generate-report";
+import type { ReportData } from "@/lib/reports/types";
 import { GET } from "./route";
 
 const mockedCreateClient = vi.mocked(createClient);
@@ -95,7 +96,7 @@ describe("GET /api/organizations/[orgId]/reports/export", () => {
     } as never);
     mockSupabase.mockResult({ data: { id: orgId, name: "Test Foundation" }, error: null });
 
-    const reportData = {
+    const reportData: ReportData = {
       organizationName: "Test Foundation",
       startDate: "2025-01-01",
       endDate: "2025-12-31",
@@ -108,7 +109,10 @@ describe("GET /api/organizations/[orgId]/reports/export", () => {
         balanceByStatus: { uncleared: 0, cleared: 0, reconciled: 0 },
         incomeByCategory: [],
         expensesByCategory: [],
+        netByCategory: [],
       },
+      accountBalances: null,
+      dateBasis: "transaction_date",
     };
 
     mockedFetchReportData.mockResolvedValue(reportData);

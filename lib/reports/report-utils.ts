@@ -120,5 +120,6 @@ export function computeSummary(
     balanceByStatus,
     incomeByCategory,
     expensesByCategory,
+    netByCategory: [],
   };
 }
