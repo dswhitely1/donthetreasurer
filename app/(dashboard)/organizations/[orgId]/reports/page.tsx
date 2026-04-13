@@ -398,6 +398,98 @@ export default async function ReportsPage({
             )}
           </div>
 
+          {/* Net by Category */}
+          {reportData.summary.netByCategory.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Net by Category</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {reportData.summary.netByCategory.map((group) => (
+                    <div key={group.parentName} className="space-y-1">
+                      <p className="font-semibold text-sm">{group.parentName}</p>
+
+                      {/* Income children */}
+                      <div className="ml-4">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Income</p>
+                        <div className="ml-2 space-y-0.5">
+                          {group.incomeChildren.length > 0 ? (
+                            group.incomeChildren.map((child) => (
+                              <div key={child.name} className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">{child.name}</span>
+                                <span className="tabular-nums text-income">{formatCurrency(child.total)}</span>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">(root)</span>
+                              <span className="tabular-nums text-income">{formatCurrency(group.totalIncome)}</span>
+                            </div>
+                          )}
+                          {group.incomeChildren.length > 1 && (
+                            <div className="flex justify-between text-sm font-medium border-t border-border pt-1 mt-1">
+                              <span className="italic">Subtotal</span>
+                              <span className="tabular-nums text-income">{formatCurrency(group.totalIncome)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Expense children */}
+                      <div className="ml-4">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expenses</p>
+                        <div className="ml-2 space-y-0.5">
+                          {group.expenseChildren.length > 0 ? (
+                            group.expenseChildren.map((child) => (
+                              <div key={child.name} className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">{child.name}</span>
+                                <span className="tabular-nums text-expense">{formatCurrency(child.total)}</span>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">(root)</span>
+                              <span className="tabular-nums text-expense">{formatCurrency(group.totalExpenses)}</span>
+                            </div>
+                          )}
+                          {group.expenseChildren.length > 1 && (
+                            <div className="flex justify-between text-sm font-medium border-t border-border pt-1 mt-1">
+                              <span className="italic">Subtotal</span>
+                              <span className="tabular-nums text-expense">{formatCurrency(group.totalExpenses)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Net for this parent */}
+                      <div className="ml-4 flex justify-between text-sm font-semibold border-t border-border pt-1 mt-1">
+                        <span>Net</span>
+                        <span className={`tabular-nums ${group.net >= 0 ? "text-income" : "text-expense"}`}>
+                          {formatCurrency(group.net)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Combined net total */}
+                  {reportData.summary.netByCategory.length > 1 && (
+                    <div className="flex justify-between text-sm font-bold border-t-2 border-border pt-2 mt-2">
+                      <span>Combined Net Total</span>
+                      <span className={`tabular-nums ${
+                        reportData.summary.netByCategory.reduce((s, g) => s + g.net, 0) >= 0
+                          ? "text-income"
+                          : "text-expense"
+                      }`}>
+                        {formatCurrency(reportData.summary.netByCategory.reduce((s, g) => s + g.net, 0))}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Active Seasons Summary */}
           {seasonsData && (
             <Card>
