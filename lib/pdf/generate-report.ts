@@ -4,6 +4,7 @@ import autoTable from "jspdf-autotable";
 import type { CellHookData, CellInput, UserOptions } from "jspdf-autotable";
 import type {
   AccountBalanceSummary,
+  MergedCategorySummary,
   ReportData,
   ReportTransaction,
   SeasonsReportData,
@@ -541,6 +542,126 @@ export function generateReportPdf(
       }
     }
     rightY = drawColumnTable(expenseRows, RIGHT_X, rightY);
+  }
+
+  // ── Net by Category (full-width, below both columns) ────────
+  if (summary.netByCategory.length > 0) {
+    const netCatY = Math.max(leftY, rightY) + 8;
+    let currentY = netCatY;
+
+    // Check if we need a new page
+    const pageHeight = doc.internal.pageSize.getHeight();
+    if (currentY > pageHeight - 100) {
+      doc.addPage();
+      currentY = MARGIN;
+    }
+
+    // Full-width section header
+    doc.setFillColor(...SLATE_800);
+    doc.rect(MARGIN, currentY, pageWidth - MARGIN * 2, 16, "F");
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...WHITE);
+    doc.text("NET BY CATEGORY", MARGIN + 6, currentY + 11);
+    doc.setTextColor(0, 0, 0);
+    currentY += 16;
+
+    const netRows: CellInput[][] = [];
+
+    let combinedNet = 0;
+
+    for (const group of summary.netByCategory) {
+      // Parent header
+      netRows.push([
+        { content: group.parentName, styles: { fontStyle: "bold" } },
+        "",
+        "",
+        "",
+      ]);
+
+      // Income children
+      if (group.incomeChildren.length > 0) {
+        for (const child of group.incomeChildren) {
+          netRows.push([
+            `  ${child.name}`,
+            { content: formatCurrency(child.total), styles: { textColor: GREEN } },
+            "--",
+            "",
+          ]);
+        }
+      } else {
+        netRows.push([
+          "  (root)",
+          { content: formatCurrency(group.totalIncome), styles: { textColor: GREEN } },
+          "--",
+          "",
+        ]);
+      }
+
+      // Expense children
+      if (group.expenseChildren.length > 0) {
+        for (const child of group.expenseChildren) {
+          netRows.push([
+            `  ${child.name}`,
+            "--",
+            { content: formatCurrency(child.total), styles: { textColor: RED } },
+            "",
+          ]);
+        }
+      } else {
+        netRows.push([
+          "  (root)",
+          "--",
+          { content: formatCurrency(group.totalExpenses), styles: { textColor: RED } },
+          "",
+        ]);
+      }
+
+      // Subtotal row for this parent
+      const netColor = group.net >= 0 ? GREEN : RED;
+      netRows.push([
+        { content: "  Subtotal", styles: { fontStyle: "italic" } },
+        { content: formatCurrency(group.totalIncome), styles: { fontStyle: "italic", textColor: GREEN } },
+        { content: formatCurrency(group.totalExpenses), styles: { fontStyle: "italic", textColor: RED } },
+        { content: formatCurrency(group.net), styles: { fontStyle: "italic", textColor: netColor } },
+      ]);
+
+      // Blank separator row
+      netRows.push(["", "", "", ""]);
+
+      combinedNet += group.net;
+    }
+
+    // Combined Net Total
+    const totalNetColor = combinedNet >= 0 ? GREEN : RED;
+    netRows.push([
+      { content: "Combined Net Total", styles: { fontStyle: "bold" } },
+      "",
+      "",
+      { content: formatCurrency(combinedNet), styles: { fontStyle: "bold", textColor: totalNetColor } },
+    ]);
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [["Category", "Income", "Expense", "Net"]],
+      body: netRows,
+      margin: { left: MARGIN, right: MARGIN },
+      theme: "grid",
+      headStyles: {
+        fillColor: HEADER_BG,
+        textColor: [0, 0, 0],
+        fontStyle: "bold",
+        fontSize: 8,
+      },
+      styles: { fontSize: 8, cellPadding: 3 },
+      columnStyles: {
+        0: { cellWidth: 200 },
+        1: { cellWidth: 100, halign: "right" },
+        2: { cellWidth: 100, halign: "right" },
+        3: { cellWidth: 100, halign: "right" },
+      },
+      tableWidth: 500,
+    });
   }
 
   // Budget vs. Actuals page
