@@ -19,16 +19,21 @@ function listPath(orgId: string): string {
   return `/organizations/${orgId}/letter-templates`;
 }
 
+const CLEAR_DEFAULT_ERROR =
+  "Failed to clear the previous default template. Please try again.";
+
 /**
  * Clears the organization's current default. The partial unique index allows
  * only one default per org, so the old one must be cleared before the new one
- * is written.
+ * is written. Returns whether the clear succeeded so callers can surface a
+ * distinct error instead of letting a swallowed failure masquerade as the
+ * duplicate-name conflict the subsequent write would otherwise raise.
  */
 async function clearDefault(
   supabase: SupabaseClient<Database>,
   organizationId: string,
   exceptId?: string
-): Promise<void> {
+): Promise<boolean> {
   let query = supabase
     .from("letter_templates")
     .update({ is_default: false })
@@ -39,7 +44,8 @@ async function clearDefault(
     query = query.neq("id", exceptId);
   }
 
-  await query;
+  const { error } = await query;
+  return !error;
 }
 
 export async function createLetterTemplate(
@@ -80,7 +86,10 @@ export async function createLetterTemplate(
   }
 
   if (parsed.data.is_default) {
-    await clearDefault(supabase, parsed.data.organization_id);
+    const cleared = await clearDefault(supabase, parsed.data.organization_id);
+    if (!cleared) {
+      return { error: CLEAR_DEFAULT_ERROR };
+    }
   }
 
   const { error } = await supabase.from("letter_templates").insert({
@@ -132,7 +141,14 @@ export async function updateLetterTemplate(
   }
 
   if (parsed.data.is_default) {
-    await clearDefault(supabase, parsed.data.organization_id, parsed.data.id);
+    const cleared = await clearDefault(
+      supabase,
+      parsed.data.organization_id,
+      parsed.data.id
+    );
+    if (!cleared) {
+      return { error: CLEAR_DEFAULT_ERROR };
+    }
   }
 
   const { error } = await supabase
@@ -216,7 +232,14 @@ export async function setDefaultLetterTemplate(
     return { error: "You must be signed in." };
   }
 
-  await clearDefault(supabase, parsed.data.organization_id, parsed.data.id);
+  const cleared = await clearDefault(
+    supabase,
+    parsed.data.organization_id,
+    parsed.data.id
+  );
+  if (!cleared) {
+    return { error: CLEAR_DEFAULT_ERROR };
+  }
 
   const { error } = await supabase
     .from("letter_templates")

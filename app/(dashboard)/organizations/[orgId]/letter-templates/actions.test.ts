@@ -32,6 +32,16 @@ const userId = "550e8400-e29b-41d4-a716-446655440000";
 const orgId = "660e8400-e29b-41d4-a716-446655440000";
 const templateId = "770e8400-e29b-41d4-a716-446655440000";
 
+/**
+ * Shape of the chain object each `mockSupabase.from()` call returns, narrow
+ * enough to assert on the query-builder methods a given write invoked.
+ */
+type MockChain = {
+  update: ReturnType<typeof vi.fn>;
+  eq: ReturnType<typeof vi.fn>;
+  neq: ReturnType<typeof vi.fn>;
+};
+
 describe("letter template actions", () => {
   let mockSupabase: MockSupabaseClient;
 
@@ -119,12 +129,40 @@ describe("letter template actions", () => {
       const result = await createLetterTemplate(null, validCreateData());
       expect(result?.error).toContain("already exists");
     });
+
+    it("returns a distinct error when clearing the previous default fails, not a duplicate-name error", async () => {
+      mockSupabase.mockChain().sequence([
+        { data: { id: orgId }, error: null }, // organization lookup
+        { data: null, error: { message: "update failed" } }, // clearDefault write fails
+      ]);
+
+      const result = await createLetterTemplate(
+        null,
+        validCreateData({ is_default: "true" })
+      );
+
+      expect(result?.error).toBeDefined();
+      expect(result?.error).not.toContain("already exists");
+    });
   });
 
   describe("updateLetterTemplate", () => {
     it("requires a template id", async () => {
       const result = await updateLetterTemplate(null, validCreateData());
       expect(result?.error).toBeDefined();
+    });
+
+    it("returns an error when not signed in", async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: null,
+      } as never);
+
+      const result = await updateLetterTemplate(
+        null,
+        validCreateData({ id: templateId })
+      );
+      expect(result).toEqual({ error: "You must be signed in." });
     });
 
     it("redirects to the template list on success", async () => {
@@ -140,6 +178,33 @@ describe("letter template actions", () => {
       expect(mockRedirect).toHaveBeenCalledWith(
         `/organizations/${orgId}/letter-templates`
       );
+    });
+
+    it("reports a duplicate name clearly", async () => {
+      mockSupabase.mockResult({
+        data: null,
+        error: { message: "duplicate key", code: "23505" },
+      });
+
+      const result = await updateLetterTemplate(
+        null,
+        validCreateData({ id: templateId })
+      );
+      expect(result?.error).toContain("already exists");
+    });
+
+    it("returns a distinct error when clearing the previous default fails, not a duplicate-name error", async () => {
+      mockSupabase.mockChain().sequence([
+        { data: null, error: { message: "update failed" } }, // clearDefault write fails
+      ]);
+
+      const result = await updateLetterTemplate(
+        null,
+        validCreateData({ id: templateId, is_default: "true" })
+      );
+
+      expect(result?.error).toBeDefined();
+      expect(result?.error).not.toContain("already exists");
     });
   });
 
@@ -197,7 +262,39 @@ describe("letter template actions", () => {
 
       // Two writes: one clearing the old default, one setting the new one.
       expect(mockSupabase.from).toHaveBeenCalledTimes(2);
-      expect(mockSupabase.from).toHaveBeenCalledWith("letter_templates");
+      expect(mockSupabase.from).toHaveBeenNthCalledWith(1, "letter_templates");
+      expect(mockSupabase.from).toHaveBeenNthCalledWith(2, "letter_templates");
+
+      // `mock.results` reflects call order, so results[0] is necessarily the
+      // first write the action performed and results[1] the second. Asserting
+      // on which payload each one carries proves the clear genuinely ran
+      // before the promote, not merely that two writes happened.
+      const [firstChain, secondChain] = mockSupabase.from.mock.results.map(
+        (call) => call.value as MockChain
+      );
+
+      // The clearing write flips the old default off, excludes the row being
+      // promoted (so it isn't wiped out along with the old default), and
+      // happens first.
+      expect(firstChain.update).toHaveBeenCalledWith({ is_default: false });
+      expect(firstChain.neq).toHaveBeenCalledWith("id", templateId);
+
+      // The promoting write sets the target row's default flag on, and
+      // happens second.
+      expect(secondChain.update).toHaveBeenCalledWith({ is_default: true });
+      expect(secondChain.eq).toHaveBeenCalledWith("id", templateId);
+    });
+
+    it("returns a distinct error when clearing the previous default fails, not a duplicate-name error", async () => {
+      mockSupabase.mockChain().sequence([
+        { data: null, error: { message: "update failed" } }, // clearDefault write fails
+      ]);
+
+      const fd = makeFormData({ id: templateId, organization_id: orgId });
+      const result = await setDefaultLetterTemplate(null, fd);
+
+      expect(result?.error).toBeDefined();
+      expect(result?.error).not.toContain("already exists");
     });
   });
 });
