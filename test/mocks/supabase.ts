@@ -8,7 +8,7 @@ import { vi } from "vitest";
 
 export interface MockResult {
   data?: unknown;
-  error?: { message: string } | null;
+  error?: { message: string; code?: string } | null;
   count?: number | null;
 }
 
