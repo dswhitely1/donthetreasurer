@@ -229,4 +229,5 @@ export async function setDefaultLetterTemplate(
   }
 
   revalidatePath(listPath(parsed.data.organization_id));
+  return null;
 }
