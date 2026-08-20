@@ -117,7 +117,7 @@ export default async function TemplatesPage({
                   (tmpl.accounts as { id: string; name: string } | null)
                     ?.name ?? "Unknown";
                 const status = getTemplateStatus(
-                  tmpl.is_active,
+                  tmpl.is_active ?? true,
                   tmpl.next_occurrence_date
                 );
                 const ruleLabel =
@@ -166,7 +166,7 @@ export default async function TemplatesPage({
                       <TemplateRowActions
                         templateId={tmpl.id}
                         orgId={orgId}
-                        isActive={tmpl.is_active}
+                        isActive={tmpl.is_active ?? true}
                         hasNextOccurrence={!!tmpl.next_occurrence_date}
                       />
                     </td>

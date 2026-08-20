@@ -12,33 +12,68 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
+      accounts: {
+        Row: {
+          account_type: string
+          created_at: string | null
+          description: string | null
+          fee_category_id: string | null
+          fee_flat_amount: number | null
+          fee_percentage: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+          opening_balance: number | null
+          organization_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          account_type: string
+          created_at?: string | null
+          description?: string | null
+          fee_category_id?: string | null
+          fee_flat_amount?: number | null
+          fee_percentage?: number | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          opening_balance?: number | null
+          organization_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          account_type?: string
+          created_at?: string | null
+          description?: string | null
+          fee_category_id?: string | null
+          fee_flat_amount?: number | null
+          fee_percentage?: number | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          opening_balance?: number | null
+          organization_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounts_fee_category_id_fkey"
+            columns: ["fee_category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       budget_line_items: {
         Row: {
           amount: number
@@ -128,66 +163,6 @@ export type Database = {
           },
         ]
       }
-      accounts: {
-        Row: {
-          account_type: string
-          created_at: string | null
-          description: string | null
-          fee_category_id: string | null
-          fee_flat_amount: number | null
-          fee_percentage: number | null
-          id: string
-          is_active: boolean | null
-          name: string
-          opening_balance: number | null
-          organization_id: string
-          updated_at: string | null
-        }
-        Insert: {
-          account_type: string
-          created_at?: string | null
-          description?: string | null
-          fee_category_id?: string | null
-          fee_flat_amount?: number | null
-          fee_percentage?: number | null
-          id?: string
-          is_active?: boolean | null
-          name: string
-          opening_balance?: number | null
-          organization_id: string
-          updated_at?: string | null
-        }
-        Update: {
-          account_type?: string
-          created_at?: string | null
-          description?: string | null
-          fee_category_id?: string | null
-          fee_flat_amount?: number | null
-          fee_percentage?: number | null
-          id?: string
-          is_active?: boolean | null
-          name?: string
-          opening_balance?: number | null
-          organization_id?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "accounts_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "accounts_fee_category_id_fkey"
-            columns: ["fee_category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       categories: {
         Row: {
           category_type: string
@@ -236,9 +211,57 @@ export type Database = {
           },
         ]
       }
+      letter_templates: {
+        Row: {
+          body: string
+          closing: string | null
+          created_at: string | null
+          heading: string | null
+          id: string
+          is_default: boolean
+          name: string
+          organization_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          body: string
+          closing?: string | null
+          created_at?: string | null
+          heading?: string | null
+          id?: string
+          is_default?: boolean
+          name: string
+          organization_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          body?: string
+          closing?: string | null
+          created_at?: string | null
+          heading?: string | null
+          id?: string
+          is_default?: boolean
+          name?: string
+          organization_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "letter_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string | null
+          director_email: string | null
+          director_name: string | null
+          director_phone: string | null
+          director_title: string | null
           ein: string | null
           fiscal_year_start_month: number | null
           id: string
@@ -250,6 +273,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          director_email?: string | null
+          director_name?: string | null
+          director_phone?: string | null
+          director_title?: string | null
           ein?: string | null
           fiscal_year_start_month?: number | null
           id?: string
@@ -261,6 +288,10 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          director_email?: string | null
+          director_name?: string | null
+          director_phone?: string | null
+          director_title?: string | null
           ein?: string | null
           fiscal_year_start_month?: number | null
           id?: string
@@ -321,120 +352,6 @@ export type Database = {
           },
         ]
       }
-      recurring_template_line_items: {
-        Row: {
-          amount: number
-          category_id: string
-          created_at: string | null
-          id: string
-          memo: string | null
-          template_id: string
-          updated_at: string | null
-        }
-        Insert: {
-          amount: number
-          category_id: string
-          created_at?: string | null
-          id?: string
-          memo?: string | null
-          template_id: string
-          updated_at?: string | null
-        }
-        Update: {
-          amount?: number
-          category_id?: string
-          created_at?: string | null
-          id?: string
-          memo?: string | null
-          template_id?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "recurring_template_line_items_template_id_fkey"
-            columns: ["template_id"]
-            isOneToOne: false
-            referencedRelation: "recurring_templates"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "recurring_template_line_items_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      recurring_templates: {
-        Row: {
-          account_id: string
-          amount: number
-          check_number: string | null
-          created_at: string | null
-          description: string
-          end_date: string | null
-          id: string
-          is_active: boolean
-          next_occurrence_date: string | null
-          organization_id: string
-          recurrence_rule: string
-          start_date: string
-          transaction_type: string
-          updated_at: string | null
-          vendor: string | null
-        }
-        Insert: {
-          account_id: string
-          amount: number
-          check_number?: string | null
-          created_at?: string | null
-          description: string
-          end_date?: string | null
-          id?: string
-          is_active?: boolean
-          next_occurrence_date?: string | null
-          organization_id: string
-          recurrence_rule: string
-          start_date: string
-          transaction_type: string
-          updated_at?: string | null
-          vendor?: string | null
-        }
-        Update: {
-          account_id?: string
-          amount?: number
-          check_number?: string | null
-          created_at?: string | null
-          description?: string
-          end_date?: string | null
-          id?: string
-          is_active?: boolean
-          next_occurrence_date?: string | null
-          organization_id?: string
-          recurrence_rule?: string
-          start_date?: string
-          transaction_type?: string
-          updated_at?: string | null
-          vendor?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "recurring_templates_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "accounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "recurring_templates_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       reconciliation_sessions: {
         Row: {
           account_id: string
@@ -482,14 +399,14 @@ export type Database = {
           },
         ]
       }
-      transaction_line_items: {
+      recurring_template_line_items: {
         Row: {
           amount: number
           category_id: string
           created_at: string | null
           id: string
           memo: string | null
-          transaction_id: string
+          template_id: string
           updated_at: string | null
         }
         Insert: {
@@ -498,7 +415,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           memo?: string | null
-          transaction_id: string
+          template_id: string
           updated_at?: string | null
         }
         Update: {
@@ -507,38 +424,40 @@ export type Database = {
           created_at?: string | null
           id?: string
           memo?: string | null
-          transaction_id?: string
+          template_id?: string
           updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "transaction_line_items_category_id_fkey"
+            foreignKeyName: "recurring_template_line_items_category_id_fkey"
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "transaction_line_items_transaction_id_fkey"
-            columns: ["transaction_id"]
+            foreignKeyName: "recurring_template_line_items_template_id_fkey"
+            columns: ["template_id"]
             isOneToOne: false
-            referencedRelation: "transactions"
+            referencedRelation: "recurring_templates"
             referencedColumns: ["id"]
           },
         ]
       }
-      transactions: {
+      recurring_templates: {
         Row: {
           account_id: string
           amount: number
           check_number: string | null
-          cleared_at: string | null
           created_at: string | null
           description: string
+          end_date: string | null
           id: string
-          status: string
-          template_id: string | null
-          transaction_date: string
+          is_active: boolean | null
+          next_occurrence_date: string | null
+          organization_id: string
+          recurrence_rule: string
+          start_date: string
           transaction_type: string
           updated_at: string | null
           vendor: string | null
@@ -547,13 +466,15 @@ export type Database = {
           account_id: string
           amount: number
           check_number?: string | null
-          cleared_at?: string | null
           created_at?: string | null
           description: string
+          end_date?: string | null
           id?: string
-          status?: string
-          template_id?: string | null
-          transaction_date: string
+          is_active?: boolean | null
+          next_occurrence_date?: string | null
+          organization_id: string
+          recurrence_rule: string
+          start_date: string
           transaction_type: string
           updated_at?: string | null
           vendor?: string | null
@@ -562,30 +483,32 @@ export type Database = {
           account_id?: string
           amount?: number
           check_number?: string | null
-          cleared_at?: string | null
           created_at?: string | null
           description?: string
+          end_date?: string | null
           id?: string
-          status?: string
-          template_id?: string | null
-          transaction_date?: string
+          is_active?: boolean | null
+          next_occurrence_date?: string | null
+          organization_id?: string
+          recurrence_rule?: string
+          start_date?: string
           transaction_type?: string
           updated_at?: string | null
           vendor?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "transactions_account_id_fkey"
+            foreignKeyName: "recurring_templates_account_id_fkey"
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "transactions_template_id_fkey"
-            columns: ["template_id"]
+            foreignKeyName: "recurring_templates_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: "recurring_templates"
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -785,6 +708,114 @@ export type Database = {
           },
         ]
       }
+      transaction_line_items: {
+        Row: {
+          amount: number
+          category_id: string
+          created_at: string | null
+          id: string
+          memo: string | null
+          transaction_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          category_id: string
+          created_at?: string | null
+          id?: string
+          memo?: string | null
+          transaction_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          category_id?: string
+          created_at?: string | null
+          id?: string
+          memo?: string | null
+          transaction_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_line_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_line_items_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          account_id: string
+          amount: number
+          check_number: string | null
+          cleared_at: string | null
+          created_at: string | null
+          description: string
+          id: string
+          status: string
+          template_id: string | null
+          transaction_date: string
+          transaction_type: string
+          updated_at: string | null
+          vendor: string | null
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          check_number?: string | null
+          cleared_at?: string | null
+          created_at?: string | null
+          description: string
+          id?: string
+          status?: string
+          template_id?: string | null
+          transaction_date: string
+          transaction_type: string
+          updated_at?: string | null
+          vendor?: string | null
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          check_number?: string | null
+          cleared_at?: string | null
+          created_at?: string | null
+          description?: string
+          id?: string
+          status?: string
+          template_id?: string | null
+          transaction_date?: string
+          transaction_type?: string
+          updated_at?: string | null
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       treasurers: {
         Row: {
           created_at: string | null
@@ -813,9 +844,9 @@ export type Database = {
     Functions: {
       merge_categories: {
         Args: {
+          p_organization_id: string
           p_source_id: string
           p_target_id: string
-          p_organization_id: string
         }
         Returns: Json
       }
@@ -947,9 +978,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

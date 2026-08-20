@@ -290,7 +290,7 @@ export default async function TemplateDetailPage({
               recurrence_rule: template.recurrence_rule,
               start_date: template.start_date,
               end_date: template.end_date,
-              is_active: template.is_active,
+              is_active: template.is_active ?? true,
               next_occurrence_date: template.next_occurrence_date,
             }}
             lineItems={lineItems.map((li) => ({
