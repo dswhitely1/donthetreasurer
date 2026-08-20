@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import { LETTER_PLACEHOLDERS } from "@/lib/letters/placeholders";
 import { renderTemplate } from "@/lib/letters/render-template";
 import { SAMPLE_TOKEN_VALUES } from "@/lib/letters/sample-context";
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -246,15 +247,15 @@ export function LetterTemplateForm({
             <div className="rounded-md border border-border p-3">
               <div className="flex justify-between">
                 <span>Season Fee</span>
-                <span className="tabular-nums">$450.00</span>
+                <span className="tabular-nums">{formatCurrency(450)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Total Paid</span>
-                <span className="tabular-nums">$200.00</span>
+                <span className="tabular-nums">{formatCurrency(200)}</span>
               </div>
               <div className="flex justify-between font-semibold">
                 <span>Balance Due</span>
-                <span className="tabular-nums">$250.00</span>
+                <span className="tabular-nums">{formatCurrency(250)}</span>
               </div>
             </div>
 

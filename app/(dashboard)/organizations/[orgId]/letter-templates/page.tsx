@@ -64,7 +64,7 @@ export default async function LetterTemplatesPage({
         <EmptyState
           icon={Mail}
           title="No letter templates yet"
-          description='Create a template to generate balance letters for a season.'
+          description="Create a template to generate balance letters for a season."
         />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
