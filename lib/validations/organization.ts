@@ -16,6 +16,27 @@ export const createOrganizationSchema = z.object({
     .min(1)
     .max(12)
     .default(1),
+  director_name: z
+    .string()
+    .max(100, "Director name must be 100 characters or fewer.")
+    .optional()
+    .or(z.literal("")),
+  director_title: z
+    .string()
+    .max(100, "Director title must be 100 characters or fewer.")
+    .optional()
+    .or(z.literal("")),
+  director_email: z
+    .string()
+    .email("Director email must be a valid email address.")
+    .max(255, "Director email must be 255 characters or fewer.")
+    .optional()
+    .or(z.literal("")),
+  director_phone: z
+    .string()
+    .max(30, "Director phone must be 30 characters or fewer.")
+    .optional()
+    .or(z.literal("")),
   seasons_enabled: z
     .preprocess((val) => val === "true" || val === true, z.boolean())
     .default(false),

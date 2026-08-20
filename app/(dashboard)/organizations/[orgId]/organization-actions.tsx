@@ -109,6 +109,60 @@ export function OrganizationActions({
             </Select>
           </div>
 
+          <div className="flex flex-col gap-1.5 border-t border-border pt-4">
+            <p className="text-sm font-medium">Letter Signature</p>
+            <p className="text-sm text-muted-foreground">
+              Printed at the bottom of every letter you generate.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-director-name">Director Name</Label>
+              <Input
+                id="edit-director-name"
+                name="director_name"
+                maxLength={100}
+                defaultValue={organization.director_name ?? ""}
+                placeholder="Jane Doe"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-director-title">Director Title</Label>
+              <Input
+                id="edit-director-title"
+                name="director_title"
+                maxLength={100}
+                defaultValue={organization.director_title ?? ""}
+                placeholder="Band Director"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-director-email">Director Email</Label>
+              <Input
+                id="edit-director-email"
+                name="director_email"
+                type="email"
+                maxLength={255}
+                defaultValue={organization.director_email ?? ""}
+                placeholder="jane@example.org"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-director-phone">Director Phone</Label>
+              <Input
+                id="edit-director-phone"
+                name="director_phone"
+                maxLength={30}
+                defaultValue={organization.director_phone ?? ""}
+                placeholder="555-0100"
+              />
+            </div>
+          </div>
+
           <input
             type="hidden"
             name="seasons_enabled"

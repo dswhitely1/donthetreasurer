@@ -140,3 +140,47 @@ describe("updateOrganizationSchema", () => {
     expect(result.success).toBe(true);
   });
 });
+
+describe("director fields", () => {
+  const base = {
+    name: "Acme Band Boosters",
+    ein: "",
+    fiscal_year_start_month: "7",
+    seasons_enabled: "false",
+  };
+
+  it("accepts a complete director block", () => {
+    const result = createOrganizationSchema.safeParse({
+      ...base,
+      director_name: "Jane Doe",
+      director_title: "Band Director",
+      director_email: "jane@band.org",
+      director_phone: "555-0100",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts empty strings for every director field", () => {
+    const result = createOrganizationSchema.safeParse({
+      ...base,
+      director_name: "",
+      director_title: "",
+      director_email: "",
+      director_phone: "",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts an organization with no director keys at all", () => {
+    const result = createOrganizationSchema.safeParse(base);
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a malformed director email", () => {
+    const result = createOrganizationSchema.safeParse({
+      ...base,
+      director_email: "not-an-email",
+    });
+    expect(result.success).toBe(false);
+  });
+});

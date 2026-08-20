@@ -62,6 +62,10 @@ export async function updateOrganization(
     ein: formData.get("ein") as string,
     fiscal_year_start_month: formData.get("fiscal_year_start_month") as string,
     seasons_enabled: formData.get("seasons_enabled") as string,
+    director_name: (formData.get("director_name") as string) ?? "",
+    director_title: (formData.get("director_title") as string) ?? "",
+    director_email: (formData.get("director_email") as string) ?? "",
+    director_phone: (formData.get("director_phone") as string) ?? "",
   };
 
   const parsed = updateOrganizationSchema.safeParse(raw);
@@ -85,6 +89,10 @@ export async function updateOrganization(
       ein: parsed.data.ein || null,
       fiscal_year_start_month: parsed.data.fiscal_year_start_month,
       seasons_enabled: parsed.data.seasons_enabled,
+      director_name: parsed.data.director_name || null,
+      director_title: parsed.data.director_title || null,
+      director_email: parsed.data.director_email || null,
+      director_phone: parsed.data.director_phone || null,
     })
     .eq("id", parsed.data.id);
 
