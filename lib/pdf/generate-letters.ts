@@ -95,6 +95,11 @@ function renderLetter(
   // Balance summary — always printed, so the numbers are on the page even if
   // the template never used a currency placeholder.
   cursorY = ensureSpace(doc, cursorY, 96);
+  const balanceRows = [
+    ["Season Fee", formatCurrency(recipient.feeAmount)],
+    ["Total Paid", formatCurrency(recipient.totalPaid)],
+    ["Balance Due", formatCurrency(recipient.balanceDue)],
+  ];
   autoTable(doc, {
     startY: cursorY,
     theme: "grid",
@@ -105,13 +110,10 @@ function renderLetter(
     },
     tableWidth: 250,
     margin: { left: MARGIN, right: MARGIN },
-    body: [
-      ["Season Fee", formatCurrency(recipient.feeAmount)],
-      ["Total Paid", formatCurrency(recipient.totalPaid)],
-      ["Balance Due", formatCurrency(recipient.balanceDue)],
-    ],
+    body: balanceRows,
     didParseCell: (hook) => {
-      if (hook.row.index === 2) {
+      // Bold the last row (Balance Due), whichever row that ends up being.
+      if (hook.row.index === balanceRows.length - 1) {
         hook.cell.styles.fontStyle = "bold";
       }
     },

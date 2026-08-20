@@ -7,7 +7,6 @@ import { ArrowLeft } from "lucide-react";
 import { LETTER_PLACEHOLDERS } from "@/lib/letters/placeholders";
 import { renderTemplate } from "@/lib/letters/render-template";
 import { SAMPLE_TOKEN_VALUES } from "@/lib/letters/sample-context";
-import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -37,8 +36,6 @@ const DEFAULT_CLOSING = "Sincerely,";
 const STARTER_BODY = `Dear {{guardian_name}},
 
 Our records show an outstanding balance of {{balance_due}} for {{student_full_name}} for the {{season_name}} season.
-
-Please contact {{director_name}} at {{director_email}} with any questions.
 
 Thank you for your support.`;
 
@@ -247,23 +244,29 @@ export function LetterTemplateForm({
             <div className="rounded-md border border-border p-3">
               <div className="flex justify-between">
                 <span>Season Fee</span>
-                <span className="tabular-nums">{formatCurrency(450)}</span>
+                <span className="tabular-nums">
+                  {SAMPLE_TOKEN_VALUES.fee_amount}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Total Paid</span>
-                <span className="tabular-nums">{formatCurrency(200)}</span>
+                <span className="tabular-nums">
+                  {SAMPLE_TOKEN_VALUES.total_paid}
+                </span>
               </div>
               <div className="flex justify-between font-semibold">
                 <span>Balance Due</span>
-                <span className="tabular-nums">{formatCurrency(250)}</span>
+                <span className="tabular-nums">
+                  {SAMPLE_TOKEN_VALUES.balance_due}
+                </span>
               </div>
             </div>
 
             {previewClosing && <p>{previewClosing}</p>}
 
             <div className="text-muted-foreground">
-              <p>Jane Doe</p>
-              <p>Band Director</p>
+              <p>{SAMPLE_TOKEN_VALUES.director_name}</p>
+              <p>{SAMPLE_TOKEN_VALUES.director_title}</p>
             </div>
           </CardContent>
         </Card>

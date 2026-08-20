@@ -116,7 +116,10 @@ export async function POST(
       );
     }
 
-    const today = new Date().toISOString().split("T")[0];
+    // Local date, not UTC: this prints on letters handed to families, and a
+    // UTC cutoff would date evening-generated batches "tomorrow" for most US
+    // treasurers. en-CA formats as YYYY-MM-DD.
+    const today = new Date().toLocaleDateString("en-CA");
 
     const batch: LetterBatchData = {
       organizationName: org.name,

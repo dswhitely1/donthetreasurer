@@ -298,7 +298,7 @@ sanitizing already used by the season PDF route.
 | Nobody owes | "Everyone is paid up for this season" — no PDF produced |
 | Director fields blank | Warning banner linking to org settings; generation still allowed |
 | All recipients unchecked | Generate button disabled |
-| Template deleted mid-flow | 404 JSON response; toast on the client |
+| Template deleted mid-flow | 404 JSON response; inline error banner next to the Generate button |
 | Season not found / not owned | 404, matching the existing season PDF route |
 | `seasons_enabled` false | 404, matching the existing season PDF route |
 | PDF generation throws | 500 with a generic message; details logged server-side |

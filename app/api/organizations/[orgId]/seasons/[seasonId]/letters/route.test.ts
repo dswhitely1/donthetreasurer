@@ -205,6 +205,28 @@ describe("POST /api/organizations/[orgId]/seasons/[seasonId]/letters", () => {
     expect(response.headers.get("Content-Disposition")).toContain(".pdf");
   });
 
+  it("uses the same local date for the printed letter and the filename", async () => {
+    mockSupabase.mockChain().sequence([
+      { data: orgRow, error: null },
+      { data: templateRow, error: null },
+    ]);
+
+    const response = await POST(
+      makeRequest({ template_id: templateId, enrollment_ids: [owingId] }),
+      routeParams
+    );
+
+    const batch = mockedGenerateLettersPdf.mock.calls[0][0] as LetterBatchData;
+    const disposition = response.headers.get("Content-Disposition") ?? "";
+    const filenameDate = disposition.match(/_(\d{4}-\d{2}-\d{2})\.pdf"$/)?.[1];
+
+    // Local YYYY-MM-DD (via toLocaleDateString("en-CA")), not a UTC-derived
+    // date — and the same value in both places so the letter and the
+    // filename can never disagree.
+    expect(batch.generatedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(filenameDate).toBe(batch.generatedOn);
+  });
+
   it("includes only the requested enrollment", async () => {
     mockSupabase.mockChain().sequence([
       { data: orgRow, error: null },
