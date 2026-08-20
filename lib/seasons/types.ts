@@ -11,6 +11,8 @@ export interface SeasonReportPayment {
 export interface SeasonReportEnrollment {
   id: string;
   studentName: string;
+  studentFirstName: string;
+  studentLastName: string;
   guardianName: string | null;
   contactEmail: string | null;
   contactPhone: string | null;
