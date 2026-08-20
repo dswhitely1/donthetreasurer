@@ -13,6 +13,7 @@ import {
   FileBarChart,
   Calendar,
   Users,
+  Mail,
   X,
   ChevronsLeft,
   ChevronsRight,
@@ -44,6 +45,7 @@ const navItems = [
 const seasonNavItems = [
   { label: "Seasons", href: "/seasons", icon: Calendar, exact: false },
   { label: "Students", href: "/students", icon: Users, exact: false },
+  { label: "Letters", href: "/letter-templates", icon: Mail, exact: false },
 ];
 
 interface SidebarProps {

@@ -68,6 +68,8 @@ export async function fetchSeasonReport(
       return {
         id: e.id,
         studentName: `${student.last_name}, ${student.first_name}`,
+        studentFirstName: student.first_name,
+        studentLastName: student.last_name,
         guardianName: student.guardian_name,
         contactEmail: student.email || student.guardian_email,
         contactPhone: student.phone || student.guardian_phone,

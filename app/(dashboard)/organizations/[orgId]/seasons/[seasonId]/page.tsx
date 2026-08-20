@@ -258,6 +258,13 @@ export default async function SeasonDetailPage({
                     Export PDF
                   </a>
                 </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <Link
+                    href={`/organizations/${orgId}/seasons/${seasonId}/letters`}
+                  >
+                    Generate Letters
+                  </Link>
+                </Button>
               </div>
             </div>
           )}
