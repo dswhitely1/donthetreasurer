@@ -189,6 +189,77 @@ describe("computeSummary", () => {
     expect(result.categoryTotals).toEqual([]);
   });
 
+  it("computeSummary groups a parent/child category into one categoryTotals row", () => {
+    const transactions: ReportTransaction[] = [
+      makeTxn({
+        id: "t1",
+        transactionType: "income",
+        amount: 500,
+        lineItems: [
+          { categoryLabel: "Donations → Individual", amount: 500, memo: null },
+        ],
+      }),
+    ];
+
+    const result = computeSummary(transactions, nameMap, parentMap);
+    expect(result.categoryTotals).toEqual([
+      {
+        parentName: "Donations",
+        children: [{ name: "Individual", in: 500, out: 0, net: 500 }],
+        totalIn: 500,
+        totalOut: 0,
+        net: 500,
+      },
+    ]);
+  });
+
+  it("computeSummary aggregates a parent's income-only and expense-only children into one row", () => {
+    const dualNameMap = {
+      c1: "Band Gigs",
+      c2: "Wedding Gigs",
+      c3: "Equipment Rental",
+    };
+    const dualParentMap: Record<string, string | null> = {
+      c1: null,
+      c2: "c1",
+      c3: "c1",
+    };
+
+    const transactions: ReportTransaction[] = [
+      makeTxn({
+        id: "t1",
+        transactionType: "income",
+        amount: 500,
+        lineItems: [
+          { categoryLabel: "Band Gigs → Wedding Gigs", amount: 500, memo: null },
+        ],
+      }),
+      makeTxn({
+        id: "t2",
+        transactionType: "expense",
+        amount: 200,
+        lineItems: [
+          { categoryLabel: "Band Gigs → Equipment Rental", amount: 200, memo: null },
+        ],
+      }),
+    ];
+
+    const result = computeSummary(transactions, dualNameMap, dualParentMap);
+
+    expect(result.categoryTotals).toEqual([
+      {
+        parentName: "Band Gigs",
+        children: [
+          { name: "Equipment Rental", in: 0, out: 200, net: -200 },
+          { name: "Wedding Gigs", in: 500, out: 0, net: 500 },
+        ],
+        totalIn: 500,
+        totalOut: 200,
+        net: 300,
+      },
+    ]);
+  });
+
   it("computeSummary emits categoryTotals with a two-sided category as one row", () => {
     const nameMap = { poin: "Poinsettias" };
     const parentMap: Record<string, string | null> = { poin: null };
