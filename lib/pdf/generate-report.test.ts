@@ -1,8 +1,43 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import { generateReportPdf } from "./generate-report";
 
 import type { ReportData } from "@/lib/reports/types";
+import type { CellInput, UserOptions } from "jspdf-autotable";
+
+/**
+ * Every autoTable call in this codebase passes plain array rows
+ * (never the object-keyed RowInput variant), so narrow head/body
+ * to that shape for straightforward index access in assertions.
+ */
+type RecordedTable = Omit<UserOptions, "head" | "body"> & {
+  head?: CellInput[][];
+  body?: CellInput[][];
+};
+
+const { recordedTables } = vi.hoisted(() => ({
+  recordedTables: [] as RecordedTable[],
+}));
+
+vi.mock("jspdf-autotable", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("jspdf-autotable")>();
+  return {
+    ...actual,
+    default: (doc: Parameters<typeof actual.default>[0], options: UserOptions) => {
+      recordedTables.push(options as RecordedTable);
+      return actual.default(doc, options);
+    },
+  };
+});
+
+/** Reads back every jspdf-autotable invocation made during the last render. */
+function capturedTables(): RecordedTable[] {
+  return recordedTables;
+}
+
+beforeEach(() => {
+  recordedTables.length = 0;
+});
 
 function makeReportData(overrides: Partial<ReportData> = {}): ReportData {
   const base: ReportData = {
@@ -100,22 +135,25 @@ describe("generateReportPdf", () => {
           cleared: 1500,
           reconciled: 1000,
         },
-        incomeByCategory: [
+        incomeByCategory: [],
+        expensesByCategory: [],
+        netByCategory: [],
+        categoryTotals: [
           {
             parentName: "Donations",
-            children: [{ name: "Individual", total: 5000 }],
-            subtotal: 5000,
+            children: [{ name: "Individual", in: 5000, out: 0, net: 5000 }],
+            totalIn: 5000,
+            totalOut: 0,
+            net: 5000,
           },
-        ],
-        expensesByCategory: [
           {
             parentName: "Operations",
-            children: [{ name: "Supplies", total: 2000 }],
-            subtotal: 2000,
+            children: [{ name: "Supplies", in: 0, out: 2000, net: -2000 }],
+            totalIn: 0,
+            totalOut: 2000,
+            net: -2000,
           },
         ],
-        netByCategory: [],
-        categoryTotals: [],
       },
     });
 
@@ -123,10 +161,83 @@ describe("generateReportPdf", () => {
     const text = buffer.toString("latin1");
     expect(text).toContain("OVERALL SUMMARY");
     expect(text).toContain("BALANCE BY STATUS");
-    expect(text).toContain("INCOME BY CATEGORY");
-    expect(text).toContain("EXPENSES BY CATEGORY");
     expect(text).toContain("Donations");
     expect(text).toContain("Operations");
+
+    // The old three-section layout is gone — a single Category table replaces it.
+    expect(text).not.toContain("INCOME BY CATEGORY");
+    expect(text).not.toContain("EXPENSES BY CATEGORY");
+    expect(text).not.toContain("NET BY CATEGORY");
+
+    const categoryTable = capturedTables().find(
+      (t) => t.head?.[0]?.[0] === "Category"
+    );
+    expect(categoryTable).toBeDefined();
+    expect(categoryTable!.head![0]).toEqual(["Category", "In", "Out", "Net"]);
+    expect(categoryTable!.body).toContainEqual([
+      "Donations",
+      "$5,000.00",
+      "$0.00",
+      "$5,000.00",
+    ]);
+    expect(categoryTable!.body).toContainEqual([
+      "    Individual",
+      "$5,000.00",
+      "$0.00",
+      "$5,000.00",
+    ]);
+    expect(categoryTable!.body).toContainEqual([
+      "Operations",
+      "$0.00",
+      "$2,000.00",
+      "-$2,000.00",
+    ]);
+    // Grand total comes from summary.totalIncome/totalExpenses/netChange,
+    // not a re-sum of the category rows.
+    expect(categoryTable!.body).toContainEqual([
+      "Total",
+      "$5,000.00",
+      "$2,000.00",
+      "$3,000.00",
+    ]);
+  });
+
+  it("builds one category table with In/Out/Net columns", () => {
+    generateReportPdf(
+      makeReportData({
+        summary: {
+          totalIncome: 8200,
+          totalExpenses: 5100,
+          netChange: 3100,
+          balanceByStatus: { uncleared: 0, cleared: 3100, reconciled: 0 },
+          incomeByCategory: [],
+          expensesByCategory: [],
+          netByCategory: [],
+          categoryTotals: [
+            {
+              parentName: "Poinsettias",
+              children: [],
+              totalIn: 8200,
+              totalOut: 5100,
+              net: 3100,
+            },
+          ],
+        },
+      })
+    );
+
+    const categoryTable = capturedTables().find(
+      (t) => t.head?.[0]?.[0] === "Category"
+    );
+
+    expect(categoryTable).toBeDefined();
+    expect(categoryTable!.head![0]).toEqual(["Category", "In", "Out", "Net"]);
+    expect(categoryTable!.body).toContainEqual([
+      "Poinsettias",
+      "$8,200.00",
+      "$5,100.00",
+      "$3,100.00",
+    ]);
   });
 
   it("includes account balances when provided", () => {

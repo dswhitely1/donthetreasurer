@@ -350,7 +350,6 @@ export function generateReportPdf(
   const WHITE: [number, number, number] = [255, 255, 255];
   const LEFT_X = MARGIN;
   const COL_WIDTH = 340;
-  const RIGHT_X = MARGIN + COL_WIDTH + 32;
   const LABEL_WIDTH = 220;
   const VALUE_WIDTH = 120;
 
@@ -474,176 +473,47 @@ export function generateReportPdf(
     leftY
   );
 
-  // ── Right Column ─────────────────────────────────────────────
-  let rightY = columnsStartY;
-
-  // INCOME BY CATEGORY
-  if (summary.incomeByCategory.length > 0) {
-    rightY = drawColumnSectionHeader("INCOME BY CATEGORY", RIGHT_X, rightY);
-    const incomeRows: CellInput[][] = [];
-    for (const group of summary.incomeByCategory) {
-      // Collapsed root: single flat row
-      if (group.children.length === 0) {
-        incomeRows.push([
-          group.parentName,
-          { content: formatCurrency(group.subtotal), styles: { textColor: GREEN } },
-        ]);
-        continue;
-      }
-      incomeRows.push([
-        { content: group.parentName, styles: { fontStyle: "bold" } },
-        "",
-      ]);
-      for (const child of group.children) {
-        incomeRows.push([
-          `  ${child.name}`,
-          { content: formatCurrency(child.total), styles: { textColor: GREEN } },
-        ]);
-      }
-      if (group.children.length > 1) {
-        incomeRows.push([
-          { content: "  Subtotal:", styles: { fontStyle: "italic" } },
-          { content: formatCurrency(group.subtotal), styles: { fontStyle: "italic", textColor: GREEN } },
-        ]);
-      }
-    }
-    rightY = drawColumnTable(incomeRows, RIGHT_X, rightY);
-  }
-
-  // EXPENSES BY CATEGORY
-  if (summary.expensesByCategory.length > 0) {
-    rightY = drawColumnSectionHeader("EXPENSES BY CATEGORY", RIGHT_X, rightY);
-    const expenseRows: CellInput[][] = [];
-    for (const group of summary.expensesByCategory) {
-      // Collapsed root: single flat row
-      if (group.children.length === 0) {
-        expenseRows.push([
-          group.parentName,
-          { content: formatCurrency(group.subtotal), styles: { textColor: RED } },
-        ]);
-        continue;
-      }
-      expenseRows.push([
-        { content: group.parentName, styles: { fontStyle: "bold" } },
-        "",
-      ]);
-      for (const child of group.children) {
-        expenseRows.push([
-          `  ${child.name}`,
-          { content: formatCurrency(child.total), styles: { textColor: RED } },
-        ]);
-      }
-      if (group.children.length > 1) {
-        expenseRows.push([
-          { content: "  Subtotal:", styles: { fontStyle: "italic" } },
-          { content: formatCurrency(group.subtotal), styles: { fontStyle: "italic", textColor: RED } },
-        ]);
-      }
-    }
-    rightY = drawColumnTable(expenseRows, RIGHT_X, rightY);
-  }
-
-  // ── Net by Category (full-width, below both columns) ────────
-  if (summary.netByCategory.length > 0) {
-    const netCatY = Math.max(leftY, rightY) + 8;
-    let currentY = netCatY;
+  // ── Category Totals (full-width, below the left column) ─────
+  if (summary.categoryTotals.length > 0) {
+    let categoryY = leftY + 8;
 
     // Check if we need a new page
     const pageHeight = doc.internal.pageSize.getHeight();
-    if (currentY > pageHeight - 100) {
+    if (categoryY > pageHeight - 100) {
       doc.addPage();
-      currentY = MARGIN;
+      categoryY = MARGIN;
     }
 
-    // Full-width section header
-    doc.setFillColor(...SLATE_800);
-    doc.rect(MARGIN, currentY, pageWidth - MARGIN * 2, 16, "F");
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...WHITE);
-    doc.text("NET BY CATEGORY", MARGIN + 6, currentY + 11);
-    doc.setTextColor(0, 0, 0);
-    currentY += 16;
+    const body: string[][] = [];
 
-    const netRows: CellInput[][] = [];
-
-    let combinedNet = 0;
-
-    for (const group of summary.netByCategory) {
-      // Parent header
-      netRows.push([
-        { content: group.parentName, styles: { fontStyle: "bold" } },
-        "",
-        "",
-        "",
+    for (const group of summary.categoryTotals) {
+      body.push([
+        group.parentName,
+        formatCurrency(group.totalIn),
+        formatCurrency(group.totalOut),
+        formatCurrency(group.net),
       ]);
-
-      // Income children
-      if (group.incomeChildren.length > 0) {
-        for (const child of group.incomeChildren) {
-          netRows.push([
-            `  ${child.name}`,
-            { content: formatCurrency(child.total), styles: { textColor: GREEN } },
-            "--",
-            "",
-          ]);
-        }
-      } else {
-        netRows.push([
-          "  (root)",
-          { content: formatCurrency(group.totalIncome), styles: { textColor: GREEN } },
-          "--",
-          "",
+      for (const child of group.children) {
+        body.push([
+          `    ${child.name}`,
+          formatCurrency(child.in),
+          formatCurrency(child.out),
+          formatCurrency(child.net),
         ]);
       }
-
-      // Expense children
-      if (group.expenseChildren.length > 0) {
-        for (const child of group.expenseChildren) {
-          netRows.push([
-            `  ${child.name}`,
-            "--",
-            { content: formatCurrency(child.total), styles: { textColor: RED } },
-            "",
-          ]);
-        }
-      } else {
-        netRows.push([
-          "  (root)",
-          "--",
-          { content: formatCurrency(group.totalExpenses), styles: { textColor: RED } },
-          "",
-        ]);
-      }
-
-      // Subtotal row for this parent
-      const netColor = group.net >= 0 ? GREEN : RED;
-      netRows.push([
-        { content: "  Subtotal", styles: { fontStyle: "italic" } },
-        { content: formatCurrency(group.totalIncome), styles: { fontStyle: "italic", textColor: GREEN } },
-        { content: formatCurrency(group.totalExpenses), styles: { fontStyle: "italic", textColor: RED } },
-        { content: formatCurrency(group.net), styles: { fontStyle: "italic", textColor: netColor } },
-      ]);
-
-      // Blank separator row
-      netRows.push(["", "", "", ""]);
-
-      combinedNet += group.net;
     }
 
-    // Combined Net Total
-    const totalNetColor = combinedNet >= 0 ? GREEN : RED;
-    netRows.push([
-      { content: "Combined Net Total", styles: { fontStyle: "bold" } },
-      "",
-      "",
-      { content: formatCurrency(combinedNet), styles: { fontStyle: "bold", textColor: totalNetColor } },
+    body.push([
+      "Total",
+      formatCurrency(summary.totalIncome),
+      formatCurrency(summary.totalExpenses),
+      formatCurrency(summary.netChange),
     ]);
 
     autoTable(doc, {
-      startY: currentY,
-      head: [["Category", "Income", "Expense", "Net"]],
-      body: netRows,
+      startY: categoryY,
+      head: [["Category", "In", "Out", "Net"]],
+      body,
       margin: { left: MARGIN, right: MARGIN },
       theme: "grid",
       headStyles: {
