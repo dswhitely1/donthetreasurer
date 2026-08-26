@@ -17,9 +17,6 @@ function makeReportData(overrides: Partial<ReportData> = {}): ReportData {
       totalExpenses: 0,
       netChange: 0,
       balanceByStatus: { uncleared: 0, cleared: 0, reconciled: 0 },
-      incomeByCategory: [],
-      expensesByCategory: [],
-      netByCategory: [],
       categoryTotals: [],
     },
     accountBalances: null,
@@ -249,21 +246,6 @@ describe("generateReportWorkbook", () => {
           cleared: 1500,
           reconciled: 1000,
         },
-        incomeByCategory: [
-          {
-            parentName: "Donations",
-            children: [{ name: "Individual", total: 5000 }],
-            subtotal: 5000,
-          },
-        ],
-        expensesByCategory: [
-          {
-            parentName: "Operations",
-            children: [{ name: "Supplies", total: 2000 }],
-            subtotal: 2000,
-          },
-        ],
-        netByCategory: [],
         categoryTotals: [
           {
             parentName: "Donations",
@@ -321,9 +303,6 @@ describe("generateReportWorkbook", () => {
         totalExpenses: 5100,
         netChange: 3100,
         balanceByStatus: { uncleared: 0, cleared: 3100, reconciled: 0 },
-        incomeByCategory: [],
-        expensesByCategory: [],
-        netByCategory: [],
         categoryTotals: [
           { parentName: "Poinsettias", children: [], totalIn: 8200, totalOut: 5100, net: 3100 },
         ],
@@ -349,9 +328,6 @@ describe("generateReportWorkbook", () => {
         totalExpenses: 5100,
         netChange: 3100,
         balanceByStatus: { uncleared: 0, cleared: 3100, reconciled: 0 },
-        incomeByCategory: [],
-        expensesByCategory: [],
-        netByCategory: [],
         categoryTotals: [
           { parentName: "Poinsettias", children: [], totalIn: 8200, totalOut: 5100, net: 3100 },
         ],

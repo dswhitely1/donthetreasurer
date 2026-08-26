@@ -96,9 +96,6 @@ function makeReportData(overrides: Partial<ReportData> = {}): ReportData {
       totalExpenses: 0,
       netChange: 0,
       balanceByStatus: { uncleared: 0, cleared: 0, reconciled: 0 },
-      incomeByCategory: [],
-      expensesByCategory: [],
-      netByCategory: [],
       categoryTotals: [],
     },
     accountBalances: null,
@@ -180,9 +177,6 @@ describe("generateReportPdf", () => {
           cleared: 1500,
           reconciled: 1000,
         },
-        incomeByCategory: [],
-        expensesByCategory: [],
-        netByCategory: [],
         categoryTotals: [
           {
             parentName: "Donations",
@@ -273,9 +267,6 @@ describe("generateReportPdf", () => {
           totalExpenses: 5100,
           netChange: 3100,
           balanceByStatus: { uncleared: 0, cleared: 3100, reconciled: 0 },
-          incomeByCategory: [],
-          expensesByCategory: [],
-          netByCategory: [],
           categoryTotals: [
             {
               parentName: "Poinsettias",
