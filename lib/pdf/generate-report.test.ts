@@ -111,20 +111,8 @@ function makeBudgetData(overrides: Partial<BudgetReportData> = {}): BudgetReport
     startDate: "2025-01-01",
     endDate: "2025-12-31",
     status: "active",
-    incomeLines: [],
-    expenseLines: [],
-    combinedLines: [],
-    unbudgetedActuals: [],
     netLines: [],
     unbudgetedNet: [],
-    totals: {
-      budgetedIncome: 0,
-      actualIncome: 0,
-      budgetedExpenses: 0,
-      actualExpenses: 0,
-      netBudget: 0,
-      netActual: 0,
-    },
     netTotals: { budgeted: 0, actual: 0, variance: 0 },
   };
   return { ...base, ...overrides };
