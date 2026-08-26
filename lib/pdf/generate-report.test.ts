@@ -39,6 +39,51 @@ beforeEach(() => {
   recordedTables.length = 0;
 });
 
+/** Plain text of a single autotable cell, whether it's a raw string or a styled CellDef. */
+function cellText(cell: CellInput | undefined): string {
+  if (cell == null) return "";
+  if (typeof cell === "object" && !Array.isArray(cell) && "content" in cell) {
+    return String(cell.content ?? "");
+  }
+  return String(cell);
+}
+
+/** Plain text of every cell in a row. */
+function rowText(row: CellInput[]): string[] {
+  return row.map(cellText);
+}
+
+/** Finds the row whose first cell's text matches exactly. */
+function findRowByFirstCellText(table: RecordedTable, text: string): CellInput[] {
+  const row = table.body?.find((r) => cellText(r[0]) === text);
+  if (!row) {
+    throw new Error(`No row found with first cell text: ${text}`);
+  }
+  return row;
+}
+
+/** True when every cell in the row is a bold CellDef. */
+function isBoldRow(row: CellInput[]): boolean {
+  return row.every(
+    (cell) =>
+      typeof cell === "object" &&
+      !Array.isArray(cell) &&
+      cell !== null &&
+      cell.styles?.fontStyle === "bold"
+  );
+}
+
+/** True when any cell in the row carries a textColor style. */
+function hasColorStyle(row: CellInput[]): boolean {
+  return row.some(
+    (cell) =>
+      typeof cell === "object" &&
+      !Array.isArray(cell) &&
+      cell !== null &&
+      cell.styles?.textColor !== undefined
+  );
+}
+
 function makeReportData(overrides: Partial<ReportData> = {}): ReportData {
   const base: ReportData = {
     organizationName: "Test Foundation",
@@ -174,32 +219,50 @@ describe("generateReportPdf", () => {
     );
     expect(categoryTable).toBeDefined();
     expect(categoryTable!.head![0]).toEqual(["Category", "In", "Out", "Net"]);
-    expect(categoryTable!.body).toContainEqual([
+
+    // Parent rows with subcategories are bold (matching Excel's
+    // groupRow.font = { bold: true } for children.length > 0), but not
+    // coloured — Task 3 dropped colour and the two exports should match.
+    const donationsRow = findRowByFirstCellText(categoryTable!, "Donations");
+    expect(rowText(donationsRow)).toEqual([
       "Donations",
       "$5,000.00",
       "$0.00",
       "$5,000.00",
     ]);
-    expect(categoryTable!.body).toContainEqual([
+    expect(isBoldRow(donationsRow)).toBe(true);
+    expect(hasColorStyle(donationsRow)).toBe(false);
+
+    const individualRow = findRowByFirstCellText(categoryTable!, "    Individual");
+    expect(rowText(individualRow)).toEqual([
       "    Individual",
       "$5,000.00",
       "$0.00",
       "$5,000.00",
     ]);
-    expect(categoryTable!.body).toContainEqual([
+    expect(isBoldRow(individualRow)).toBe(false);
+
+    const operationsRow = findRowByFirstCellText(categoryTable!, "Operations");
+    expect(rowText(operationsRow)).toEqual([
       "Operations",
       "$0.00",
       "$2,000.00",
       "-$2,000.00",
     ]);
+    expect(isBoldRow(operationsRow)).toBe(true);
+    expect(hasColorStyle(operationsRow)).toBe(false);
+
     // Grand total comes from summary.totalIncome/totalExpenses/netChange,
-    // not a re-sum of the category rows.
-    expect(categoryTable!.body).toContainEqual([
+    // not a re-sum of the category rows, and is bold like Excel's totalRow.
+    const totalRow = findRowByFirstCellText(categoryTable!, "Total");
+    expect(rowText(totalRow)).toEqual([
       "Total",
       "$5,000.00",
       "$2,000.00",
       "$3,000.00",
     ]);
+    expect(isBoldRow(totalRow)).toBe(true);
+    expect(hasColorStyle(totalRow)).toBe(false);
   });
 
   it("builds one category table with In/Out/Net columns", () => {

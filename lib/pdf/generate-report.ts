@@ -484,15 +484,21 @@ export function generateReportPdf(
       categoryY = MARGIN;
     }
 
-    const body: string[][] = [];
+    // Bold whole rows for parents with subcategories and for the grand
+    // total, mirroring Task 3's Excel behavior (font bold, no color).
+    const boldRow = (values: string[]): CellInput[] =>
+      values.map((value) => ({ content: value, styles: { fontStyle: "bold" } }));
+
+    const body: CellInput[][] = [];
 
     for (const group of summary.categoryTotals) {
-      body.push([
+      const rowValues = [
         group.parentName,
         formatCurrency(group.totalIn),
         formatCurrency(group.totalOut),
         formatCurrency(group.net),
-      ]);
+      ];
+      body.push(group.children.length > 0 ? boldRow(rowValues) : rowValues);
       for (const child of group.children) {
         body.push([
           `    ${child.name}`,
@@ -503,12 +509,14 @@ export function generateReportPdf(
       }
     }
 
-    body.push([
-      "Total",
-      formatCurrency(summary.totalIncome),
-      formatCurrency(summary.totalExpenses),
-      formatCurrency(summary.netChange),
-    ]);
+    body.push(
+      boldRow([
+        "Total",
+        formatCurrency(summary.totalIncome),
+        formatCurrency(summary.totalExpenses),
+        formatCurrency(summary.netChange),
+      ])
+    );
 
     autoTable(doc, {
       startY: categoryY,
