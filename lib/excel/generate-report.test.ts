@@ -4,6 +4,7 @@ import ExcelJS from "exceljs";
 import { generateReportWorkbook } from "./generate-report";
 
 import type { ReportData } from "@/lib/reports/types";
+import type { BudgetReportData } from "@/lib/reports/fetch-budget-data";
 
 function makeReportData(overrides: Partial<ReportData> = {}): ReportData {
   const base: ReportData = {
@@ -35,6 +36,40 @@ async function summarySheetOf(data: ReportData): Promise<ExcelJS.Worksheet> {
   const buffer = await generateReportWorkbook(data);
   const wb = await parseWorkbook(buffer);
   return wb.getWorksheet("Summary")!;
+}
+
+function makeBudgetData(overrides: Partial<BudgetReportData> = {}): BudgetReportData {
+  const base: BudgetReportData = {
+    budgetName: "FY2026 Budget",
+    startDate: "2025-01-01",
+    endDate: "2025-12-31",
+    status: "active",
+    incomeLines: [],
+    expenseLines: [],
+    combinedLines: [],
+    unbudgetedActuals: [],
+    netLines: [],
+    unbudgetedNet: [],
+    totals: {
+      budgetedIncome: 0,
+      actualIncome: 0,
+      budgetedExpenses: 0,
+      actualExpenses: 0,
+      netBudget: 0,
+      netActual: 0,
+    },
+    netTotals: { budgeted: 0, actual: 0, variance: 0 },
+  };
+  return { ...base, ...overrides };
+}
+
+async function budgetSheetOf(
+  budgetData: BudgetReportData,
+  reportData: ReportData = makeReportData()
+): Promise<ExcelJS.Worksheet> {
+  const buffer = await generateReportWorkbook(reportData, budgetData);
+  const wb = await parseWorkbook(buffer);
+  return wb.getWorksheet("Budget vs. Actuals")!;
 }
 
 function findRowByFirstCell(sheet: ExcelJS.Worksheet, value: unknown): number {
@@ -348,5 +383,157 @@ describe("generateReportWorkbook", () => {
     const buffer = await generateReportWorkbook(makeReportData());
     expect(Buffer.isBuffer(buffer)).toBe(true);
     expect(buffer.length).toBeGreaterThan(0);
+  });
+});
+
+describe("generateReportWorkbook budget sheet", () => {
+  it("renders a single net table with one row per net line", async () => {
+    const budgetData = makeBudgetData({
+      netLines: [
+        {
+          categoryId: "c",
+          categoryName: "Poinsettias",
+          budgeted: 3100,
+          actual: 3400,
+          variance: 300,
+          favorable: true,
+          percentOfPlan: 109.68,
+        },
+      ],
+      netTotals: { budgeted: 3100, actual: 3400, variance: 300 },
+    });
+
+    const sheet = await budgetSheetOf(budgetData);
+
+    const headerRow = findRowByFirstCell(sheet, "Category");
+    expect(sheet.getCell(headerRow, 1).value).toBe("Category");
+    expect(sheet.getCell(headerRow, 2).value).toBe("Budgeted");
+    expect(sheet.getCell(headerRow, 3).value).toBe("Actual");
+    expect(sheet.getCell(headerRow, 4).value).toBe("Variance");
+    expect(sheet.getCell(headerRow, 5).value).toBe("% of Plan");
+
+    const dataRow = headerRow + 1;
+    expect(sheet.getCell(dataRow, 1).value).toBe("Poinsettias");
+    expect(sheet.getCell(dataRow, 2).value).toBe(3100);
+    expect(sheet.getCell(dataRow, 3).value).toBe(3400);
+    expect(sheet.getCell(dataRow, 4).value).toBe(300);
+    expect(sheet.getCell(dataRow, 5).value).toBe("109.7%");
+
+    const firstCells: unknown[] = [];
+    sheet.eachRow((row) => firstCells.push(row.getCell(1).value));
+    expect(firstCells).not.toContain("INCOME");
+    expect(firstCells).not.toContain("EXPENSES");
+    expect(firstCells).not.toContain("COMBINED INCOME & EXPENSE");
+  });
+
+  it("colors the variance cell by favorable, not by the sign of variance", async () => {
+    // budgeted is negative (planned net outflow), actual is less negative
+    // than planned — variance is negative but the line is favorable.
+    const budgetData = makeBudgetData({
+      netLines: [
+        {
+          categoryId: "c",
+          categoryName: "Fundraiser",
+          budgeted: -1000,
+          actual: -800,
+          variance: 200,
+          favorable: true,
+          percentOfPlan: 80,
+        },
+        {
+          categoryId: "d",
+          categoryName: "Grants",
+          budgeted: 500,
+          actual: 400,
+          variance: -100,
+          favorable: false,
+          percentOfPlan: 80,
+        },
+      ],
+      netTotals: { budgeted: -500, actual: -400, variance: 100 },
+    });
+
+    const sheet = await budgetSheetOf(budgetData);
+    const favorableRow = findRowByFirstCell(sheet, "Fundraiser");
+    const unfavorableRow = findRowByFirstCell(sheet, "Grants");
+
+    const favorableFill = sheet.getCell(favorableRow, 4).fill as ExcelJS.FillPattern;
+    const unfavorableFill = sheet.getCell(unfavorableRow, 4).fill as ExcelJS.FillPattern;
+
+    expect(favorableFill.fgColor?.argb).toBe("FFD6F5D6");
+    expect(unfavorableFill.fgColor?.argb).toBe("FFF8D7D7");
+  });
+
+  it("renders a null percentOfPlan as an em dash and a negative one unclamped", async () => {
+    const budgetData = makeBudgetData({
+      netLines: [
+        {
+          categoryId: "c",
+          categoryName: "No Budget Set",
+          budgeted: 0,
+          actual: 500,
+          variance: 500,
+          favorable: true,
+          percentOfPlan: null,
+        },
+        {
+          categoryId: "d",
+          categoryName: "Lost Money",
+          budgeted: 200,
+          actual: -13,
+          variance: -213,
+          favorable: false,
+          percentOfPlan: -6.5,
+        },
+      ],
+    });
+
+    const sheet = await budgetSheetOf(budgetData);
+    const nullRow = findRowByFirstCell(sheet, "No Budget Set");
+    const negativeRow = findRowByFirstCell(sheet, "Lost Money");
+
+    expect(sheet.getCell(nullRow, 5).value).toBe("—");
+    expect(sheet.getCell(negativeRow, 5).value).toBe("-6.5%");
+  });
+
+  it("renders unbudgeted lines after the Total row, under their own heading", async () => {
+    const budgetData = makeBudgetData({
+      netLines: [
+        {
+          categoryId: "c",
+          categoryName: "Poinsettias",
+          budgeted: 3100,
+          actual: 3400,
+          variance: 300,
+          favorable: true,
+          percentOfPlan: 109.68,
+        },
+      ],
+      unbudgetedNet: [
+        {
+          categoryId: "u",
+          categoryName: "Surprise Gift",
+          budgeted: 0,
+          actual: 250,
+          variance: 250,
+          favorable: true,
+          percentOfPlan: null,
+        },
+      ],
+      netTotals: { budgeted: 3100, actual: 3400, variance: 300 },
+    });
+
+    const sheet = await budgetSheetOf(budgetData);
+    const totalRow = findRowByFirstCell(sheet, "Total");
+    const unbudgetedHeaderRow = findRowByFirstCell(sheet, "UNBUDGETED");
+    const unbudgetedLineRow = findRowByFirstCell(sheet, "Surprise Gift");
+
+    expect(unbudgetedHeaderRow).toBeGreaterThan(totalRow);
+    expect(unbudgetedLineRow).toBeGreaterThan(unbudgetedHeaderRow);
+
+    // Total reflects netLines only, unaffected by the unbudgeted line.
+    expect(sheet.getCell(totalRow, 2).value).toBe(3100);
+    expect(sheet.getCell(totalRow, 3).value).toBe(3400);
+    expect(sheet.getCell(totalRow, 4).value).toBe(300);
   });
 });

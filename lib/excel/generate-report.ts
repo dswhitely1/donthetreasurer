@@ -2,7 +2,6 @@ import ExcelJS from "exceljs";
 
 import type { AccountBalanceSummary, ReportData, ReportTransaction, SeasonsReportData } from "@/lib/reports/types";
 import type { BudgetReportData } from "@/lib/reports/fetch-budget-data";
-import type { CombinedBudgetLine } from "@/lib/reports/budget-combined";
 
 function formatExcelDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
@@ -558,104 +557,8 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
   }
 }
 
-function addCombinedBudgetSection(
-  sheet: ExcelJS.Worksheet,
-  combinedLines: CombinedBudgetLine[],
-  currencyFmt: string
-) {
-  const sectionHeader = sheet.addRow(["COMBINED INCOME & EXPENSE"]);
-  sectionHeader.font = { bold: true, size: 11 };
-  sheet.mergeCells(`A${sectionHeader.number}:H${sectionHeader.number}`);
-  sectionHeader.eachCell((cell) => {
-    cell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FFF0F9FF" },
-    };
-  });
-
-  const colHeader = sheet.addRow([
-    "Category",
-    "Inc. Budgeted",
-    "Inc. Actual",
-    "Exp. Budgeted",
-    "Exp. Actual",
-    "Net Budgeted",
-    "Net Actual",
-    "Net Variance",
-  ]);
-  colHeader.font = { bold: true };
-  colHeader.eachCell((cell) => {
-    cell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FFE2E8F0" },
-    };
-    cell.border = {
-      bottom: { style: "thin", color: { argb: "FF94A3B8" } },
-    };
-  });
-
-  for (const line of combinedLines) {
-    const row = sheet.addRow([
-      line.categoryName,
-      line.incomeBudgeted,
-      line.incomeActual,
-      line.expenseBudgeted,
-      line.expenseActual,
-      line.netBudgeted,
-      line.netActual,
-      line.netVariance,
-    ]);
-    // Format currency cells
-    for (let i = 2; i <= 8; i++) {
-      row.getCell(i).numFmt = currencyFmt;
-    }
-    // Color income cells green
-    row.getCell(2).font = { color: { argb: "FF16A34A" } };
-    row.getCell(3).font = { color: { argb: "FF16A34A" } };
-    // Color expense cells red
-    row.getCell(4).font = { color: { argb: "FFDC2626" } };
-    row.getCell(5).font = { color: { argb: "FFDC2626" } };
-    // Color net cells based on sign
-    const netBudgetedColor = line.netBudgeted >= 0 ? "FF16A34A" : "FFDC2626";
-    const netActualColor = line.netActual >= 0 ? "FF16A34A" : "FFDC2626";
-    const netVarianceColor = line.netVariance >= 0 ? "FF16A34A" : "FFDC2626";
-    row.getCell(6).font = { color: { argb: netBudgetedColor } };
-    row.getCell(7).font = { color: { argb: netActualColor } };
-    row.getCell(8).font = { color: { argb: netVarianceColor } };
-  }
-
-  // Subtotal row
-  const totIncBudget = combinedLines.reduce((s, l) => s + l.incomeBudgeted, 0);
-  const totIncActual = combinedLines.reduce((s, l) => s + l.incomeActual, 0);
-  const totExpBudget = combinedLines.reduce((s, l) => s + l.expenseBudgeted, 0);
-  const totExpActual = combinedLines.reduce((s, l) => s + l.expenseActual, 0);
-  const totNetBudget = combinedLines.reduce((s, l) => s + l.netBudgeted, 0);
-  const totNetActual = combinedLines.reduce((s, l) => s + l.netActual, 0);
-  const totNetVariance = combinedLines.reduce((s, l) => s + l.netVariance, 0);
-
-  const totalRow = sheet.addRow([
-    "Combined Total",
-    totIncBudget,
-    totIncActual,
-    totExpBudget,
-    totExpActual,
-    totNetBudget,
-    totNetActual,
-    totNetVariance,
-  ]);
-  totalRow.font = { bold: true };
-  for (let i = 2; i <= 8; i++) {
-    totalRow.getCell(i).numFmt = currencyFmt;
-  }
-  totalRow.getCell(2).font = { bold: true, color: { argb: "FF16A34A" } };
-  totalRow.getCell(3).font = { bold: true, color: { argb: "FF16A34A" } };
-  totalRow.getCell(4).font = { bold: true, color: { argb: "FFDC2626" } };
-  totalRow.getCell(5).font = { bold: true, color: { argb: "FFDC2626" } };
-  totalRow.getCell(6).font = { bold: true, color: { argb: totNetBudget >= 0 ? "FF16A34A" : "FFDC2626" } };
-  totalRow.getCell(7).font = { bold: true, color: { argb: totNetActual >= 0 ? "FF16A34A" : "FFDC2626" } };
-  totalRow.getCell(8).font = { bold: true, color: { argb: totNetVariance >= 0 ? "FF16A34A" : "FFDC2626" } };
+function formatPercentOfPlan(percent: number | null): string {
+  return percent === null ? "—" : `${percent.toFixed(1)}%`;
 }
 
 function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
@@ -688,8 +591,8 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
     "Category",
     "Budgeted",
     "Actual",
-    "Variance ($)",
-    "Variance (%)",
+    "Variance",
+    "% of Plan",
   ]);
   headerRow.font = { bold: true };
   headerRow.eachCell((cell) => {
@@ -703,155 +606,54 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
     };
   });
 
-  function addBudgetRow(
-    label: string,
-    budgeted: number,
-    actual: number,
-    variance: number,
-    variancePct: number | null,
-    isFavorable: boolean,
-    bold = false
-  ) {
+  for (const line of data.netLines) {
     const row = sheet.addRow([
-      label,
-      budgeted,
-      actual,
-      variance,
-      variancePct !== null ? variancePct / 100 : null,
+      line.categoryName,
+      line.budgeted,
+      line.actual,
+      line.variance,
+      formatPercentOfPlan(line.percentOfPlan),
     ]);
-    if (bold) row.font = { bold: true };
-
-    row.getCell(2).numFmt = currencyFmt;
-    row.getCell(3).numFmt = currencyFmt;
-    row.getCell(4).numFmt = currencyFmt;
-    if (row.getCell(5).value !== null) {
-      row.getCell(5).numFmt = "0%";
-    }
-
-    // Conditional color for variance
-    const varianceColor = isFavorable ? "FF16A34A" : "FFDC2626";
-    row.getCell(4).font = { bold, color: { argb: varianceColor } };
-
-    // Green/red fill for variance cell
     row.getCell(4).fill = {
       type: "pattern",
       pattern: "solid",
-      fgColor: { argb: isFavorable ? "FFF0FDF4" : "FFFEF2F2" },
+      fgColor: { argb: line.favorable ? "FFD6F5D6" : "FFF8D7D7" },
     };
+    for (let c = 2; c <= 4; c++) row.getCell(c).numFmt = currencyFmt;
   }
 
-  // Combined Income & Expense section
-  if (data.combinedLines.length > 0) {
-    addCombinedBudgetSection(sheet, data.combinedLines, currencyFmt);
-    sheet.addRow([]);
-  }
-
-  // Income section (unmatched only)
-  if (data.incomeLines.length > 0) {
-    const incomeHeader = sheet.addRow(["INCOME"]);
-    incomeHeader.font = { bold: true, size: 11 };
-    sheet.mergeCells(`A${incomeHeader.number}:E${incomeHeader.number}`);
-    incomeHeader.eachCell((cell) => {
-      cell.fill = {
-        type: "pattern",
-        pattern: "solid",
-        fgColor: { argb: "FFDBEAFE" },
-      };
-    });
-
-    for (const line of data.incomeLines) {
-      addBudgetRow(
-        line.categoryName,
-        line.budgeted,
-        line.actual,
-        line.variance,
-        line.variancePercent,
-        line.variance >= 0
-      );
-    }
-
-    const incomeBudgeted = data.incomeLines.reduce((s, l) => s + l.budgeted, 0);
-    const incomeActual = data.incomeLines.reduce((s, l) => s + l.actual, 0);
-    addBudgetRow(
-      "Income Subtotal",
-      incomeBudgeted,
-      incomeActual,
-      incomeActual - incomeBudgeted,
-      incomeBudgeted > 0
-        ? (incomeActual / incomeBudgeted) * 100
-        : null,
-      incomeActual >= incomeBudgeted,
-      true
-    );
-
-    sheet.addRow([]);
-  }
-
-  // Expenses section (unmatched only)
-  if (data.expenseLines.length > 0) {
-    const expenseHeader = sheet.addRow(["EXPENSES"]);
-    expenseHeader.font = { bold: true, size: 11 };
-    sheet.mergeCells(`A${expenseHeader.number}:E${expenseHeader.number}`);
-    expenseHeader.eachCell((cell) => {
-      cell.fill = {
-        type: "pattern",
-        pattern: "solid",
-        fgColor: { argb: "FFFEF2F2" },
-      };
-    });
-
-    for (const line of data.expenseLines) {
-      addBudgetRow(
-        line.categoryName,
-        line.budgeted,
-        line.actual,
-        line.variance,
-        line.variancePercent,
-        line.variance >= 0
-      );
-    }
-
-    const expenseBudgeted = data.expenseLines.reduce((s, l) => s + l.budgeted, 0);
-    const expenseActual = data.expenseLines.reduce((s, l) => s + l.actual, 0);
-    addBudgetRow(
-      "Expenses Subtotal",
-      expenseBudgeted,
-      expenseActual,
-      expenseBudgeted - expenseActual,
-      expenseBudgeted > 0
-        ? (expenseActual / expenseBudgeted) * 100
-        : null,
-      expenseActual <= expenseBudgeted,
-      true
-    );
-
-    sheet.addRow([]);
-  }
-
-  // Net summary
-  const netRow = sheet.addRow([
-    "NET",
-    data.totals.netBudget,
-    data.totals.netActual,
-    data.totals.netActual - data.totals.netBudget,
-    null,
+  const totalRow = sheet.addRow([
+    "Total",
+    data.netTotals.budgeted,
+    data.netTotals.actual,
+    data.netTotals.variance,
+    "",
   ]);
-  netRow.font = { bold: true, size: 11 };
-  netRow.getCell(2).numFmt = currencyFmt;
-  netRow.getCell(3).numFmt = currencyFmt;
-  netRow.getCell(4).numFmt = currencyFmt;
-
-  const netVariance = data.totals.netActual - data.totals.netBudget;
-  netRow.getCell(4).font = {
-    bold: true,
-    size: 11,
-    color: { argb: netVariance >= 0 ? "FF16A34A" : "FFDC2626" },
-  };
-  netRow.eachCell((cell) => {
+  totalRow.font = { bold: true };
+  for (let c = 2; c <= 4; c++) totalRow.getCell(c).numFmt = currencyFmt;
+  totalRow.eachCell((cell) => {
     cell.border = {
       top: { style: "double", color: { argb: "FF1E293B" } },
     };
   });
+
+  if (data.unbudgetedNet.length > 0) {
+    sheet.addRow([]);
+    const unbudgetedHeader = sheet.addRow(["UNBUDGETED"]);
+    unbudgetedHeader.font = { bold: true, size: 11 };
+    sheet.mergeCells(`A${unbudgetedHeader.number}:E${unbudgetedHeader.number}`);
+    unbudgetedHeader.eachCell((cell) => {
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFF1F5F9" },
+      };
+    });
+    for (const line of data.unbudgetedNet) {
+      const row = sheet.addRow([line.categoryName, 0, line.actual, line.variance, "—"]);
+      for (let c = 2; c <= 4; c++) row.getCell(c).numFmt = currencyFmt;
+    }
+  }
 }
 
 function buildSeasonsSheet(workbook: ExcelJS.Workbook, data: SeasonsReportData) {

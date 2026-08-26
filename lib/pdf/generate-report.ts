@@ -561,207 +561,71 @@ export function generateReportPdf(
     );
     budgetY += 15;
 
-    // Combined Income & Expense table (if any matching categories)
-    if (budgetData.combinedLines.length > 0) {
-      const combinedHead = [["Category", "Inc. Budgeted", "Inc. Actual", "Exp. Budgeted", "Exp. Actual", "Net Budgeted", "Net Actual", "Net Variance"]];
-      const combinedRows: CellInput[][] = [];
+    // Single net budget table: one row per category with a signed net.
+    const budgetHead = [["Category", "Budgeted", "Actual", "Variance", "% of Plan"]];
+    const budgetRows: CellInput[][] = [];
 
-      for (const line of budgetData.combinedLines) {
-        combinedRows.push([
-          sanitizeText(line.categoryName),
-          { content: formatCurrency(line.incomeBudgeted), styles: { halign: "right", textColor: GREEN } },
-          { content: formatCurrency(line.incomeActual), styles: { halign: "right", textColor: GREEN } },
-          { content: formatCurrency(line.expenseBudgeted), styles: { halign: "right", textColor: RED } },
-          { content: formatCurrency(line.expenseActual), styles: { halign: "right", textColor: RED } },
-          { content: formatCurrency(line.netBudgeted), styles: { halign: "right", textColor: line.netBudgeted >= 0 ? GREEN : RED } },
-          { content: formatCurrency(line.netActual), styles: { halign: "right", textColor: line.netActual >= 0 ? GREEN : RED } },
-          { content: formatCurrency(line.netVariance), styles: { halign: "right", textColor: line.netVariance >= 0 ? GREEN : RED } },
-        ]);
-      }
-
-      const totIncBudget = budgetData.combinedLines.reduce((s, l) => s + l.incomeBudgeted, 0);
-      const totIncActual = budgetData.combinedLines.reduce((s, l) => s + l.incomeActual, 0);
-      const totExpBudget = budgetData.combinedLines.reduce((s, l) => s + l.expenseBudgeted, 0);
-      const totExpActual = budgetData.combinedLines.reduce((s, l) => s + l.expenseActual, 0);
-      const totNetBudget = budgetData.combinedLines.reduce((s, l) => s + l.netBudgeted, 0);
-      const totNetActual = budgetData.combinedLines.reduce((s, l) => s + l.netActual, 0);
-      const totNetVariance = budgetData.combinedLines.reduce((s, l) => s + l.netVariance, 0);
-
-      combinedRows.push([
-        { content: "Combined Total", styles: { fontStyle: "bold" } },
-        { content: formatCurrency(totIncBudget), styles: { halign: "right", fontStyle: "bold", textColor: GREEN } },
-        { content: formatCurrency(totIncActual), styles: { halign: "right", fontStyle: "bold", textColor: GREEN } },
-        { content: formatCurrency(totExpBudget), styles: { halign: "right", fontStyle: "bold", textColor: RED } },
-        { content: formatCurrency(totExpActual), styles: { halign: "right", fontStyle: "bold", textColor: RED } },
-        { content: formatCurrency(totNetBudget), styles: { halign: "right", fontStyle: "bold", textColor: totNetBudget >= 0 ? GREEN : RED } },
-        { content: formatCurrency(totNetActual), styles: { halign: "right", fontStyle: "bold", textColor: totNetActual >= 0 ? GREEN : RED } },
-        { content: formatCurrency(totNetVariance), styles: { halign: "right", fontStyle: "bold", textColor: totNetVariance >= 0 ? GREEN : RED } },
-      ]);
-
-      autoTable(doc, {
-        startY: budgetY,
-        head: combinedHead,
-        body: combinedRows,
-        margin: { left: MARGIN, right: MARGIN },
-        theme: "grid",
-        headStyles: {
-          fillColor: HEADER_BG,
-          textColor: [0, 0, 0],
-          fontStyle: "bold",
-          fontSize: 7,
-        },
-        styles: { fontSize: 7, cellPadding: 3 },
-        columnStyles: {
-          0: { cellWidth: 120 },
-          1: { cellWidth: 60, halign: "right" },
-          2: { cellWidth: 60, halign: "right" },
-          3: { cellWidth: 60, halign: "right" },
-          4: { cellWidth: 60, halign: "right" },
-          5: { cellWidth: 60, halign: "right" },
-          6: { cellWidth: 60, halign: "right" },
-          7: { cellWidth: 60, halign: "right" },
-        },
-      });
-
-      budgetY = getFinalY(doc) + 15;
-    }
-
-    // Income/Expenses table (unmatched lines only)
-    const hasIncomeOrExpense = budgetData.incomeLines.length > 0 || budgetData.expenseLines.length > 0;
-
-    if (hasIncomeOrExpense) {
-      const budgetHead = [["Category", "Budgeted", "Actual", "Variance ($)", "Variance (%)"]];
-      const budgetRows: CellInput[][] = [];
-
-      if (budgetData.incomeLines.length > 0) {
-        budgetRows.push([
-          {
-            content: "INCOME",
-            colSpan: 5,
-            styles: { fillColor: BLUE_BG, fontStyle: "bold", fontSize: 8 },
-          },
-        ]);
-        for (const line of budgetData.incomeLines) {
-          budgetRows.push([
-            sanitizeText(line.categoryName),
-            { content: formatCurrency(line.budgeted), styles: { halign: "right" } },
-            { content: formatCurrency(line.actual), styles: { halign: "right" } },
-            {
-              content: `${line.variance >= 0 ? "+" : ""}${formatCurrency(line.variance)}`,
-              styles: { halign: "right", textColor: line.variance >= 0 ? GREEN : RED },
-            },
-            {
-              content: line.variancePercent !== null ? `${line.variancePercent.toFixed(0)}%` : "--",
-              styles: { halign: "right" },
-            },
-          ]);
-        }
-        const incomeBudgeted = budgetData.incomeLines.reduce((s, l) => s + l.budgeted, 0);
-        const incomeActual = budgetData.incomeLines.reduce((s, l) => s + l.actual, 0);
-        budgetRows.push([
-          { content: "Income Subtotal", styles: { fontStyle: "bold" } },
-          { content: formatCurrency(incomeBudgeted), styles: { halign: "right", fontStyle: "bold" } },
-          { content: formatCurrency(incomeActual), styles: { halign: "right", fontStyle: "bold" } },
-          {
-            content: formatCurrency(incomeActual - incomeBudgeted),
-            styles: {
-              halign: "right",
-              fontStyle: "bold",
-              textColor: incomeActual >= incomeBudgeted ? GREEN : RED,
-            },
-          },
-          "",
-        ]);
-      }
-
-      if (budgetData.expenseLines.length > 0) {
-        budgetRows.push([
-          {
-            content: "EXPENSES",
-            colSpan: 5,
-            styles: { fillColor: [254, 242, 242], fontStyle: "bold", fontSize: 8 },
-          },
-        ]);
-        for (const line of budgetData.expenseLines) {
-          budgetRows.push([
-            sanitizeText(line.categoryName),
-            { content: formatCurrency(line.budgeted), styles: { halign: "right" } },
-            { content: formatCurrency(line.actual), styles: { halign: "right" } },
-            {
-              content: `${line.variance >= 0 ? "+" : ""}${formatCurrency(line.variance)}`,
-              styles: { halign: "right", textColor: line.variance >= 0 ? GREEN : RED },
-            },
-            {
-              content: line.variancePercent !== null ? `${line.variancePercent.toFixed(0)}%` : "--",
-              styles: { halign: "right" },
-            },
-          ]);
-        }
-        const expenseBudgeted = budgetData.expenseLines.reduce((s, l) => s + l.budgeted, 0);
-        const expenseActual = budgetData.expenseLines.reduce((s, l) => s + l.actual, 0);
-        budgetRows.push([
-          { content: "Expenses Subtotal", styles: { fontStyle: "bold" } },
-          { content: formatCurrency(expenseBudgeted), styles: { halign: "right", fontStyle: "bold" } },
-          { content: formatCurrency(expenseActual), styles: { halign: "right", fontStyle: "bold" } },
-          {
-            content: formatCurrency(expenseBudgeted - expenseActual),
-            styles: {
-              halign: "right",
-              fontStyle: "bold",
-              textColor: expenseActual <= expenseBudgeted ? GREEN : RED,
-            },
-          },
-          "",
-        ]);
-      }
-
-      autoTable(doc, {
-        startY: budgetY,
-        head: budgetHead,
-        body: budgetRows,
-        margin: { left: MARGIN, right: MARGIN },
-        theme: "grid",
-        headStyles: {
-          fillColor: HEADER_BG,
-          textColor: [0, 0, 0],
-          fontStyle: "bold",
-          fontSize: 8,
-        },
-        styles: { fontSize: 8, cellPadding: 4 },
-        columnStyles: {
-          0: { cellWidth: 200 },
-          1: { cellWidth: 80, halign: "right" },
-          2: { cellWidth: 80, halign: "right" },
-          3: { cellWidth: 80, halign: "right" },
-          4: { cellWidth: 60, halign: "right" },
-        },
-        tableWidth: 500,
-      });
-
-      budgetY = getFinalY(doc) + 10;
-    }
-
-    // Net row (always uses full totals)
-    const netVariance = budgetData.totals.netActual - budgetData.totals.netBudget;
-    autoTable(doc, {
-      startY: hasIncomeOrExpense || budgetData.combinedLines.length > 0 ? budgetY : budgetY,
-      body: [[
-        { content: "NET", styles: { fontStyle: "bold", fontSize: 9 } },
-        { content: formatCurrency(budgetData.totals.netBudget), styles: { halign: "right", fontStyle: "bold" } },
-        { content: formatCurrency(budgetData.totals.netActual), styles: { halign: "right", fontStyle: "bold" } },
+    for (const line of budgetData.netLines) {
+      budgetRows.push([
+        sanitizeText(line.categoryName),
+        { content: formatCurrency(line.budgeted), styles: { halign: "right" } },
+        { content: formatCurrency(line.actual), styles: { halign: "right" } },
         {
-          content: formatCurrency(netVariance),
-          styles: {
-            halign: "right",
-            fontStyle: "bold",
-            textColor: netVariance >= 0 ? GREEN : RED,
-          },
+          content: formatCurrency(line.variance),
+          styles: { halign: "right", textColor: line.favorable ? GREEN : RED },
         },
-        "",
-      ]],
+        {
+          content: line.percentOfPlan === null ? "—" : `${line.percentOfPlan.toFixed(1)}%`,
+          styles: { halign: "right" },
+        },
+      ]);
+    }
+
+    budgetRows.push([
+      { content: "Total", styles: { fontStyle: "bold" } },
+      { content: formatCurrency(budgetData.netTotals.budgeted), styles: { halign: "right", fontStyle: "bold" } },
+      { content: formatCurrency(budgetData.netTotals.actual), styles: { halign: "right", fontStyle: "bold" } },
+      {
+        content: formatCurrency(budgetData.netTotals.variance),
+        styles: { halign: "right", fontStyle: "bold" },
+      },
+      { content: "", styles: { fontStyle: "bold" } },
+    ]);
+
+    if (budgetData.unbudgetedNet.length > 0) {
+      budgetRows.push([
+        {
+          content: "UNBUDGETED",
+          colSpan: 5,
+          styles: { fillColor: HEADER_BG, fontStyle: "bold", fontSize: 8 },
+        },
+      ]);
+      for (const line of budgetData.unbudgetedNet) {
+        budgetRows.push([
+          sanitizeText(line.categoryName),
+          { content: formatCurrency(0), styles: { halign: "right" } },
+          { content: formatCurrency(line.actual), styles: { halign: "right" } },
+          {
+            content: formatCurrency(line.variance),
+            styles: { halign: "right", textColor: line.favorable ? GREEN : RED },
+          },
+          { content: "—", styles: { halign: "right" } },
+        ]);
+      }
+    }
+
+    autoTable(doc, {
+      startY: budgetY,
+      head: budgetHead,
+      body: budgetRows,
       margin: { left: MARGIN, right: MARGIN },
-      theme: "plain",
-      showHead: false,
+      theme: "grid",
+      headStyles: {
+        fillColor: HEADER_BG,
+        textColor: [0, 0, 0],
+        fontStyle: "bold",
+        fontSize: 8,
+      },
       styles: { fontSize: 8, cellPadding: 4 },
       columnStyles: {
         0: { cellWidth: 200 },

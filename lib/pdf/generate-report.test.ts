@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { generateReportPdf } from "./generate-report";
 
 import type { ReportData } from "@/lib/reports/types";
+import type { BudgetReportData } from "@/lib/reports/fetch-budget-data";
 import type { CellInput, UserOptions } from "jspdf-autotable";
 
 /**
@@ -100,6 +101,31 @@ function makeReportData(overrides: Partial<ReportData> = {}): ReportData {
     },
     accountBalances: null,
     dateBasis: "transaction_date",
+  };
+  return { ...base, ...overrides };
+}
+
+function makeBudgetData(overrides: Partial<BudgetReportData> = {}): BudgetReportData {
+  const base: BudgetReportData = {
+    budgetName: "FY2026 Budget",
+    startDate: "2025-01-01",
+    endDate: "2025-12-31",
+    status: "active",
+    incomeLines: [],
+    expenseLines: [],
+    combinedLines: [],
+    unbudgetedActuals: [],
+    netLines: [],
+    unbudgetedNet: [],
+    totals: {
+      budgetedIncome: 0,
+      actualIncome: 0,
+      budgetedExpenses: 0,
+      actualExpenses: 0,
+      netBudget: 0,
+      netActual: 0,
+    },
+    netTotals: { budgeted: 0, actual: 0, variance: 0 },
   };
   return { ...base, ...overrides };
 }
@@ -339,5 +365,191 @@ describe("generateReportPdf", () => {
     const buffer = generateReportPdf(data);
     const text = buffer.toString("latin1");
     expect(text).toContain("FY 2025");
+  });
+});
+
+describe("generateReportPdf budget section", () => {
+  it("renders a single net table with one row per net line", () => {
+    const budgetData = makeBudgetData({
+      netLines: [
+        {
+          categoryId: "c",
+          categoryName: "Poinsettias",
+          budgeted: 3100,
+          actual: 3400,
+          variance: 300,
+          favorable: true,
+          percentOfPlan: 109.68,
+        },
+      ],
+      netTotals: { budgeted: 3100, actual: 3400, variance: 300 },
+    });
+
+    const buffer = generateReportPdf(makeReportData(), budgetData);
+    const text = buffer.toString("latin1");
+
+    expect(text).not.toContain("INCOME");
+    expect(text).not.toContain("EXPENSES");
+    expect(text).not.toContain("COMBINED INCOME");
+
+    const budgetTable = capturedTables().find(
+      (t) => t.head?.[0]?.[0] === "Category" && t.head?.[0]?.[1] === "Budgeted"
+    );
+    expect(budgetTable).toBeDefined();
+    expect(budgetTable!.head![0]).toEqual([
+      "Category",
+      "Budgeted",
+      "Actual",
+      "Variance",
+      "% of Plan",
+    ]);
+
+    const row = findRowByFirstCellText(budgetTable!, "Poinsettias");
+    expect(rowText(row)).toEqual([
+      "Poinsettias",
+      "$3,100.00",
+      "$3,400.00",
+      "$300.00",
+      "109.7%",
+    ]);
+  });
+
+  it("colors the variance cell by favorable, not by the sign of variance", () => {
+    const budgetData = makeBudgetData({
+      netLines: [
+        {
+          categoryId: "c",
+          categoryName: "Fundraiser",
+          budgeted: -1000,
+          actual: -800,
+          variance: 200,
+          favorable: true,
+          percentOfPlan: 80,
+        },
+        {
+          categoryId: "d",
+          categoryName: "Grants",
+          budgeted: 500,
+          actual: 400,
+          variance: -100,
+          favorable: false,
+          percentOfPlan: 80,
+        },
+      ],
+      netTotals: { budgeted: -500, actual: -400, variance: 100 },
+    });
+
+    generateReportPdf(makeReportData(), budgetData);
+
+    const budgetTable = capturedTables().find(
+      (t) => t.head?.[0]?.[0] === "Category" && t.head?.[0]?.[1] === "Budgeted"
+    );
+    const favorableRow = findRowByFirstCellText(budgetTable!, "Fundraiser");
+    const unfavorableRow = findRowByFirstCellText(budgetTable!, "Grants");
+
+    const varianceCell = favorableRow[3];
+    const unfavorableVarianceCell = unfavorableRow[3];
+    expect(
+      typeof varianceCell === "object" &&
+        !Array.isArray(varianceCell) &&
+        varianceCell?.styles?.textColor
+    ).toEqual([22, 163, 74]); // GREEN, despite a negative variance number
+
+    expect(
+      typeof unfavorableVarianceCell === "object" &&
+        !Array.isArray(unfavorableVarianceCell) &&
+        unfavorableVarianceCell?.styles?.textColor
+    ).toEqual([220, 38, 38]); // RED, despite a negative budgeted amount
+  });
+
+  it("renders a null percentOfPlan as an em dash and a negative one unclamped", () => {
+    const budgetData = makeBudgetData({
+      netLines: [
+        {
+          categoryId: "c",
+          categoryName: "No Budget Set",
+          budgeted: 0,
+          actual: 500,
+          variance: 500,
+          favorable: true,
+          percentOfPlan: null,
+        },
+        {
+          categoryId: "d",
+          categoryName: "Lost Money",
+          budgeted: 200,
+          actual: -13,
+          variance: -213,
+          favorable: false,
+          percentOfPlan: -6.5,
+        },
+      ],
+    });
+
+    generateReportPdf(makeReportData(), budgetData);
+    const budgetTable = capturedTables().find(
+      (t) => t.head?.[0]?.[0] === "Category" && t.head?.[0]?.[1] === "Budgeted"
+    );
+
+    const nullRow = findRowByFirstCellText(budgetTable!, "No Budget Set");
+    const negativeRow = findRowByFirstCellText(budgetTable!, "Lost Money");
+    expect(rowText(nullRow)[4]).toBe("—");
+    expect(rowText(negativeRow)[4]).toBe("-6.5%");
+  });
+
+  it("renders unbudgeted lines after the Total row, under their own heading", () => {
+    const budgetData = makeBudgetData({
+      netLines: [
+        {
+          categoryId: "c",
+          categoryName: "Poinsettias",
+          budgeted: 3100,
+          actual: 3400,
+          variance: 300,
+          favorable: true,
+          percentOfPlan: 109.68,
+        },
+      ],
+      unbudgetedNet: [
+        {
+          categoryId: "u",
+          categoryName: "Surprise Gift",
+          budgeted: 0,
+          actual: 250,
+          variance: 250,
+          favorable: true,
+          percentOfPlan: null,
+        },
+      ],
+      netTotals: { budgeted: 3100, actual: 3400, variance: 300 },
+    });
+
+    generateReportPdf(makeReportData(), budgetData);
+    const budgetTable = capturedTables().find(
+      (t) => t.head?.[0]?.[0] === "Category" && t.head?.[0]?.[1] === "Budgeted"
+    );
+    const body = budgetTable!.body!;
+
+    const totalIndex = body.findIndex((r) => cellText(r[0]) === "Total");
+    const unbudgetedHeaderIndex = body.findIndex(
+      (r) => cellText(r[0]) === "UNBUDGETED"
+    );
+    const unbudgetedLineIndex = body.findIndex(
+      (r) => cellText(r[0]) === "Surprise Gift"
+    );
+
+    expect(totalIndex).toBeGreaterThanOrEqual(0);
+    expect(unbudgetedHeaderIndex).toBeGreaterThan(totalIndex);
+    expect(unbudgetedLineIndex).toBeGreaterThan(unbudgetedHeaderIndex);
+
+    const totalRow = body[totalIndex];
+    expect(rowText(totalRow)).toEqual([
+      "Total",
+      "$3,100.00",
+      "$3,400.00",
+      "$300.00",
+      "",
+    ]);
+    expect(isBoldRow(totalRow)).toBe(true);
   });
 });
