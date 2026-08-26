@@ -1,6 +1,6 @@
 import { addDays, format } from "date-fns";
 
-import type { ReportTransaction, ReportCategorySummary, ReportSummary, MergedCategorySummary } from "./types";
+import type { ReportTransaction, ReportCategorySummary, ReportSummary, MergedCategorySummary, CategoryNetSummary, CategoryNetSummaryChild } from "./types";
 
 export function getNextDay(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -76,6 +76,54 @@ export function buildCategorySummaries(
       }
 
       return { parentName, children, subtotal };
+    });
+}
+
+export function buildCategoryNetSummaries(
+  inByCatId: Record<string, number>,
+  outByCatId: Record<string, number>,
+  categoryNameMap: Record<string, string>,
+  categoryParentMap: Record<string, string | null>
+): CategoryNetSummary[] {
+  const parentGroups: Record<
+    string,
+    Record<string, { in: number; out: number }>
+  > = {};
+
+  function slot(catId: string): { in: number; out: number } {
+    const parentId = categoryParentMap[catId];
+    const hasParent = Boolean(parentId && categoryNameMap[parentId]);
+    const parentName = hasParent
+      ? categoryNameMap[parentId as string]
+      : categoryNameMap[catId] ?? "Other";
+    const childName = hasParent ? categoryNameMap[catId] ?? "Unknown" : "(root)";
+
+    parentGroups[parentName] ??= {};
+    parentGroups[parentName][childName] ??= { in: 0, out: 0 };
+    return parentGroups[parentName][childName];
+  }
+
+  for (const [catId, amount] of Object.entries(inByCatId)) {
+    slot(catId).in += amount;
+  }
+  for (const [catId, amount] of Object.entries(outByCatId)) {
+    slot(catId).out += amount;
+  }
+
+  return Object.entries(parentGroups)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([parentName, childMap]) => {
+      const children: CategoryNetSummaryChild[] = Object.entries(childMap)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([name, v]) => ({ name, in: v.in, out: v.out, net: v.in - v.out }));
+
+      const totalIn = children.reduce((s, c) => s + c.in, 0);
+      const totalOut = children.reduce((s, c) => s + c.out, 0);
+
+      const collapsed =
+        children.length === 1 && children[0].name === "(root)" ? [] : children;
+
+      return { parentName, children: collapsed, totalIn, totalOut, net: totalIn - totalOut };
     });
 }
 

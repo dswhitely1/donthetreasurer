@@ -5,6 +5,7 @@ import {
   resolveCategoryLabel,
   findCategoryId,
   buildCategorySummaries,
+  buildCategoryNetSummaries,
   computeSummary,
 } from "./report-utils";
 
@@ -436,5 +437,83 @@ describe("computeSummary", () => {
     expect(result.netByCategory).toHaveLength(2);
     expect(result.netByCategory[0].parentName).toBe("Alpha Shows");
     expect(result.netByCategory[1].parentName).toBe("Zebra Events");
+  });
+});
+
+describe("buildCategoryNetSummaries", () => {
+  const nameMap = {
+    dues: "Dues",
+    poin: "Poinsettias",
+    unif: "Uniforms",
+    pfund: "Fundraising",
+    pchild: "Poinsettia Sale",
+  };
+  const parentMap: Record<string, string | null> = {
+    dues: null,
+    poin: null,
+    unif: null,
+    pfund: null,
+    pchild: "pfund",
+  };
+
+  it("produces one row per category with in, out and net", () => {
+    const result = buildCategoryNetSummaries(
+      { dues: 12400, poin: 8200 },
+      { poin: 5100, unif: 4650 },
+      nameMap,
+      parentMap
+    );
+
+    expect(result).toEqual([
+      { parentName: "Dues", children: [], totalIn: 12400, totalOut: 0, net: 12400 },
+      { parentName: "Poinsettias", children: [], totalIn: 8200, totalOut: 5100, net: 3100 },
+      { parentName: "Uniforms", children: [], totalIn: 0, totalOut: 4650, net: -4650 },
+    ]);
+  });
+
+  it("keeps a two-sided category as a single row", () => {
+    const result = buildCategoryNetSummaries(
+      { poin: 8200 },
+      { poin: 5100 },
+      nameMap,
+      parentMap
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].net).toBe(3100);
+  });
+
+  it("nests children under their parent and subtotals them", () => {
+    const result = buildCategoryNetSummaries(
+      { pchild: 8200 },
+      { pchild: 5100 },
+      nameMap,
+      parentMap
+    );
+
+    expect(result).toEqual([
+      {
+        parentName: "Fundraising",
+        children: [{ name: "Poinsettia Sale", in: 8200, out: 5100, net: 3100 }],
+        totalIn: 8200,
+        totalOut: 5100,
+        net: 3100,
+      },
+    ]);
+  });
+
+  it("sorts parents alphabetically", () => {
+    const result = buildCategoryNetSummaries(
+      { unif: 1, dues: 1 },
+      {},
+      nameMap,
+      parentMap
+    );
+
+    expect(result.map((g) => g.parentName)).toEqual(["Dues", "Uniforms"]);
+  });
+
+  it("returns an empty array when there is no activity", () => {
+    expect(buildCategoryNetSummaries({}, {}, nameMap, parentMap)).toEqual([]);
   });
 });

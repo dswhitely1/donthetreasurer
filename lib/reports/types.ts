@@ -88,3 +88,18 @@ export interface SeasonsReportData {
   seasons: SeasonSummaryLine[];
   grandTotals: SeasonTotals;
 }
+
+export interface CategoryNetSummaryChild {
+  name: string;
+  in: number;
+  out: number;
+  net: number;
+}
+
+export interface CategoryNetSummary {
+  parentName: string;
+  children: CategoryNetSummaryChild[];
+  totalIn: number;
+  totalOut: number;
+  net: number;
+}
