@@ -110,6 +110,7 @@ describe("GET /api/organizations/[orgId]/reports/export", () => {
         incomeByCategory: [],
         expensesByCategory: [],
         netByCategory: [],
+        categoryTotals: [],
       },
       accountBalances: null,
       dateBasis: "transaction_date",

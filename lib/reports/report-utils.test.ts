@@ -438,6 +438,27 @@ describe("computeSummary", () => {
     expect(result.netByCategory[0].parentName).toBe("Alpha Shows");
     expect(result.netByCategory[1].parentName).toBe("Zebra Events");
   });
+
+  it("computeSummary emits categoryTotals with a two-sided category as one row", () => {
+    const nameMap = { poin: "Poinsettias" };
+    const parentMap: Record<string, string | null> = { poin: null };
+
+    const summary = computeSummary(
+      [
+        makeTxn({ transactionType: "income", amount: 8200, lineItems: [{ categoryLabel: "Poinsettias", amount: 8200, memo: null }] }),
+        makeTxn({ transactionType: "expense", amount: 5100, lineItems: [{ categoryLabel: "Poinsettias", amount: 5100, memo: null }] }),
+      ],
+      nameMap,
+      parentMap
+    );
+
+    expect(summary.categoryTotals).toEqual([
+      { parentName: "Poinsettias", children: [], totalIn: 8200, totalOut: 5100, net: 3100 },
+    ]);
+    expect(summary.totalIncome).toBe(8200);
+    expect(summary.totalExpenses).toBe(5100);
+    expect(summary.netChange).toBe(3100);
+  });
 });
 
 describe("buildCategoryNetSummaries", () => {

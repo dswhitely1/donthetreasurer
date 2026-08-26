@@ -19,6 +19,7 @@ function makeReportData(overrides: Partial<ReportData> = {}): ReportData {
       incomeByCategory: [],
       expensesByCategory: [],
       netByCategory: [],
+      categoryTotals: [],
     },
     accountBalances: null,
     dateBasis: "transaction_date",
@@ -114,6 +115,7 @@ describe("generateReportPdf", () => {
           },
         ],
         netByCategory: [],
+        categoryTotals: [],
       },
     });
 

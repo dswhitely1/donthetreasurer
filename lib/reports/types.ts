@@ -53,6 +53,7 @@ export interface ReportSummary {
   incomeByCategory: ReportCategorySummary[];
   expensesByCategory: ReportCategorySummary[];
   netByCategory: MergedCategorySummary[];
+  categoryTotals: CategoryNetSummary[];
 }
 
 export interface ReportData {

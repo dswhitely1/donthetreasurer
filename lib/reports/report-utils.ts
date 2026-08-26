@@ -193,6 +193,13 @@ export function computeSummary(
   const filteredIncome = incomeByCategory.filter((g) => !mergedParentNames.has(g.parentName));
   const filteredExpenses = expensesByCategory.filter((g) => !mergedParentNames.has(g.parentName));
 
+  const categoryTotals = buildCategoryNetSummaries(
+    incomeByCatId,
+    expenseByCatId,
+    categoryNameMap,
+    categoryParentMap
+  );
+
   return {
     totalIncome,
     totalExpenses,
@@ -201,5 +208,6 @@ export function computeSummary(
     incomeByCategory: filteredIncome,
     expensesByCategory: filteredExpenses,
     netByCategory,
+    categoryTotals,
   };
 }
