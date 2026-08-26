@@ -511,129 +511,51 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
   leftRow++;
   writeAmountRow(leftRow, 1, "Reconciled Balance:", summary.balanceByStatus.reconciled);
 
-  // ── Right Column (cols D-E, colOffset=4) ─────────────────────
-  let rightRow = 4;
+  // ── Category Totals (full-width, below the summary column) ──
+  if (summary.categoryTotals.length > 0) {
+    let categoryRow = leftRow + 2;
 
-  // INCOME BY CATEGORY
-  if (summary.incomeByCategory.length > 0) {
-    writeSectionHeader(rightRow, 4, "INCOME BY CATEGORY");
-    rightRow++;
-    for (const group of summary.incomeByCategory) {
-      // Collapsed root: single flat row
-      if (group.children.length === 0) {
-        writeAmountRow(rightRow, 4, group.parentName, group.subtotal, { color: "FF16A34A" });
-        rightRow++;
-        continue;
-      }
-      writeLabelRow(rightRow, 4, group.parentName, { bold: true });
-      rightRow++;
+    const header = sheet.getRow(categoryRow);
+    header.getCell(1).value = "Category";
+    header.getCell(2).value = "In";
+    header.getCell(3).value = "Out";
+    header.getCell(4).value = "Net";
+    header.font = { bold: true };
+    categoryRow++;
+
+    const firstDataRow = categoryRow;
+
+    for (const group of summary.categoryTotals) {
+      const groupRow = sheet.getRow(categoryRow);
+      groupRow.getCell(1).value = group.parentName;
+      groupRow.getCell(2).value = group.totalIn;
+      groupRow.getCell(3).value = group.totalOut;
+      groupRow.getCell(4).value = group.net;
+      if (group.children.length > 0) groupRow.font = { bold: true };
+      categoryRow++;
+
       for (const child of group.children) {
-        writeAmountRow(rightRow, 4, child.name, child.total, { indent: true, color: "FF16A34A" });
-        rightRow++;
-      }
-      if (group.children.length > 1) {
-        writeAmountRow(rightRow, 4, "Subtotal:", group.subtotal, { indent: true, italic: true, color: "FF16A34A" });
-        rightRow++;
-      }
-    }
-    rightRow++; // blank separator
-  }
-
-  // EXPENSES BY CATEGORY
-  if (summary.expensesByCategory.length > 0) {
-    writeSectionHeader(rightRow, 4, "EXPENSES BY CATEGORY");
-    rightRow++;
-    for (const group of summary.expensesByCategory) {
-      // Collapsed root: single flat row
-      if (group.children.length === 0) {
-        writeAmountRow(rightRow, 4, group.parentName, group.subtotal, { color: "FFDC2626" });
-        rightRow++;
-        continue;
-      }
-      writeLabelRow(rightRow, 4, group.parentName, { bold: true });
-      rightRow++;
-      for (const child of group.children) {
-        writeAmountRow(rightRow, 4, child.name, child.total, { indent: true, color: "FFDC2626" });
-        rightRow++;
-      }
-      if (group.children.length > 1) {
-        writeAmountRow(rightRow, 4, "Subtotal:", group.subtotal, { indent: true, italic: true, color: "FFDC2626" });
-        rightRow++;
+        const childRow = sheet.getRow(categoryRow);
+        childRow.getCell(1).value = `    ${child.name}`;
+        childRow.getCell(2).value = child.in;
+        childRow.getCell(3).value = child.out;
+        childRow.getCell(4).value = child.net;
+        categoryRow++;
       }
     }
-  }
 
-  // ── Net by Category (full-width, below both columns) ────────
-  if (summary.netByCategory.length > 0) {
-    let netRow = Math.max(leftRow, rightRow) + 2;
+    const totalRow = sheet.getRow(categoryRow);
+    totalRow.getCell(1).value = "Total";
+    totalRow.getCell(2).value = summary.totalIncome;
+    totalRow.getCell(3).value = summary.totalExpenses;
+    totalRow.getCell(4).value = summary.netChange;
+    totalRow.font = { bold: true };
 
-    // Section header spanning A-E
-    writeSectionHeader(netRow, 1, "NET BY CATEGORY");
-    const headerR = sheet.getRow(netRow);
-    for (let c = 2; c <= 5; c++) {
-      headerR.getCell(c).fill = HEADER_FILL;
-    }
-    sheet.mergeCells(`A${netRow}:E${netRow}`);
-    netRow++;
-
-    let combinedNet = 0;
-
-    for (const group of summary.netByCategory) {
-      // Parent name (bold, spanning full width)
-      writeLabelRow(netRow, 1, group.parentName, { bold: true });
-      netRow++;
-
-      // Income sub-section
-      writeLabelRow(netRow, 1, "Income:");
-      netRow++;
-
-      if (group.incomeChildren.length > 0) {
-        for (const child of group.incomeChildren) {
-          writeAmountRow(netRow, 1, child.name, child.total, { indent: true, color: "FF16A34A" });
-          netRow++;
-        }
-        if (group.incomeChildren.length > 1) {
-          writeAmountRow(netRow, 1, "Subtotal", group.totalIncome, { indent: true, italic: true, color: "FF16A34A" });
-          netRow++;
-        }
-      } else {
-        writeAmountRow(netRow, 1, "(root)", group.totalIncome, { indent: true, color: "FF16A34A" });
-        netRow++;
+    for (let r = firstDataRow; r <= categoryRow; r++) {
+      for (let c = 2; c <= 4; c++) {
+        sheet.getCell(r, c).numFmt = currencyFmt;
       }
-
-      // Expense sub-section
-      writeLabelRow(netRow, 1, "Expenses:");
-      netRow++;
-
-      if (group.expenseChildren.length > 0) {
-        for (const child of group.expenseChildren) {
-          writeAmountRow(netRow, 1, child.name, child.total, { indent: true, color: "FFDC2626" });
-          netRow++;
-        }
-        if (group.expenseChildren.length > 1) {
-          writeAmountRow(netRow, 1, "Subtotal", group.totalExpenses, { indent: true, italic: true, color: "FFDC2626" });
-          netRow++;
-        }
-      } else {
-        writeAmountRow(netRow, 1, "(root)", group.totalExpenses, { indent: true, color: "FFDC2626" });
-        netRow++;
-      }
-
-      // Net row for this parent
-      const netColor = group.net >= 0 ? "FF16A34A" : "FFDC2626";
-      writeAmountRow(netRow, 1, "Net", group.net, { bold: true, color: netColor });
-      netRow++;
-
-      combinedNet += group.net;
-      netRow++; // blank separator
     }
-
-    // Combined Net Total
-    const totalColor = combinedNet >= 0 ? "FF16A34A" : "FFDC2626";
-    writeAmountRow(netRow, 1, "Combined Net Total", combinedNet, { bold: true, color: totalColor });
-    sheet.getRow(netRow).getCell(2).border = {
-      top: { style: "double", color: { argb: "FF1E293B" } },
-    };
   }
 }
 

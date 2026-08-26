@@ -34,6 +34,25 @@ async function parseWorkbook(buffer: Buffer): Promise<ExcelJS.Workbook> {
   return workbook;
 }
 
+async function summarySheetOf(data: ReportData): Promise<ExcelJS.Worksheet> {
+  const buffer = await generateReportWorkbook(data);
+  const wb = await parseWorkbook(buffer);
+  return wb.getWorksheet("Summary")!;
+}
+
+function findRowByFirstCell(sheet: ExcelJS.Worksheet, value: unknown): number {
+  let found = -1;
+  sheet.eachRow((row, rowNumber) => {
+    if (found === -1 && row.getCell(1).value === value) {
+      found = rowNumber;
+    }
+  });
+  if (found === -1) {
+    throw new Error(`No row found with first cell value: ${String(value)}`);
+  }
+  return found;
+}
+
 describe("generateReportWorkbook", () => {
   it("creates a workbook with 2 worksheets", async () => {
     const buffer = await generateReportWorkbook(makeReportData());
@@ -245,7 +264,22 @@ describe("generateReportWorkbook", () => {
           },
         ],
         netByCategory: [],
-        categoryTotals: [],
+        categoryTotals: [
+          {
+            parentName: "Donations",
+            children: [{ name: "Individual", in: 5000, out: 0, net: 5000 }],
+            totalIn: 5000,
+            totalOut: 0,
+            net: 5000,
+          },
+          {
+            parentName: "Operations",
+            children: [{ name: "Supplies", in: 0, out: 2000, net: -2000 }],
+            totalIn: 0,
+            totalOut: 2000,
+            net: -2000,
+          },
+        ],
       },
     });
 
@@ -262,6 +296,76 @@ describe("generateReportWorkbook", () => {
     });
     expect(totalIncomeRow).not.toBeNull();
     expect((totalIncomeRow as unknown as ExcelJS.Row).getCell(2).value).toBe(5000);
+
+    // Category table now carries a single In/Out/Net row per parent
+    const headerRow = findRowByFirstCell(sheet, "Category");
+    expect(sheet.getCell(headerRow, 2).value).toBe("In");
+    expect(sheet.getCell(headerRow, 3).value).toBe("Out");
+    expect(sheet.getCell(headerRow, 4).value).toBe("Net");
+
+    const donationsRow = findRowByFirstCell(sheet, "Donations");
+    expect(sheet.getCell(donationsRow, 2).value).toBe(5000);
+    expect(sheet.getCell(donationsRow, 3).value).toBe(0);
+    expect(sheet.getCell(donationsRow, 4).value).toBe(5000);
+
+    const operationsRow = findRowByFirstCell(sheet, "Operations");
+    expect(sheet.getCell(operationsRow, 2).value).toBe(0);
+    expect(sheet.getCell(operationsRow, 3).value).toBe(2000);
+    expect(sheet.getCell(operationsRow, 4).value).toBe(-2000);
+  });
+
+  it("renders a single In/Out/Net category table", async () => {
+    const data = makeReportData({
+      summary: {
+        totalIncome: 8200,
+        totalExpenses: 5100,
+        netChange: 3100,
+        balanceByStatus: { uncleared: 0, cleared: 3100, reconciled: 0 },
+        incomeByCategory: [],
+        expensesByCategory: [],
+        netByCategory: [],
+        categoryTotals: [
+          { parentName: "Poinsettias", children: [], totalIn: 8200, totalOut: 5100, net: 3100 },
+        ],
+      },
+    });
+
+    const sheet = await summarySheetOf(data);
+    const headerRow = findRowByFirstCell(sheet, "Category");
+
+    expect(sheet.getCell(headerRow, 2).value).toBe("In");
+    expect(sheet.getCell(headerRow, 3).value).toBe("Out");
+    expect(sheet.getCell(headerRow, 4).value).toBe("Net");
+    expect(sheet.getCell(headerRow + 1, 1).value).toBe("Poinsettias");
+    expect(sheet.getCell(headerRow + 1, 2).value).toBe(8200);
+    expect(sheet.getCell(headerRow + 1, 3).value).toBe(5100);
+    expect(sheet.getCell(headerRow + 1, 4).value).toBe(3100);
+  });
+
+  it("no longer emits INCOME or EXPENSES section headers", async () => {
+    const data = makeReportData({
+      summary: {
+        totalIncome: 8200,
+        totalExpenses: 5100,
+        netChange: 3100,
+        balanceByStatus: { uncleared: 0, cleared: 3100, reconciled: 0 },
+        incomeByCategory: [],
+        expensesByCategory: [],
+        netByCategory: [],
+        categoryTotals: [
+          { parentName: "Poinsettias", children: [], totalIn: 8200, totalOut: 5100, net: 3100 },
+        ],
+      },
+    });
+    const sheet = await summarySheetOf(data);
+    const firstCells: unknown[] = [];
+    sheet.eachRow((row) => firstCells.push(row.getCell(1).value));
+
+    expect(firstCells).not.toContain("INCOME");
+    expect(firstCells).not.toContain("EXPENSES");
+    expect(firstCells).not.toContain("INCOME BY CATEGORY");
+    expect(firstCells).not.toContain("EXPENSES BY CATEGORY");
+    expect(firstCells).not.toContain("NET BY CATEGORY");
   });
 
   it("returns a valid Buffer", async () => {
