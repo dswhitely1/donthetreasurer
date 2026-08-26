@@ -42,6 +42,7 @@ interface LineItemState {
   key: string;
   category_id: string;
   amount: string;
+  direction: "in" | "out";
   notes: string;
 }
 
@@ -96,11 +97,20 @@ export function BudgetForm({
       return defaultValues.line_items.map((li) => ({
         key: generateKey(),
         category_id: li.category_id,
-        amount: String(li.amount),
+        amount: String(Math.abs(li.amount)),
+        direction: li.amount < 0 ? "out" : "in",
         notes: li.notes ?? "",
       }));
     }
-    return [{ key: generateKey(), category_id: "", amount: "", notes: "" }];
+    return [
+      {
+        key: generateKey(),
+        category_id: "",
+        amount: "",
+        direction: "in",
+        notes: "",
+      },
+    ];
   });
 
   // Separate income vs expense categories
@@ -132,21 +142,11 @@ export function BudgetForm({
   const usedCategoryIds = new Set(
     lineItems.map((li) => li.category_id).filter(Boolean)
   );
-  const categoryTypeMap = new Map(
-    categories.map((c) => [c.id, c.category_type])
-  );
-
-  let totalIncome = 0;
-  let totalExpenses = 0;
+  let netBudget = 0;
   for (const li of lineItems) {
     const val = parseFloat(li.amount);
     if (isNaN(val) || !li.category_id) continue;
-    const type = categoryTypeMap.get(li.category_id);
-    if (type === "income") {
-      totalIncome += val;
-    } else {
-      totalExpenses += val;
-    }
+    netBudget += li.direction === "out" ? -Math.abs(val) : Math.abs(val);
   }
 
   // Serialize line items as JSON for the hidden input
@@ -155,7 +155,10 @@ export function BudgetForm({
       .filter((li) => li.category_id && li.amount)
       .map((li) => ({
         category_id: li.category_id,
-        amount: parseFloat(li.amount),
+        amount:
+          li.direction === "out"
+            ? -Math.abs(parseFloat(li.amount))
+            : Math.abs(parseFloat(li.amount)),
         notes: li.notes,
       }))
   );
@@ -163,7 +166,13 @@ export function BudgetForm({
   function addLineItem() {
     setLineItems((prev) => [
       ...prev,
-      { key: generateKey(), category_id: "", amount: "", notes: "" },
+      {
+        key: generateKey(),
+        category_id: "",
+        amount: "",
+        direction: "in",
+        notes: "",
+      },
     ]);
   }
 
@@ -188,7 +197,8 @@ export function BudgetForm({
       source.budget_line_items.map((li) => ({
         key: generateKey(),
         category_id: li.category_id,
-        amount: String(li.amount),
+        amount: String(Math.abs(li.amount)),
+        direction: li.amount < 0 ? "out" : "in",
         notes: li.notes ?? "",
       }))
     );
@@ -368,32 +378,16 @@ export function BudgetForm({
                 <Label>Budget Line Items</Label>
               </div>
 
-              {/* Subtotals */}
-              <div className="grid grid-cols-3 gap-2 rounded-md bg-muted/50 p-2 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Income: </span>
-                  <span className="font-medium tabular-nums text-income">
-                    {formatCurrency(totalIncome)}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Expenses: </span>
-                  <span className="font-medium tabular-nums text-expense">
-                    {formatCurrency(totalExpenses)}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Net: </span>
-                  <span
-                    className={`font-medium tabular-nums ${
-                      totalIncome - totalExpenses >= 0
-                        ? "text-income"
-                        : "text-expense"
-                    }`}
-                  >
-                    {formatCurrency(totalIncome - totalExpenses)}
-                  </span>
-                </div>
+              {/* Subtotal */}
+              <div className="rounded-md bg-muted/50 p-2 text-sm">
+                <span className="text-muted-foreground">Net Budget: </span>
+                <span
+                  className={`font-medium tabular-nums ${
+                    netBudget >= 0 ? "text-income" : "text-expense"
+                  }`}
+                >
+                  {formatCurrency(netBudget)}
+                </span>
               </div>
 
               {categories.length === 0 ? (
@@ -474,7 +468,7 @@ export function BudgetForm({
                             htmlFor={`${formId}-li-amt-${li.key}`}
                             className="text-xs"
                           >
-                            Budgeted Amount
+                            Expected Net
                           </Label>
                           <Input
                             id={`${formId}-li-amt-${li.key}`}
@@ -490,21 +484,44 @@ export function BudgetForm({
                         </div>
                         <div className="flex flex-col gap-1.5">
                           <Label
-                            htmlFor={`${formId}-li-notes-${li.key}`}
+                            htmlFor={`${formId}-li-dir-${li.key}`}
                             className="text-xs"
                           >
-                            Notes (optional)
+                            Direction
                           </Label>
-                          <Input
-                            id={`${formId}-li-notes-${li.key}`}
-                            maxLength={500}
-                            placeholder="Note"
-                            value={li.notes}
-                            onChange={(e) =>
-                              updateLineItem(li.key, "notes", e.target.value)
+                          <Select
+                            value={li.direction}
+                            onValueChange={(v) =>
+                              updateLineItem(li.key, "direction", v)
                             }
-                          />
+                          >
+                            <SelectTrigger id={`${formId}-li-dir-${li.key}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="in">Net income</SelectItem>
+                              <SelectItem value="out">Net expense</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <Label
+                          htmlFor={`${formId}-li-notes-${li.key}`}
+                          className="text-xs"
+                        >
+                          Notes (optional)
+                        </Label>
+                        <Input
+                          id={`${formId}-li-notes-${li.key}`}
+                          maxLength={500}
+                          placeholder="Note"
+                          value={li.notes}
+                          onChange={(e) =>
+                            updateLineItem(li.key, "notes", e.target.value)
+                          }
+                        />
                       </div>
                     </div>
                   ))}

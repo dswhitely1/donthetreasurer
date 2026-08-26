@@ -12,7 +12,9 @@ export type BudgetStatus = (typeof BUDGET_STATUSES)[number];
 
 export const budgetLineItemSchema = z.object({
   category_id: z.string().uuid("Invalid category ID."),
-  amount: z.coerce.number().positive("Amount must be greater than zero."),
+  amount: z.coerce
+    .number()
+    .refine((v) => v !== 0, "Amount must not be zero."),
   notes: z
     .string()
     .max(500, "Notes must be 500 characters or fewer.")
