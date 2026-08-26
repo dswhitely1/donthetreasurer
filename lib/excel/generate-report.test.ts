@@ -427,8 +427,9 @@ describe("generateReportWorkbook budget sheet", () => {
   });
 
   it("colors the variance cell by favorable, not by the sign of variance", async () => {
-    // budgeted is negative (planned net outflow), actual is less negative
-    // than planned — variance is negative but the line is favorable.
+    // budgeted and actual are both negative, but actual (-800) beats
+    // budgeted (-1000) — favorable keys on the budget-vs-actual comparison,
+    // not on the sign of either figure alone.
     const budgetData = makeBudgetData({
       netLines: [
         {

@@ -453,13 +453,13 @@ describe("generateReportPdf budget section", () => {
       typeof varianceCell === "object" &&
         !Array.isArray(varianceCell) &&
         varianceCell?.styles?.textColor
-    ).toEqual([22, 163, 74]); // GREEN, despite a negative variance number
+    ).toEqual([22, 163, 74]); // GREEN — budgeted and actual are both negative, but actual beat budgeted
 
     expect(
       typeof unfavorableVarianceCell === "object" &&
         !Array.isArray(unfavorableVarianceCell) &&
         unfavorableVarianceCell?.styles?.textColor
-    ).toEqual([220, 38, 38]); // RED, despite a negative budgeted amount
+    ).toEqual([220, 38, 38]); // RED — a positive budgeted amount that actual fell short of
   });
 
   it("renders a null percentOfPlan as an em dash and a negative one unclamped", () => {
