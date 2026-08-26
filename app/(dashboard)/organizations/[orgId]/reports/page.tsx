@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { notFound } from "next/navigation";
 import { FileBarChart } from "lucide-react";
 
@@ -319,172 +320,82 @@ export default async function ReportsPage({
             </CardContent>
           </Card>
 
-          {/* Category breakdowns */}
-          <div className="grid gap-4 lg:grid-cols-2">
-            {reportData.summary.incomeByCategory.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Income by Category</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {reportData.summary.incomeByCategory.map((group) => (
-                      <div key={group.parentName}>
-                        <p className="font-medium text-sm">{group.parentName}</p>
-                        <div className="ml-4 mt-1 space-y-0.5">
-                          {group.children.map((child) => (
-                            <div
-                              key={child.name}
-                              className="flex justify-between text-sm text-muted-foreground"
-                            >
-                              <span>{child.name}</span>
-                              <span className="tabular-nums">
-                                {formatCurrency(child.total)}
-                              </span>
-                            </div>
-                          ))}
-                          {group.children.length > 1 && (
-                            <div className="flex justify-between text-sm font-medium border-t border-border pt-1 mt-1">
-                              <span>Subtotal</span>
-                              <span className="tabular-nums">
-                                {formatCurrency(group.subtotal)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {reportData.summary.expensesByCategory.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Expenses by Category</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {reportData.summary.expensesByCategory.map((group) => (
-                      <div key={group.parentName}>
-                        <p className="font-medium text-sm">{group.parentName}</p>
-                        <div className="ml-4 mt-1 space-y-0.5">
-                          {group.children.map((child) => (
-                            <div
-                              key={child.name}
-                              className="flex justify-between text-sm text-muted-foreground"
-                            >
-                              <span>{child.name}</span>
-                              <span className="tabular-nums">
-                                {formatCurrency(child.total)}
-                              </span>
-                            </div>
-                          ))}
-                          {group.children.length > 1 && (
-                            <div className="flex justify-between text-sm font-medium border-t border-border pt-1 mt-1">
-                              <span>Subtotal</span>
-                              <span className="tabular-nums">
-                                {formatCurrency(group.subtotal)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Net by Category */}
-          {reportData.summary.netByCategory.length > 0 && (
+          {/* Category Summary */}
+          {reportData.summary.categoryTotals.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Net by Category</CardTitle>
+                <CardTitle className="text-base">Category Summary</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {reportData.summary.netByCategory.map((group) => (
-                    <div key={group.parentName} className="space-y-1">
-                      <p className="font-semibold text-sm">{group.parentName}</p>
-
-                      {/* Income children */}
-                      <div className="ml-4">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Income</p>
-                        <div className="ml-2 space-y-0.5">
-                          {group.incomeChildren.length > 0 ? (
-                            group.incomeChildren.map((child) => (
-                              <div key={child.name} className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">{child.name}</span>
-                                <span className="tabular-nums text-income">{formatCurrency(child.total)}</span>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">(root)</span>
-                              <span className="tabular-nums text-income">{formatCurrency(group.totalIncome)}</span>
-                            </div>
-                          )}
-                          {group.incomeChildren.length > 1 && (
-                            <div className="flex justify-between text-sm font-medium border-t border-border pt-1 mt-1">
-                              <span className="italic">Subtotal</span>
-                              <span className="tabular-nums text-income">{formatCurrency(group.totalIncome)}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Expense children */}
-                      <div className="ml-4">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expenses</p>
-                        <div className="ml-2 space-y-0.5">
-                          {group.expenseChildren.length > 0 ? (
-                            group.expenseChildren.map((child) => (
-                              <div key={child.name} className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">{child.name}</span>
-                                <span className="tabular-nums text-expense">{formatCurrency(child.total)}</span>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">(root)</span>
-                              <span className="tabular-nums text-expense">{formatCurrency(group.totalExpenses)}</span>
-                            </div>
-                          )}
-                          {group.expenseChildren.length > 1 && (
-                            <div className="flex justify-between text-sm font-medium border-t border-border pt-1 mt-1">
-                              <span className="italic">Subtotal</span>
-                              <span className="tabular-nums text-expense">{formatCurrency(group.totalExpenses)}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Net for this parent */}
-                      <div className="ml-4 flex justify-between text-sm font-semibold border-t border-border pt-1 mt-1">
-                        <span>Net</span>
-                        <span className={`tabular-nums ${group.net >= 0 ? "text-income" : "text-expense"}`}>
-                          {formatCurrency(group.net)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Combined net total */}
-                  {reportData.summary.netByCategory.length > 1 && (
-                    <div className="flex justify-between text-sm font-bold border-t-2 border-border pt-2 mt-2">
-                      <span>Combined Net Total</span>
-                      <span className={`tabular-nums ${
-                        reportData.summary.netByCategory.reduce((s, g) => s + g.net, 0) >= 0
-                          ? "text-income"
-                          : "text-expense"
-                      }`}>
-                        {formatCurrency(reportData.summary.netByCategory.reduce((s, g) => s + g.net, 0))}
-                      </span>
-                    </div>
-                  )}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-muted-foreground">
+                        <th className="py-2 text-left font-medium">Category</th>
+                        <th className="py-2 text-right font-medium">In</th>
+                        <th className="py-2 text-right font-medium">Out</th>
+                        <th className="py-2 text-right font-medium">Net</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportData.summary.categoryTotals.map((group) => (
+                        <Fragment key={group.parentName}>
+                          <tr className="border-b">
+                            <td className={group.children.length > 0 ? "py-2 font-medium" : "py-2"}>
+                              {group.parentName}
+                            </td>
+                            <td className="py-2 text-right tabular-nums">
+                              {formatCurrency(group.totalIn)}
+                            </td>
+                            <td className="py-2 text-right tabular-nums">
+                              {formatCurrency(group.totalOut)}
+                            </td>
+                            <td
+                              className={`py-2 text-right tabular-nums ${
+                                group.net >= 0 ? "text-income" : "text-expense"
+                              }`}
+                            >
+                              {formatCurrency(group.net)}
+                            </td>
+                          </tr>
+                          {group.children.map((child) => (
+                            <tr key={`${group.parentName}-${child.name}`} className="border-b">
+                              <td className="py-2 pl-6 text-muted-foreground">{child.name}</td>
+                              <td className="py-2 text-right tabular-nums">
+                                {formatCurrency(child.in)}
+                              </td>
+                              <td className="py-2 text-right tabular-nums">
+                                {formatCurrency(child.out)}
+                              </td>
+                              <td
+                                className={`py-2 text-right tabular-nums ${
+                                  child.net >= 0 ? "text-income" : "text-expense"
+                                }`}
+                              >
+                                {formatCurrency(child.net)}
+                              </td>
+                            </tr>
+                          ))}
+                        </Fragment>
+                      ))}
+                      <tr className="font-medium">
+                        <td className="py-2">Total</td>
+                        <td className="py-2 text-right tabular-nums">
+                          {formatCurrency(reportData.summary.totalIncome)}
+                        </td>
+                        <td className="py-2 text-right tabular-nums">
+                          {formatCurrency(reportData.summary.totalExpenses)}
+                        </td>
+                        <td
+                          className={`py-2 text-right tabular-nums ${
+                            reportData.summary.netChange >= 0 ? "text-income" : "text-expense"
+                          }`}
+                        >
+                          {formatCurrency(reportData.summary.netChange)}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </CardContent>
             </Card>
