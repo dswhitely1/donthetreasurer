@@ -108,9 +108,13 @@ This handles the two-member income/expense pair, and also the rarer case of thre
 
 ### Step 3 — Merge, children before parents
 
-Process merge groups **depth-first**: a group of child categories must be merged before a group of their parents, because merging parents repoints children and can create *new* duplicate sibling names that themselves need merging.
+Merging a parent repoints its children onto the survivor, which can create *new* duplicate sibling names that themselves need merging. A single pass is therefore not enough.
 
-Implement as a loop that repeats until no merge group remains, rather than a single pass. Each iteration merges only groups whose members have no active children, which guarantees leaves are consumed first and the loop terminates.
+Implement as a loop that merges every duplicate group it finds, then repeats until a pass finds none. Newly-created sibling duplicates are caught by the following pass. The loop terminates because each merge removes at least one category.
+
+No leaf-first ordering is needed, and attempting one is actively wrong: restricting the pass to categories with no children means a parent — which by definition has children — would never be merged at all.
+
+Cycles are not a concern. Two categories can only collide when they share a `parent_id`, which makes them siblings, and siblings can never be ancestors of one another.
 
 For each non-survivor in a group, repoint to the survivor:
 
@@ -135,6 +139,10 @@ For the three line-item tables this assertion is belt-and-braces: `ON DELETE RES
 ### Step 5 — Drop the column and apply new constraints
 
 Drop `category_type`, add the unique index from §3.1 and the `amount <> 0` constraint from §3.2.
+
+**The merge can produce a zero net that violates the constraint being added.** A pair budgeted at 5,000 income and 5,000 expense sums to exactly 0, and the `amount <> 0` check would then abort the migration. Delete zero-amount budget line items after the merge and before adding the constraint — a line planning a net of zero carries no information.
+
+A consequence worth accepting: a budget whose only line was such a pair ends up with no line items, while `budgetLineItemsArraySchema` requires at least one. That budget still displays correctly; the treasurer must add a line the next time they edit it. This is rare enough not to warrant special handling.
 
 ### Step 6 — Rewrite `merge_categories`
 
