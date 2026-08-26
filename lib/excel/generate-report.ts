@@ -374,12 +374,11 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
 
   const currencyFmt = "$#,##0.00";
 
-  // 5-column layout: A-B (left), C (spacer), D-E (right)
-  sheet.getColumn(1).width = 32; // A: Left label
-  sheet.getColumn(2).width = 16; // B: Left value
-  sheet.getColumn(3).width = 4;  // C: Spacer
-  sheet.getColumn(4).width = 32; // D: Right label
-  sheet.getColumn(5).width = 16; // E: Right value
+  // 4-column layout: A (category label), B-D (In / Out / Net currency)
+  sheet.getColumn(1).width = 32; // A: Category label
+  sheet.getColumn(2).width = 16; // B: In (currency)
+  sheet.getColumn(3).width = 16; // C: Out (currency)
+  sheet.getColumn(4).width = 16; // D: Net (currency)
 
   const HEADER_FILL: ExcelJS.FillPattern = {
     type: "pattern",
@@ -392,16 +391,16 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
     size: 10,
   };
 
-  // Row 1: "Summary" title spanning A1:E1
+  // Row 1: "Summary" title spanning A1:D1
   const titleRow = sheet.getRow(1);
   titleRow.getCell(1).value = "Summary";
   titleRow.getCell(1).font = { size: 16, bold: true, color: { argb: "FFFFFFFF" } };
   titleRow.getCell(1).fill = HEADER_FILL;
   titleRow.getCell(1).alignment = { horizontal: "center" };
-  for (let c = 2; c <= 5; c++) {
+  for (let c = 2; c <= 4; c++) {
     titleRow.getCell(c).fill = HEADER_FILL;
   }
-  sheet.mergeCells("A1:E1");
+  sheet.mergeCells("A1:D1");
 
   // Row 2: Org name + date range
   const dateBasisLabel = data.dateBasis === "transaction_date" ? "Transaction Date" : "Cleared Date";
@@ -412,7 +411,7 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
   infoRow.getCell(1).value = dateRangeText;
   infoRow.getCell(1).font = { size: 9, italic: true, color: { argb: "FF666666" } };
   infoRow.getCell(1).alignment = { horizontal: "center" };
-  sheet.mergeCells("A2:E2");
+  sheet.mergeCells("A2:D2");
 
   // Row 3: blank separator
   // Freeze panes: title rows frozen
