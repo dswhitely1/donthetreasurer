@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { createClient } from "@/lib/supabase/server";
+import { collectDescendantIds } from "@/lib/reports/fetch-budget-data";
 import {
   createBudgetSchema,
   updateBudgetSchema,
@@ -11,6 +14,47 @@ import {
   updateBudgetStatusSchema,
   budgetLineItemsArraySchema,
 } from "@/lib/validations/budget";
+
+import type { Database } from "@/types/database";
+
+/**
+ * Rejects a budget's category set if it contains both an ancestor and a
+ * descendant category, at any depth — not just direct parent/child. This
+ * guard must stay recursive because BudgetNetLine rollup (fetch-budget-data)
+ * sums an ancestor's actuals together with every descendant's, so budgeting
+ * both would double-count the same money in netTotals even when an
+ * unbudgeted category sits between them in the tree.
+ */
+async function findCategoryOverlapError(
+  supabase: SupabaseClient<Database>,
+  organizationId: string,
+  categoryIds: string[]
+): Promise<string | null> {
+  const { data: allOrgCategories } = await supabase
+    .from("categories")
+    .select("id, parent_id")
+    .eq("organization_id", organizationId);
+
+  const childrenByParent = new Map<string, string[]>();
+  for (const cat of allOrgCategories ?? []) {
+    if (cat.parent_id) {
+      const existing = childrenByParent.get(cat.parent_id) ?? [];
+      existing.push(cat.id);
+      childrenByParent.set(cat.parent_id, existing);
+    }
+  }
+
+  const categoryIdSet = new Set(categoryIds);
+  for (const categoryId of categoryIds) {
+    for (const descendantId of collectDescendantIds(categoryId, childrenByParent)) {
+      if (categoryIdSet.has(descendantId)) {
+        return "A budget cannot include both a parent category and its subcategory. Budget at one level only.";
+      }
+    }
+  }
+
+  return null;
+}
 
 export async function createBudget(
   _prevState: { error: string } | null,
@@ -91,15 +135,15 @@ export async function createBudget(
     }
   }
 
-  // Check for parent/child overlap: if a parent is budgeted, its children shouldn't be too
-  const categoryIdSet = new Set(categoryIds);
-  for (const cat of categories) {
-    if (cat.parent_id && categoryIdSet.has(cat.parent_id)) {
-      return {
-        error:
-          "A budget cannot include both a parent category and its subcategory. Budget at one level only.",
-      };
-    }
+  // Check for ancestor/descendant overlap anywhere in the category tree —
+  // not just direct parent/child — so the same money is never budgeted twice.
+  const overlapError = await findCategoryOverlapError(
+    supabase,
+    parsed.data.organization_id,
+    categoryIds
+  );
+  if (overlapError) {
+    return { error: overlapError };
   }
 
   const { data: budget, error: budgetError } = await supabase
@@ -246,15 +290,15 @@ export async function updateBudget(
     }
   }
 
-  // Check for parent/child overlap
-  const categoryIdSet = new Set(categoryIds);
-  for (const cat of categories) {
-    if (cat.parent_id && categoryIdSet.has(cat.parent_id)) {
-      return {
-        error:
-          "A budget cannot include both a parent category and its subcategory. Budget at one level only.",
-      };
-    }
+  // Check for ancestor/descendant overlap anywhere in the category tree —
+  // not just direct parent/child — so the same money is never budgeted twice.
+  const overlapError = await findCategoryOverlapError(
+    supabase,
+    parsed.data.organization_id,
+    categoryIds
+  );
+  if (overlapError) {
+    return { error: overlapError };
   }
 
   const { error: updateError } = await supabase
