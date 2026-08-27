@@ -168,6 +168,15 @@ DECLARE
   v_budget_merged INTEGER;
   v_budget_cancelled INTEGER;
 BEGIN
+  -- PostgREST exposes this RPC directly, bypassing the Zod refine at
+  -- lib/validations/category.ts that normally rejects p_source_id ==
+  -- p_target_id. Without this guard, a direct call would self-join the
+  -- source/target row's sums, double them, then delete the row and the
+  -- category out from under it.
+  IF p_source_id = p_target_id THEN
+    RAISE EXCEPTION 'Cannot merge a category into itself.';
+  END IF;
+
   -- Validate source exists, is active, and belongs to org
   SELECT id, is_active, parent_id
     INTO v_source
