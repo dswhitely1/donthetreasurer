@@ -2,6 +2,17 @@
 -- Direction now comes from transactions.transaction_type, not the category.
 -- NOT REVERSIBLE. Snapshot before applying.
 --
+-- HOW TO APPLY: run this file whole, exactly once. The explicit BEGIN/COMMIT
+-- below is mandatory, not decorative -- neither psql (without -1) nor the
+-- Supabase SQL editor wraps a multi-statement script in a transaction of its
+-- own, and this file is NOT idempotent. If step 1 were to commit and a later
+-- statement then failed, the file could not simply be re-run: step 0 would
+-- error on the already-dropped constraint, and "fixing" that and re-running
+-- would negate every expense budget amount a SECOND time, silently restoring
+-- positive signs with no error. Recovery from that is snapshot-only.
+-- If a wrapper has already opened a transaction, the nested BEGIN is a
+-- warning, not an error, so keeping it is safe on every apply path.
+--
 -- Step order is load-bearing:
 --   * The amount > 0 CHECK must go FIRST. Step 1 writes negative amounts and
 --     the merge loop can produce negative or zero sums; the constraint is not
@@ -9,6 +20,8 @@
 --   * The signing in step 1 reads category_type, which the final ALTER drops.
 --     Reverse them and every expense budget line silently keeps a positive
 --     sign -- data corruption with no error.
+
+BEGIN;
 
 -- Step 0: release the positive-only guard before writing signed amounts.
 ALTER TABLE public.budget_line_items
@@ -248,6 +261,13 @@ BEGIN
 
   GET DIAGNOSTICS v_budget_reassigned = ROW_COUNT;
 
+  -- A merged pair can net to exactly zero (income 5000 + expense -5000).
+  -- Such a line carries no information and would trip
+  -- budget_line_items_amount_nonzero, surfacing a raw constraint message to
+  -- the user. Same cleanup the migration applies to historical rows.
+  DELETE FROM public.budget_line_items
+   WHERE category_id = p_target_id AND amount = 0;
+
   -- Hard-delete source category
   DELETE FROM public.categories WHERE id = p_source_id;
 
@@ -260,3 +280,5 @@ BEGIN
   );
 END;
 $$;
+
+COMMIT;

@@ -160,6 +160,90 @@ describe("category actions", () => {
       expect(result?.error).toBe("Parent category not found.");
     });
 
+    it("maps a 23505 unique-name collision to a friendly message", async () => {
+      // The migration adds idx_categories_unique_active_name; without this
+      // mapping a treasurer who reuses a name gets "Please try again." forever.
+      let callCount = 0;
+      mockSupabase.from.mockImplementation(() => {
+        callCount++;
+        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
+        const methods = ["select", "insert", "update", "delete", "eq", "in", "is", "order", "limit"];
+        for (const m of methods) chain[m] = vi.fn(() => chain);
+
+        if (callCount === 1) {
+          chain.single = vi.fn(() => Promise.resolve({ data: { id: orgId }, error: null }));
+        } else {
+          chain.single = vi.fn(() =>
+            Promise.resolve({
+              data: null,
+              error: {
+                code: "23505",
+                message:
+                  'duplicate key value violates unique constraint "idx_categories_unique_active_name"',
+              },
+            })
+          );
+        }
+
+        Object.defineProperty(chain, "then", {
+          value: (resolve?: (v: unknown) => unknown, reject?: (r: unknown) => unknown) =>
+            Promise.resolve({ data: null, error: null }).then(resolve, reject),
+          writable: true,
+          configurable: true,
+        });
+
+        return chain;
+      });
+
+      const fd = makeFormData({
+        organization_id: orgId,
+        name: "Poinsettias",
+        parent_id: "",
+      });
+      const result = await createCategory(null, fd);
+      expect(result?.error).toBe(
+        "A category with that name already exists here. Pick a different name."
+      );
+    });
+
+    it("leaves unrelated insert failures on the generic message", async () => {
+      let callCount = 0;
+      mockSupabase.from.mockImplementation(() => {
+        callCount++;
+        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
+        const methods = ["select", "insert", "update", "delete", "eq", "in", "is", "order", "limit"];
+        for (const m of methods) chain[m] = vi.fn(() => chain);
+
+        if (callCount === 1) {
+          chain.single = vi.fn(() => Promise.resolve({ data: { id: orgId }, error: null }));
+        } else {
+          chain.single = vi.fn(() =>
+            Promise.resolve({
+              data: null,
+              error: { code: "42501", message: "permission denied for table categories" },
+            })
+          );
+        }
+
+        Object.defineProperty(chain, "then", {
+          value: (resolve?: (v: unknown) => unknown, reject?: (r: unknown) => unknown) =>
+            Promise.resolve({ data: null, error: null }).then(resolve, reject),
+          writable: true,
+          configurable: true,
+        });
+
+        return chain;
+      });
+
+      const fd = makeFormData({
+        organization_id: orgId,
+        name: "Poinsettias",
+        parent_id: "",
+      });
+      const result = await createCategory(null, fd);
+      expect(result?.error).toBe("Failed to create category. Please try again.");
+    });
+
     it("redirects on success", async () => {
       mockSupabase.mockResult({ data: { id: catId }, error: null });
 
@@ -221,6 +305,59 @@ describe("category actions", () => {
       });
       const result = await updateCategory(null, fd);
       expect(result?.error).toBe("Category not found.");
+    });
+
+    it("maps a 23505 unique-name collision on rename to a friendly message", async () => {
+      let callCount = 0;
+      mockSupabase.from.mockImplementation(() => {
+        callCount++;
+        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
+        const methods = ["select", "insert", "update", "delete", "eq", "in", "is", "order", "limit"];
+        for (const m of methods) chain[m] = vi.fn(() => chain);
+
+        if (callCount === 1) {
+          chain.single = vi.fn(() => Promise.resolve({ data: { id: orgId }, error: null }));
+        } else if (callCount === 2) {
+          chain.single = vi.fn(() =>
+            Promise.resolve({ data: { id: catId, parent_id: null }, error: null })
+          );
+        } else {
+          // the UPDATE itself resolves through `then`, not `single`
+          Object.defineProperty(chain, "then", {
+            value: (resolve?: (v: unknown) => unknown, reject?: (r: unknown) => unknown) =>
+              Promise.resolve({
+                data: null,
+                error: {
+                  code: "23505",
+                  message:
+                    'duplicate key value violates unique constraint "idx_categories_unique_active_name"',
+                },
+              }).then(resolve, reject),
+            writable: true,
+            configurable: true,
+          });
+          return chain;
+        }
+
+        Object.defineProperty(chain, "then", {
+          value: (resolve?: (v: unknown) => unknown, reject?: (r: unknown) => unknown) =>
+            Promise.resolve({ data: null, error: null }).then(resolve, reject),
+          writable: true,
+          configurable: true,
+        });
+
+        return chain;
+      });
+
+      const fd = makeFormData({
+        id: catId,
+        organization_id: orgId,
+        name: "Poinsettias",
+      });
+      const result = await updateCategory(null, fd);
+      expect(result?.error).toBe(
+        "A category with that name already exists here. Pick a different name."
+      );
     });
 
     it("renames a parent without consulting its subcategories", async () => {

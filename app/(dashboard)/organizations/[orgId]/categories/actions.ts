@@ -11,6 +11,25 @@ import {
   reassignCategorySchema,
 } from "@/lib/validations/category";
 
+/**
+ * The partial unique index added by 20260826000001_untyped_categories.sql:
+ * (organization_id, parent_id, lower(trim(name))) NULLS NOT DISTINCT
+ * WHERE is_active.
+ */
+const UNIQUE_ACTIVE_NAME_INDEX = "idx_categories_unique_active_name";
+const DUPLICATE_NAME_ERROR =
+  "A category with that name already exists here. Pick a different name.";
+
+/** True when a write collided with the unique active-name index (SQLSTATE 23505). */
+function isDuplicateActiveName(
+  error: { code?: string; message?: string; details?: string | null } | null
+): boolean {
+  if (!error || error.code !== "23505") return false;
+  return `${error.message ?? ""} ${error.details ?? ""}`.includes(
+    UNIQUE_ACTIVE_NAME_INDEX
+  );
+}
+
 export async function createCategory(
   _prevState: { error: string } | null,
   formData: FormData
@@ -74,6 +93,9 @@ export async function createCategory(
     .single();
 
   if (error) {
+    if (isDuplicateActiveName(error)) {
+      return { error: DUPLICATE_NAME_ERROR };
+    }
     return { error: "Failed to create category. Please try again." };
   }
 
@@ -144,6 +166,9 @@ export async function updateCategory(
     .eq("organization_id", parsed.data.organization_id);
 
   if (error) {
+    if (isDuplicateActiveName(error)) {
+      return { error: DUPLICATE_NAME_ERROR };
+    }
     return { error: "Failed to update category. Please try again." };
   }
 
@@ -369,6 +394,9 @@ export async function reassignCategory(
     .eq("organization_id", organization_id);
 
   if (error) {
+    if (isDuplicateActiveName(error)) {
+      return { error: DUPLICATE_NAME_ERROR };
+    }
     return { error: "Failed to reassign category. Please try again." };
   }
 
@@ -442,6 +470,9 @@ export async function createCategoryInline(
     .single();
 
   if (error) {
+    if (isDuplicateActiveName(error)) {
+      return { error: DUPLICATE_NAME_ERROR };
+    }
     return { error: "Failed to create category. Please try again." };
   }
 
