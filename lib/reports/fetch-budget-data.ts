@@ -27,6 +27,19 @@ export interface BudgetReportData {
 }
 
 /**
+ * Rounds a signed dollar amount to the nearest cent. Accumulating many
+ * transaction line item amounts with plain floating-point addition produces
+ * residues like -1000.0000000000001 or -5.68e-14 for totals that are exactly
+ * on-plan or exactly zero in decimal terms. Left unrounded, those residues
+ * flip `favorable` comparisons and slip zero-net categories past an
+ * `actual === 0` filter. Money in this app never carries sub-cent precision,
+ * so rounding to cents is lossless for any real balance.
+ */
+function roundToCents(amount: number): number {
+  return Math.round(amount * 100) / 100;
+}
+
+/**
  * Collects every descendant category id reachable from `categoryId` via the
  * `childrenByParent` map, recursively. A `seen` set guards against malformed
  * parent cycles so traversal always terminates.
@@ -66,6 +79,10 @@ export function buildNetLine(
   for (const id of collectDescendantIds(categoryId, childrenByParent)) {
     actual += netByCategory.get(id) ?? 0;
   }
+  // netByCategory entries are already cent-rounded by the caller, but
+  // summing several rounded floats can still drift by a residual fraction
+  // (e.g. 0.1 + 0.2), so the rolled-up total is rounded again here.
+  actual = roundToCents(actual);
 
   return {
     categoryId,
@@ -164,6 +181,13 @@ export async function fetchBudgetReportData(
       netByCategory.set(li.category_id, current + sign * li.amount);
     }
   }
+  // Finalize each category's accumulated net to the nearest cent before it
+  // is read anywhere downstream (buildNetLine's rollup, the unbudgeted
+  // actual === 0 filter, netTotals). This is the single source of truth for
+  // "actual" money, so rounding here is what keeps every renderer agreeing.
+  for (const [categoryId, amount] of netByCategory) {
+    netByCategory.set(categoryId, roundToCents(amount));
+  }
 
   const lineItems = budget.budget_line_items ?? [];
 
@@ -195,10 +219,13 @@ export async function fetchBudgetReportData(
   }
   unbudgetedNet.sort((a, b) => a.categoryName.localeCompare(b.categoryName));
 
+  // Round the totals too: summing already cent-rounded per-line figures can
+  // still drift by a stray floating-point fraction, and netTotals must never
+  // disagree with the per-line figures it was built from.
   const netTotals = {
-    budgeted: netLines.reduce((s, l) => s + l.budgeted, 0),
-    actual: netLines.reduce((s, l) => s + l.actual, 0),
-    variance: netLines.reduce((s, l) => s + l.variance, 0),
+    budgeted: roundToCents(netLines.reduce((s, l) => s + l.budgeted, 0)),
+    actual: roundToCents(netLines.reduce((s, l) => s + l.actual, 0)),
+    variance: roundToCents(netLines.reduce((s, l) => s + l.variance, 0)),
   };
 
   return {

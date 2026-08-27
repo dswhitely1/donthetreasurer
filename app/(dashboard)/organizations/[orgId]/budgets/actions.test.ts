@@ -108,6 +108,51 @@ describe("budget actions — category overlap guard", () => {
           "A budget cannot include both a parent category and its subcategory. Budget at one level only.",
       });
     });
+
+    // Guards that the overlap check is not a rubber stamp: a
+    // findCategoryOverlapError that returned its error unconditionally would
+    // pass every test above without ever letting a valid budget through.
+    // This case has a single, non-overlapping category and must reach the
+    // insert (observed here as the redirect after a successful create).
+    it("creates the budget when there is no category overlap", async () => {
+      const soleCategoryId = "bb0e8400-e29b-41d4-a716-446655440000";
+
+      mockSupabase.mockChain().sequence([
+        // organization lookup
+        { data: { id: orgId }, error: null },
+        // category validation (exists, active, correct org)
+        {
+          data: [
+            {
+              id: soleCategoryId,
+              organization_id: orgId,
+              is_active: true,
+              parent_id: null,
+            },
+          ],
+          error: null,
+        },
+        // full org category tree for the overlap check — no ancestor/descendant pair
+        { data: [{ id: soleCategoryId, parent_id: null }], error: null },
+        // budget insert
+        { data: { id: budgetId }, error: null },
+        // budget line item insert
+        { data: null, error: null },
+      ]);
+
+      const fd = makeFormData({
+        organization_id: orgId,
+        name: "FY26 Budget",
+        start_date: "2026-01-01",
+        end_date: "2026-12-31",
+        status: "draft",
+        line_items: JSON.stringify([
+          { category_id: soleCategoryId, amount: 5000 },
+        ]),
+      });
+
+      await expect(createBudget(null, fd)).rejects.toThrow("NEXT_REDIRECT");
+    });
   });
 
   describe("updateBudget", () => {
