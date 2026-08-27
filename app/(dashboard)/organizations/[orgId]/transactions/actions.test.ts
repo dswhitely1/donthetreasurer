@@ -206,11 +206,9 @@ describe("transaction actions", () => {
       });
 
       const fd = makeCreateTxnFormData(); // transaction_type: "expense"
-      try {
-        await createTransaction(null, fd);
-      } catch (err) {
-        expect(err).toBeInstanceOf(RedirectError);
-      }
+      await expect(createTransaction(null, fd)).rejects.toBeInstanceOf(
+        RedirectError
+      );
     });
 
     it("sets cleared_at when status is cleared", async () => {
