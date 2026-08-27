@@ -553,6 +553,7 @@ describe("category actions", () => {
           reassigned_budget_line_items: 1,
           merged_budget_line_items: 1,
           reassigned_fee_accounts: 0,
+          cancelled_budget_line_items: 0,
         },
         error: null,
       } as never);

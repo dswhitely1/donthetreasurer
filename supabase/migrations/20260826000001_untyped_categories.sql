@@ -166,6 +166,7 @@ DECLARE
   v_fee_reassigned INTEGER;
   v_budget_reassigned INTEGER;
   v_budget_merged INTEGER;
+  v_budget_cancelled INTEGER;
 BEGIN
   -- Validate source exists, is active, and belongs to org
   SELECT id, is_active, parent_id
@@ -231,8 +232,42 @@ BEGIN
 
   GET DIAGNOSTICS v_fee_reassigned = ROW_COUNT;
 
-  -- Handle budget line items: merge amounts where target already exists in same budget
-  -- First, sum amounts into existing target line items
+  -- Handle budget line items.
+  --
+  -- FIRST: cancel pairs that net to exactly zero (income 5000 + expense -5000
+  -- in the same budget). This MUST happen before the sum below, and it must
+  -- remove BOTH rows.
+  --
+  -- Why before: the sum would produce a row with amount = 0, and
+  -- budget_line_items_amount_nonzero is a plain CHECK. PostgreSQL implements
+  -- no deferrable CHECK constraints at all (only UNIQUE/PK/EXCLUDE/FK accept
+  -- DEFERRABLE), so it is evaluated per row DURING the UPDATE that produces
+  -- the row version. The UPDATE aborts on the spot; any post-sum cleanup is
+  -- unreachable code, at any placement. There is no moment at which a zero
+  -- row legally exists.
+  --
+  -- Why both rows: deleting only the target would leave the source row for
+  -- the "reassign remaining source line items" UPDATE below to repoint,
+  -- stranding a -5000 line under the target. Deleting only the source would
+  -- strand the +5000 line.
+  WITH zero_pairs AS (
+    SELECT tgt.budget_id
+      FROM public.budget_line_items AS tgt
+      JOIN public.budget_line_items AS src
+        ON src.budget_id = tgt.budget_id
+     WHERE tgt.category_id = p_target_id
+       AND src.category_id = p_source_id
+       AND tgt.amount + src.amount = 0
+  )
+  DELETE FROM public.budget_line_items AS bli
+   USING zero_pairs AS zp
+   WHERE bli.budget_id = zp.budget_id
+     AND bli.category_id IN (p_source_id, p_target_id);
+
+  GET DIAGNOSTICS v_budget_cancelled = ROW_COUNT;
+
+  -- THEN: sum amounts into existing target line items. Every pair still
+  -- standing nets non-zero, so this cannot produce a zero row.
   UPDATE public.budget_line_items AS target
      SET amount = target.amount + source.amount,
          notes = CASE
@@ -261,13 +296,6 @@ BEGIN
 
   GET DIAGNOSTICS v_budget_reassigned = ROW_COUNT;
 
-  -- A merged pair can net to exactly zero (income 5000 + expense -5000).
-  -- Such a line carries no information and would trip
-  -- budget_line_items_amount_nonzero, surfacing a raw constraint message to
-  -- the user. Same cleanup the migration applies to historical rows.
-  DELETE FROM public.budget_line_items
-   WHERE category_id = p_target_id AND amount = 0;
-
   -- Hard-delete source category
   DELETE FROM public.categories WHERE id = p_source_id;
 
@@ -276,7 +304,11 @@ BEGIN
     'reassigned_template_line_items', v_template_reassigned,
     'reassigned_budget_line_items', v_budget_reassigned,
     'merged_budget_line_items', v_budget_merged,
-    'reassigned_fee_accounts', v_fee_reassigned
+    'reassigned_fee_accounts', v_fee_reassigned,
+    -- Rows deleted because the pair netted to zero (2 per cancelled pair).
+    -- These are counted in neither merged_ nor reassigned_: they were never
+    -- summed and never repointed, they were removed outright.
+    'cancelled_budget_line_items', v_budget_cancelled
   );
 END;
 $$;
