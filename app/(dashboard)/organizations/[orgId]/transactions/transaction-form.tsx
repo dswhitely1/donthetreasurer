@@ -44,7 +44,7 @@ type Account = Pick<
 >;
 type Category = Pick<
   Tables<"categories">,
-  "id" | "name" | "category_type" | "parent_id"
+  "id" | "name" | "parent_id"
 >;
 
 interface LineItemState {
@@ -147,10 +147,8 @@ export function TransactionForm({
         )
       : 0;
 
-  // Filter categories by transaction type
-  const filteredCategories = localCategories.filter(
-    (c) => c.category_type === transactionType
-  );
+  // Every active category is selectable on every transaction type.
+  const filteredCategories = localCategories;
   const parentCats = filteredCategories.filter((c) => !c.parent_id);
   const childrenMap = new Map<string, Category[]>();
   for (const cat of filteredCategories) {
@@ -215,7 +213,6 @@ export function TransactionForm({
   function handleCategoryCreated(newCat: {
     id: string;
     name: string;
-    category_type: string;
     parent_id: string | null;
   }) {
     setLocalCategories((prev) => [...prev, newCat]);
@@ -227,7 +224,7 @@ export function TransactionForm({
 
   // Parent categories for inline creation dialog
   const parentCategoriesForDialog = localCategories.filter(
-    (c) => !c.parent_id && c.category_type === transactionType
+    (c) => !c.parent_id
   );
 
   return (
@@ -478,7 +475,7 @@ export function TransactionForm({
 
               {filteredCategories.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No {transactionType} categories found.{" "}
+                  No categories found.{" "}
                   <button
                     type="button"
                     className="underline hover:text-foreground"

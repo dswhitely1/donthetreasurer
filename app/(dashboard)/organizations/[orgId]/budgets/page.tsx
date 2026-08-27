@@ -51,7 +51,7 @@ export default async function BudgetsPage({
     .select(
       `
       *,
-      budget_line_items(id, amount, category_id, categories(id, category_type))
+      budget_line_items(id, amount, category_id)
     `
     )
     .eq("organization_id", orgId)
@@ -94,10 +94,7 @@ export default async function BudgetsPage({
                   Status
                 </th>
                 <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
-                  Income
-                </th>
-                <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
-                  Expenses
+                  Net Budgeted
                 </th>
                 <th className="hidden px-3 py-2.5 text-right font-medium text-muted-foreground md:table-cell">
                   Items
@@ -107,20 +104,10 @@ export default async function BudgetsPage({
             <tbody>
               {budgetList.map((budget) => {
                 const lineItems = budget.budget_line_items ?? [];
-                let budgetedIncome = 0;
-                let budgetedExpenses = 0;
-
-                for (const li of lineItems) {
-                  const cat = li.categories as {
-                    id: string;
-                    category_type: string;
-                  } | null;
-                  if (cat?.category_type === "income") {
-                    budgetedIncome += li.amount;
-                  } else {
-                    budgetedExpenses += li.amount;
-                  }
-                }
+                const netBudgeted = lineItems.reduce(
+                  (sum, li) => sum + li.amount,
+                  0
+                );
 
                 const statusLabel =
                   BUDGET_STATUS_LABELS[budget.status as BudgetStatus] ??
@@ -148,15 +135,12 @@ export default async function BudgetsPage({
                         {statusLabel}
                       </Badge>
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-right font-medium tabular-nums text-income">
-                      {budgetedIncome > 0
-                        ? formatCurrency(budgetedIncome)
-                        : "\u2014"}
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-right font-medium tabular-nums text-expense">
-                      {budgetedExpenses > 0
-                        ? formatCurrency(budgetedExpenses)
-                        : "\u2014"}
+                    <td
+                      className={`px-3 py-2.5 whitespace-nowrap text-right font-medium tabular-nums ${
+                        netBudgeted >= 0 ? "text-income" : "text-expense"
+                      }`}
+                    >
+                      {formatCurrency(netBudgeted)}
                     </td>
                     <td className="hidden px-3 py-2.5 text-right text-muted-foreground md:table-cell">
                       {lineItems.length}

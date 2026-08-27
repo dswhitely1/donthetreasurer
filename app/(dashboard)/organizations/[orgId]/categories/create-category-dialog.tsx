@@ -29,7 +29,6 @@ import {
 interface ParentCategory {
   id: string;
   name: string;
-  category_type: string;
 }
 
 export function CreateCategoryDialog({
@@ -48,7 +47,6 @@ export function CreateCategoryDialog({
   onCreated: (category: {
     id: string;
     name: string;
-    category_type: string;
     parent_id: string | null;
   }) => void;
 }>) {
@@ -61,10 +59,8 @@ export function CreateCategoryDialog({
     null
   );
 
-  // Filter parent categories to match the current category type
-  const eligibleParents = parentCategories.filter(
-    (c) => c.category_type === categoryType
-  );
+  // Every parent category is eligible, regardless of transaction type.
+  const eligibleParents = parentCategories;
 
   // Track which creation we've already handled (by category ID) to prevent
   // repeated firing when unstable callback refs change between renders.

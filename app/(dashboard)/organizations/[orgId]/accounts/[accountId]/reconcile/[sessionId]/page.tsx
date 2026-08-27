@@ -55,7 +55,7 @@ export default async function ReconcileMatchingPage({
   // Fetch categories for quick transaction dialog
   const { data: categories } = await supabase
     .from("categories")
-    .select("id, name, parent_id, category_type")
+    .select("id, name, parent_id")
     .eq("organization_id", orgId)
     .eq("is_active", true)
     .order("name");

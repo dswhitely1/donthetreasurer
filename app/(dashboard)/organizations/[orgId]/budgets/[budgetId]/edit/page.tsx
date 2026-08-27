@@ -37,7 +37,7 @@ export default async function EditBudgetPage({
       .single(),
     supabase
       .from("categories")
-      .select("id, name, category_type, parent_id")
+      .select("id, name, parent_id")
       .eq("organization_id", orgId)
       .eq("is_active", true)
       .order("name"),

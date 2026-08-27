@@ -35,7 +35,7 @@ import type { Tables } from "@/types/database";
 
 type Category = Pick<
   Tables<"categories">,
-  "id" | "name" | "category_type" | "parent_id"
+  "id" | "name" | "parent_id"
 >;
 
 interface LineItemState {
@@ -113,14 +113,6 @@ export function BudgetForm({
     ];
   });
 
-  // Separate income vs expense categories
-  const incomeCategories = categories.filter(
-    (c) => c.category_type === "income"
-  );
-  const expenseCategories = categories.filter(
-    (c) => c.category_type === "expense"
-  );
-
   // Build parent/child maps for grouped display
   function buildCategoryTree(cats: Category[]) {
     const parents = cats.filter((c) => !c.parent_id);
@@ -135,8 +127,7 @@ export function BudgetForm({
     return { parents, childrenMap };
   }
 
-  const incomeTree = buildCategoryTree(incomeCategories);
-  const expenseTree = buildCategoryTree(expenseCategories);
+  const categoryTree = buildCategoryTree(categories);
 
   // Calculate subtotals
   const usedCategoryIds = new Set(
@@ -442,22 +433,7 @@ export function BudgetForm({
                             <SelectValue placeholder="Select category" />
                           </SelectTrigger>
                           <SelectContent>
-                            {incomeCategories.length > 0 && (
-                              <SelectGroup>
-                                <SelectLabel className="text-income">
-                                  Income
-                                </SelectLabel>
-                                {renderCategoryOptions(incomeTree)}
-                              </SelectGroup>
-                            )}
-                            {expenseCategories.length > 0 && (
-                              <SelectGroup>
-                                <SelectLabel className="text-expense">
-                                  Expenses
-                                </SelectLabel>
-                                {renderCategoryOptions(expenseTree)}
-                              </SelectGroup>
-                            )}
+                            {renderCategoryOptions(categoryTree)}
                           </SelectContent>
                         </Select>
                       </div>

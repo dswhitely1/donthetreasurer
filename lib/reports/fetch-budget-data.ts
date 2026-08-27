@@ -90,7 +90,7 @@ export async function fetchBudgetReportData(
       *,
       budget_line_items(
         id, amount, category_id,
-        categories(id, name, category_type, parent_id)
+        categories(id, name, parent_id)
       )
     `
     )
@@ -108,7 +108,7 @@ export async function fetchBudgetReportData(
   // Fetch all categories for parent name resolution
   const { data: allCategories, error: categoriesError } = await supabase
     .from("categories")
-    .select("id, name, category_type, parent_id")
+    .select("id, name, parent_id")
     .eq("organization_id", orgId);
 
   if (categoriesError) {

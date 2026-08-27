@@ -21,7 +21,6 @@ export interface TransactionLineItem {
     id: string;
     name: string;
     parent_id: string | null;
-    category_type: string;
   } | null;
 }
 
@@ -68,7 +67,7 @@ export function useTransactions(orgId: string, filters?: TransactionFilters) {
             amount,
             category_id,
             memo,
-            categories(id, name, parent_id, category_type)
+            categories(id, name, parent_id)
           )
         `,
           hasCategoryFilter ? undefined : { count: "exact" }

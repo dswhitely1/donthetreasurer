@@ -48,12 +48,11 @@ export default async function AccountDetailPage({
     notFound();
   }
 
-  // Fetch active expense categories for fee config
+  // Fetch active categories for fee config
   const { data: expenseCategories } = await supabase
     .from("categories")
     .select("id, name, parent_id")
     .eq("organization_id", orgId)
-    .eq("category_type", "expense")
     .eq("is_active", true)
     .order("name");
 

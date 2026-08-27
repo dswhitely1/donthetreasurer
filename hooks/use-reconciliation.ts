@@ -33,7 +33,6 @@ export interface ReconciliationTransaction {
       id: string;
       name: string;
       parent_id: string | null;
-      category_type: string;
     } | null;
   }[];
 }
@@ -66,7 +65,7 @@ export function useReconciliationTransactions(
             amount,
             category_id,
             memo,
-            categories(id, name, parent_id, category_type)
+            categories(id, name, parent_id)
           )
         `
         )

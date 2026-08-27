@@ -102,7 +102,7 @@ export default async function TransactionsPage({
   // Fetch all categories to resolve parent names and build filter options
   const { data: allCategories } = await supabase
     .from("categories")
-    .select("id, name, parent_id, category_type, is_active")
+    .select("id, name, parent_id, is_active")
     .eq("organization_id", orgId)
     .order("name");
 
@@ -155,7 +155,7 @@ export default async function TransactionsPage({
       amount,
       category_id,
       memo,
-      categories(id, name, parent_id, category_type)
+      categories(id, name, parent_id)
     )
   `;
 
@@ -204,7 +204,6 @@ export default async function TransactionsPage({
         id: string;
         name: string;
         parent_id: string | null;
-        category_type: string;
       } | null;
     }>;
   }> = [];

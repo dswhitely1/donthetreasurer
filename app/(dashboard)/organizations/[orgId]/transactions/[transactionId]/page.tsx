@@ -51,7 +51,7 @@ export default async function TransactionDetailPage({
         amount,
         memo,
         category_id,
-        categories(id, name, parent_id, category_type)
+        categories(id, name, parent_id)
       )
     `
     )
@@ -66,7 +66,7 @@ export default async function TransactionDetailPage({
   // Fetch all categories to resolve parent names
   const { data: allCategories } = await supabase
     .from("categories")
-    .select("id, name, category_type, parent_id")
+    .select("id, name, parent_id")
     .eq("organization_id", orgId);
 
   const categoryNameMap = new Map(
@@ -83,7 +83,7 @@ export default async function TransactionDetailPage({
 
   const { data: activeCategories } = await supabase
     .from("categories")
-    .select("id, name, category_type, parent_id")
+    .select("id, name, parent_id")
     .eq("organization_id", orgId)
     .eq("is_active", true)
     .order("name");

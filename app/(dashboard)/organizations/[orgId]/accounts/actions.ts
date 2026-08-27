@@ -53,7 +53,7 @@ export async function createAccount(
   if (parsed.data.fee_category_id) {
     const { data: feeCat } = await supabase
       .from("categories")
-      .select("id, category_type, organization_id, is_active")
+      .select("id, organization_id, is_active")
       .eq("id", parsed.data.fee_category_id)
       .single();
 
@@ -65,9 +65,6 @@ export async function createAccount(
     }
     if (feeCat.organization_id !== parsed.data.organization_id) {
       return { error: "Fee category must belong to the same organization." };
-    }
-    if (feeCat.category_type !== "expense") {
-      return { error: "Fee category must be an expense category." };
     }
   }
 
@@ -145,7 +142,7 @@ export async function updateAccount(
   if (parsed.data.fee_category_id) {
     const { data: feeCat } = await supabase
       .from("categories")
-      .select("id, category_type, organization_id, is_active")
+      .select("id, organization_id, is_active")
       .eq("id", parsed.data.fee_category_id)
       .single();
 
@@ -157,9 +154,6 @@ export async function updateAccount(
     }
     if (feeCat.organization_id !== parsed.data.organization_id) {
       return { error: "Fee category must belong to the same organization." };
-    }
-    if (feeCat.category_type !== "expense") {
-      return { error: "Fee category must be an expense category." };
     }
   }
 
