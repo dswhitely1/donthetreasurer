@@ -3,10 +3,6 @@
 import { useActionState, useState, useEffect, useRef } from "react";
 
 import { createCategoryInline } from "./actions";
-import {
-  CATEGORY_TYPES,
-  CATEGORY_TYPE_LABELS,
-} from "@/lib/validations/category";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,14 +31,12 @@ export function CreateCategoryDialog({
   open,
   onOpenChange,
   orgId,
-  categoryType,
   parentCategories,
   onCreated,
 }: Readonly<{
   open: boolean;
   onOpenChange: (open: boolean) => void;
   orgId: string;
-  categoryType: string;
   parentCategories: ParentCategory[];
   onCreated: (category: {
     id: string;
@@ -93,9 +87,7 @@ export function CreateCategoryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            New {CATEGORY_TYPE_LABELS[categoryType as keyof typeof CATEGORY_TYPE_LABELS] ?? categoryType} Category
-          </DialogTitle>
+          <DialogTitle>New Category</DialogTitle>
           <DialogDescription>
             Create a category without leaving the form.
           </DialogDescription>
@@ -103,7 +95,6 @@ export function CreateCategoryDialog({
 
         <form action={formAction} className="flex flex-col gap-4">
           <input type="hidden" name="organization_id" value={orgId} />
-          <input type="hidden" name="category_type" value={categoryType} />
           <input
             type="hidden"
             name="parent_id"

@@ -6,19 +6,13 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import { createCategory } from "./actions";
-import {
-  CATEGORY_TYPES,
-  CATEGORY_TYPE_LABELS,
-} from "@/lib/validations/category";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -32,10 +26,7 @@ import {
 
 import type { Tables } from "@/types/database";
 
-type ParentCategory = Pick<
-  Tables<"categories">,
-  "id" | "name" | "category_type"
->;
+type ParentCategory = Pick<Tables<"categories">, "id" | "name">;
 
 export function CategoryForm({
   parentCategories,
@@ -48,20 +39,6 @@ export function CategoryForm({
   const [state, formAction, pending] = useActionState(createCategory, null);
   const [isSubcategory, setIsSubcategory] = useState(false);
   const [selectedParentId, setSelectedParentId] = useState("");
-
-  const selectedParent = parentCategories.find(
-    (p) => p.id === selectedParentId
-  );
-  const effectiveType = isSubcategory && selectedParent
-    ? selectedParent.category_type
-    : undefined;
-
-  const incomeParents = parentCategories.filter(
-    (p) => p.category_type === "income"
-  );
-  const expenseParents = parentCategories.filter(
-    (p) => p.category_type === "expense"
-  );
 
   return (
     <div className="mx-auto max-w-lg">
@@ -90,14 +67,6 @@ export function CategoryForm({
                 value={selectedParentId}
               />
             )}
-            {effectiveType && (
-              <input
-                type="hidden"
-                name="category_type"
-                value={effectiveType}
-              />
-            )}
-
             {state?.error && (
               <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
                 {state.error}
@@ -152,51 +121,9 @@ export function CategoryForm({
                     <SelectValue placeholder="Select a parent category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {incomeParents.length > 0 && (
-                      <SelectGroup>
-                        <SelectLabel>Income</SelectLabel>
-                        {incomeParents.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    )}
-                    {expenseParents.length > 0 && (
-                      <SelectGroup>
-                        <SelectLabel>Expense</SelectLabel>
-                        {expenseParents.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    )}
-                  </SelectContent>
-                </Select>
-                {effectiveType && (
-                  <p className="text-xs text-muted-foreground">
-                    Type automatically set to{" "}
-                    <span className="font-medium">
-                      {CATEGORY_TYPE_LABELS[effectiveType as keyof typeof CATEGORY_TYPE_LABELS]}
-                    </span>{" "}
-                    to match parent.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {!isSubcategory && (
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="category_type">Category Type</Label>
-                <Select name="category_type" defaultValue="expense">
-                  <SelectTrigger id="category_type">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORY_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {CATEGORY_TYPE_LABELS[type]}
+                    {parentCategories.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

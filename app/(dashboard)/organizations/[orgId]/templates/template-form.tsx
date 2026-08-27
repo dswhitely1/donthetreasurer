@@ -565,7 +565,6 @@ export function TemplateForm({
         open={isCategoryDialogOpen}
         onOpenChange={setIsCategoryDialogOpen}
         orgId={orgId}
-        categoryType={transactionType}
         parentCategories={parentCategoriesForDialog}
         onCreated={handleCategoryCreated}
       />

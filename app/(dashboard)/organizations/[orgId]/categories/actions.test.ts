@@ -60,7 +60,6 @@ describe("category actions", () => {
       const fd = makeFormData({
         organization_id: orgId,
         name: "",
-        category_type: "income",
       });
       const result = await createCategory(null, fd);
       expect(result?.error).toBeDefined();
@@ -75,14 +74,15 @@ describe("category actions", () => {
       const fd = makeFormData({
         organization_id: orgId,
         name: "Donations",
-        category_type: "income",
       });
       const result = await createCategory(null, fd);
       expect(result).toEqual({ error: "You must be signed in." });
     });
 
-    it("returns error when parent type doesn't match", async () => {
-      // Sequence: org check, parent check
+    it("accepts a parent regardless of the direction its transactions take", async () => {
+      // Sequence: org check, parent check, insert.
+      // The parent lookup no longer inspects any type column: a category has
+      // no inherent direction, so any active parent in the org is eligible.
       let callCount = 0;
       mockSupabase.from.mockImplementation(() => {
         callCount++;
@@ -94,17 +94,16 @@ describe("category actions", () => {
           // org check
           chain.single = vi.fn(() => Promise.resolve({ data: { id: orgId }, error: null }));
         } else if (callCount === 2) {
-          // parent category check - different type
+          // parent category check
           chain.single = vi.fn(() =>
             Promise.resolve({
-              data: {
-                id: parentCatId,
-                category_type: "expense",
-                organization_id: orgId,
-              },
+              data: { id: parentCatId, organization_id: orgId },
               error: null,
             })
           );
+        } else {
+          // insert
+          chain.single = vi.fn(() => Promise.resolve({ data: { id: catId }, error: null }));
         }
 
         Object.defineProperty(chain, "then", {
@@ -120,11 +119,45 @@ describe("category actions", () => {
       const fd = makeFormData({
         organization_id: orgId,
         name: "Individual",
-        category_type: "income",
+        parent_id: parentCatId,
+      });
+
+      await expect(createCategory(null, fd)).rejects.toBeInstanceOf(
+        RedirectError
+      );
+    });
+
+    it("returns error when the parent category is not found", async () => {
+      let callCount = 0;
+      mockSupabase.from.mockImplementation(() => {
+        callCount++;
+        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
+        const methods = ["select", "insert", "update", "delete", "eq", "in", "is", "order", "limit"];
+        for (const m of methods) chain[m] = vi.fn(() => chain);
+
+        if (callCount === 1) {
+          chain.single = vi.fn(() => Promise.resolve({ data: { id: orgId }, error: null }));
+        } else {
+          chain.single = vi.fn(() => Promise.resolve({ data: null, error: null }));
+        }
+
+        Object.defineProperty(chain, "then", {
+          value: (resolve?: (v: unknown) => unknown, reject?: (r: unknown) => unknown) =>
+            Promise.resolve({ data: null, error: null }).then(resolve, reject),
+          writable: true,
+          configurable: true,
+        });
+
+        return chain;
+      });
+
+      const fd = makeFormData({
+        organization_id: orgId,
+        name: "Individual",
         parent_id: parentCatId,
       });
       const result = await createCategory(null, fd);
-      expect(result?.error).toContain("must match parent");
+      expect(result?.error).toBe("Parent category not found.");
     });
 
     it("redirects on success", async () => {
@@ -133,7 +166,6 @@ describe("category actions", () => {
       const fd = makeFormData({
         organization_id: orgId,
         name: "Donations",
-        category_type: "income",
         parent_id: "",
       });
 
@@ -152,7 +184,6 @@ describe("category actions", () => {
         id: "not-uuid",
         organization_id: orgId,
         name: "Test",
-        category_type: "income",
       });
       const result = await updateCategory(null, fd);
       expect(result?.error).toBeDefined();
@@ -187,13 +218,14 @@ describe("category actions", () => {
         id: catId,
         organization_id: orgId,
         name: "Updated",
-        category_type: "income",
       });
       const result = await updateCategory(null, fd);
       expect(result?.error).toBe("Category not found.");
     });
 
-    it("blocks type change when children have different type", async () => {
+    it("renames a parent without consulting its subcategories", async () => {
+      // There is no type to keep in sync any more, so the update writes the
+      // name and redirects without ever reading the children.
       let callCount = 0;
       mockSupabase.from.mockImplementation(() => {
         callCount++;
@@ -208,22 +240,10 @@ describe("category actions", () => {
           // current category check - it's a parent (no parent_id)
           chain.single = vi.fn(() =>
             Promise.resolve({
-              data: { id: catId, parent_id: null, category_type: "income" },
+              data: { id: catId, parent_id: null },
               error: null,
             })
           );
-        } else if (callCount === 3) {
-          // children check - children have mismatched type
-          Object.defineProperty(chain, "then", {
-            value: (resolve?: (v: unknown) => unknown, reject?: (r: unknown) => unknown) =>
-              Promise.resolve({
-                data: [{ id: "child1", category_type: "income" }],
-                error: null,
-              }).then(resolve, reject),
-            writable: true,
-            configurable: true,
-          });
-          return chain;
         }
 
         Object.defineProperty(chain, "then", {
@@ -240,10 +260,13 @@ describe("category actions", () => {
         id: catId,
         organization_id: orgId,
         name: "Changed Parent",
-        category_type: "expense", // changing from income to expense
       });
-      const result = await updateCategory(null, fd);
-      expect(result?.error).toContain("Cannot change type");
+
+      await expect(updateCategory(null, fd)).rejects.toBeInstanceOf(
+        RedirectError
+      );
+      // org check + current category fetch + the update itself; no children read
+      expect(mockSupabase.from).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -381,20 +404,36 @@ describe("category actions", () => {
       expect(result?.error).toContain("Cannot merge a category into itself");
     });
 
-    it("returns RPC error when types don't match", async () => {
+    it("merges a former income category into a former expense category", async () => {
+      // Categories no longer carry a direction, so the RPC has no same-type
+      // guard: merging the income "Poinsettias" into the expense
+      // "Poinsettias" is exactly what this model is for.
       mockSupabase.mockResult({ data: { id: orgId }, error: null });
       mockSupabase.rpc.mockResolvedValue({
-        data: null,
-        error: { message: "Categories must be the same type (income/expense)." },
-      });
+        data: {
+          reassigned_line_items: 4,
+          reassigned_template_line_items: 0,
+          reassigned_budget_line_items: 1,
+          merged_budget_line_items: 1,
+          reassigned_fee_accounts: 0,
+        },
+        error: null,
+      } as never);
 
       const fd = makeFormData({
         source_id: catId,
         target_id: targetCatId,
         organization_id: orgId,
       });
-      const result = await mergeCategory(null, fd);
-      expect(result?.error).toContain("same type");
+
+      await expect(mergeCategory(null, fd)).rejects.toBeInstanceOf(
+        RedirectError
+      );
+      expect(mockSupabase.rpc).toHaveBeenCalledWith("merge_categories", {
+        p_source_id: catId,
+        p_target_id: targetCatId,
+        p_organization_id: orgId,
+      });
     });
 
     it("returns RPC error when source has active subcategories", async () => {
@@ -402,7 +441,7 @@ describe("category actions", () => {
       mockSupabase.rpc.mockResolvedValue({
         data: null,
         error: { message: "Cannot merge a parent category that has active subcategories. Deactivate or merge its subcategories first." },
-      });
+      } as never);
 
       const fd = makeFormData({
         source_id: catId,
@@ -418,7 +457,7 @@ describe("category actions", () => {
       mockSupabase.rpc.mockResolvedValue({
         data: { reassigned_line_items: 5 },
         error: null,
-      });
+      } as never);
 
       const fd = makeFormData({
         source_id: catId,

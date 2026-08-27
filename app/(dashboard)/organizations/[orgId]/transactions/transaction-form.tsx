@@ -665,7 +665,6 @@ export function TransactionForm({
         open={isCategoryDialogOpen}
         onOpenChange={setIsCategoryDialogOpen}
         orgId={orgId}
-        categoryType={transactionType}
         parentCategories={parentCategoriesForDialog}
         onCreated={handleCategoryCreated}
       />

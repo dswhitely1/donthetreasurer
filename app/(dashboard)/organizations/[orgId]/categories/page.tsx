@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { Plus, Tag } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-import { CATEGORY_TYPE_LABELS } from "@/lib/validations/category";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,7 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -54,9 +52,6 @@ export default async function CategoriesPage({
     }
   }
 
-  const incomeParents = parents.filter((p) => p.category_type === "income");
-  const expenseParents = parents.filter((p) => p.category_type === "expense");
-
   return (
     <div>
       <PageHeader title="Categories" description={`Manage transaction categories for ${organization.name}.`}>
@@ -78,16 +73,9 @@ export default async function CategoriesPage({
           />
         </div>
       ) : (
-        <div className="mt-6 space-y-8">
+        <div className="mt-6">
           <CategorySection
-            title="Income Categories"
-            parents={incomeParents}
-            childrenMap={childrenMap}
-            orgId={orgId}
-          />
-          <CategorySection
-            title="Expense Categories"
-            parents={expenseParents}
+            parents={parents}
             childrenMap={childrenMap}
             orgId={orgId}
           />
@@ -98,49 +86,33 @@ export default async function CategoriesPage({
 }
 
 function CategorySection({
-  title,
   parents,
   childrenMap,
   orgId,
 }: Readonly<{
-  title: string;
   parents: Array<{
     id: string;
     name: string;
-    category_type: string;
   }>;
-  childrenMap: Map<
-    string,
-    Array<{ id: string; name: string; category_type: string }>
-  >;
+  childrenMap: Map<string, Array<{ id: string; name: string }>>;
   orgId: string;
 }>) {
   if (parents.length === 0) return null;
 
   return (
     <div>
-      <h3 className="mb-3 text-lg font-medium text-foreground">{title}</h3>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {parents.map((parent) => {
           const children = childrenMap.get(parent.id) ?? [];
           return (
             <Card key={parent.id}>
               <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
-                  <Link
-                    href={`/organizations/${orgId}/categories/${parent.id}`}
-                    className="hover:underline"
-                  >
-                    <CardTitle className="text-base">
-                      {parent.name}
-                    </CardTitle>
-                  </Link>
-                  <Badge variant="secondary">
-                    {CATEGORY_TYPE_LABELS[
-                      parent.category_type as keyof typeof CATEGORY_TYPE_LABELS
-                    ] ?? parent.category_type}
-                  </Badge>
-                </div>
+                <Link
+                  href={`/organizations/${orgId}/categories/${parent.id}`}
+                  className="hover:underline"
+                >
+                  <CardTitle className="text-base">{parent.name}</CardTitle>
+                </Link>
               </CardHeader>
               <CardContent>
                 {children.length > 0 ? (

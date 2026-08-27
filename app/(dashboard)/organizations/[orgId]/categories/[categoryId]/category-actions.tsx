@@ -4,10 +4,6 @@ import { useActionState, useState } from "react";
 
 import type { Tables } from "@/types/database";
 import { updateCategory, deactivateCategory, mergeCategory, reassignCategory } from "../actions";
-import {
-  CATEGORY_TYPES,
-  CATEGORY_TYPE_LABELS,
-} from "@/lib/validations/category";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,7 +27,6 @@ import {
 export function CategoryActions({
   category,
   orgId,
-  parentCategory,
   subcategoryCount,
   lineItemCount,
   transactionCount,
@@ -40,7 +35,6 @@ export function CategoryActions({
 }: Readonly<{
   category: Tables<"categories">;
   orgId: string;
-  parentCategory: Pick<Tables<"categories">, "id" | "name" | "category_type"> | null;
   subcategoryCount: number;
   lineItemCount: number;
   transactionCount: number;
@@ -108,50 +102,6 @@ export function CategoryActions({
               defaultValue={category.name}
             />
           </div>
-
-          {isSubcategory ? (
-            <>
-              <input
-                type="hidden"
-                name="category_type"
-                value={parentCategory?.category_type ?? category.category_type}
-              />
-              <div className="flex flex-col gap-1.5">
-                <Label>Category Type</Label>
-                <p className="text-sm text-muted-foreground">
-                  {CATEGORY_TYPE_LABELS[
-                    category.category_type as keyof typeof CATEGORY_TYPE_LABELS
-                  ] ?? category.category_type}{" "}
-                  (inherited from parent)
-                </p>
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="edit-category-type">Category Type</Label>
-              <Select
-                name="category_type"
-                defaultValue={category.category_type}
-              >
-                <SelectTrigger id="edit-category-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORY_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {CATEGORY_TYPE_LABELS[type]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {subcategoryCount > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Changing type will fail if active subcategories have a
-                  different type.
-                </p>
-              )}
-            </div>
-          )}
 
           <div className="flex gap-3">
             <Button type="submit" disabled={updatePending}>
