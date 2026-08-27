@@ -1,3 +1,12 @@
+// HAND-EDITED for the untyped-categories migration
+// (supabase/migrations/20260826000001_untyped_categories.sql): the
+// `category_type` column/enum was removed from `categories` here by hand,
+// because regenerating this file requires a live database with that
+// migration already applied. Once the migration has been applied, regenerate
+// this file for real and discard this comment:
+//
+//   npx supabase gen types typescript --linked > types/database.ts
+
 export type Json =
   | string
   | number
