@@ -49,7 +49,7 @@ export default async function AccountDetailPage({
   }
 
   // Fetch active categories for fee config
-  const { data: expenseCategories } = await supabase
+  const { data: feeCategories } = await supabase
     .from("categories")
     .select("id, name, parent_id")
     .eq("organization_id", orgId)
@@ -230,10 +230,10 @@ export default async function AccountDetailPage({
                       <dt className="font-medium text-muted-foreground">Fee Category</dt>
                       <dd className="mt-1 text-foreground">
                         {(() => {
-                          const cat = (expenseCategories ?? []).find((c) => c.id === account.fee_category_id);
+                          const cat = (feeCategories ?? []).find((c) => c.id === account.fee_category_id);
                           if (!cat) return "Unknown";
                           if (cat.parent_id) {
-                            const parent = (expenseCategories ?? []).find((c) => c.id === cat.parent_id);
+                            const parent = (feeCategories ?? []).find((c) => c.id === cat.parent_id);
                             return parent ? `${parent.name} → ${cat.name}` : cat.name;
                           }
                           return cat.name;
@@ -248,7 +248,7 @@ export default async function AccountDetailPage({
             <AccountActions
               account={account}
               orgId={orgId}
-              expenseCategories={expenseCategories ?? []}
+              feeCategories={feeCategories ?? []}
             />
           </CardContent>
         </Card>

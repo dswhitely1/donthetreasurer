@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export type ExpenseCategory = {
+export type FeeCategory = {
   id: string;
   name: string;
   parent_id: string | null;
@@ -23,10 +23,10 @@ export type ExpenseCategory = {
 const NONE_SENTINEL = "__none__";
 
 export function FeeConfigFields({
-  expenseCategories,
+  feeCategories,
   defaultValues,
 }: Readonly<{
-  expenseCategories: ExpenseCategory[];
+  feeCategories: FeeCategory[];
   defaultValues?: {
     fee_percentage: number | null;
     fee_flat_amount: number | null;
@@ -37,9 +37,9 @@ export function FeeConfigFields({
     defaultValues?.fee_category_id || NONE_SENTINEL
   );
 
-  const parentCats = expenseCategories.filter((c) => !c.parent_id);
-  const childrenMap = new Map<string, ExpenseCategory[]>();
-  for (const cat of expenseCategories) {
+  const parentCats = feeCategories.filter((c) => !c.parent_id);
+  const childrenMap = new Map<string, FeeCategory[]>();
+  for (const cat of feeCategories) {
     if (cat.parent_id) {
       const existing = childrenMap.get(cat.parent_id) ?? [];
       existing.push(cat);
@@ -94,11 +94,11 @@ export function FeeConfigFields({
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="fee_category_id" className="text-xs">
-          Fee Expense Category
+          Fee Category
         </Label>
-        {expenseCategories.length === 0 ? (
+        {feeCategories.length === 0 ? (
           <p className="text-xs text-muted-foreground">
-            No expense categories available. Create one first to configure fees.
+            No categories available. Create one first to configure fees.
           </p>
         ) : (
           <>
@@ -108,7 +108,7 @@ export function FeeConfigFields({
               onValueChange={setSelectedCategoryId}
             >
               <SelectTrigger id="fee_category_id">
-                <SelectValue placeholder="Select expense category" />
+                <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={NONE_SENTINEL}>None</SelectItem>

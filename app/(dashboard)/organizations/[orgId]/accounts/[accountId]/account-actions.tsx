@@ -21,16 +21,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import type { ExpenseCategory } from "../fee-config-fields";
+import type { FeeCategory } from "../fee-config-fields";
 
 export function AccountActions({
   account,
   orgId,
-  expenseCategories,
+  feeCategories,
 }: Readonly<{
   account: Tables<"accounts">;
   orgId: string;
-  expenseCategories: ExpenseCategory[];
+  feeCategories: FeeCategory[];
 }>) {
   const [isEditing, setIsEditing] = useState(false);
   const [isConfirmingDeactivate, setIsConfirmingDeactivate] = useState(false);
@@ -120,7 +120,7 @@ export function AccountActions({
           </div>
 
           <FeeConfigFields
-            expenseCategories={expenseCategories}
+            feeCategories={feeCategories}
             defaultValues={{
               fee_percentage: account.fee_percentage,
               fee_flat_amount: account.fee_flat_amount,

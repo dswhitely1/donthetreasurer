@@ -36,7 +36,7 @@ export default async function NewAccountPage({
   }
 
   // Fetch active categories for fee category dropdown
-  const { data: expenseCategories } = await supabase
+  const { data: feeCategories } = await supabase
     .from("categories")
     .select("id, name, parent_id")
     .eq("organization_id", orgId)
@@ -63,7 +63,7 @@ export default async function NewAccountPage({
         <CardContent>
           <NewAccountForm
             orgId={orgId}
-            expenseCategories={expenseCategories ?? []}
+            feeCategories={feeCategories ?? []}
             showSaved={saved === "true"}
           />
         </CardContent>

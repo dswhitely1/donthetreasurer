@@ -12,7 +12,7 @@ const features = [
   {
     title: "Custom Categories",
     description:
-      "Define your own two-level income and expense categories for each organization.",
+      "Define your own two-level categories for each organization.",
   },
   {
     title: "Excel & PDF Reports",
