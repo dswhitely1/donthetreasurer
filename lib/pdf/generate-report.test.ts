@@ -518,7 +518,9 @@ describe("generateReportPdf budget section", () => {
     );
     const body = budgetTable!.body!;
 
-    const totalIndex = body.findIndex((r) => cellText(r[0]) === "Total");
+    const totalIndex = body.findIndex(
+      (r) => cellText(r[0]) === "Total (Budgeted Lines)"
+    );
     const unbudgetedHeaderIndex = body.findIndex(
       (r) => cellText(r[0]) === "UNBUDGETED"
     );
@@ -532,7 +534,7 @@ describe("generateReportPdf budget section", () => {
 
     const totalRow = body[totalIndex];
     expect(rowText(totalRow)).toEqual([
-      "Total",
+      "Total (Budgeted Lines)",
       "$3,100.00",
       "$3,400.00",
       "$300.00",

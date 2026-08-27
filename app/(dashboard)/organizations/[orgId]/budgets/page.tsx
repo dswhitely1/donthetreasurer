@@ -104,6 +104,11 @@ export default async function BudgetsPage({
             <tbody>
               {budgetList.map((budget) => {
                 const lineItems = budget.budget_line_items ?? [];
+                // Computed here as a plain sum of line item amounts for the
+                // list view, and separately in fetchBudgetReportData
+                // (lib/reports/fetch-budget-data.ts) as netTotals.budgeted
+                // for the detail view. Both must stay in agreement — if the
+                // budgeted total's definition ever changes, update both.
                 const netBudgeted = lineItems.reduce(
                   (sum, li) => sum + li.amount,
                   0

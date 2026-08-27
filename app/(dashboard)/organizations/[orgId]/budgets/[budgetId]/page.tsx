@@ -120,7 +120,7 @@ export default async function BudgetDetailPage({
           <div className="mt-6 grid grid-cols-3 gap-3">
             <div className="rounded-lg border border-border p-3">
               <p className="text-xs font-medium text-muted-foreground">
-                Budgeted Net
+                Net Budgeted
               </p>
               <p
                 className={`text-lg font-bold tabular-nums ${
@@ -134,7 +134,7 @@ export default async function BudgetDetailPage({
             </div>
             <div className="rounded-lg border border-border p-3">
               <p className="text-xs font-medium text-muted-foreground">
-                Actual Net
+                Actual Net (Budgeted Lines)
               </p>
               <p
                 className={`text-lg font-bold tabular-nums ${

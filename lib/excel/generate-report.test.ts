@@ -513,7 +513,7 @@ describe("generateReportWorkbook budget sheet", () => {
     });
 
     const sheet = await budgetSheetOf(budgetData);
-    const totalRow = findRowByFirstCell(sheet, "Total");
+    const totalRow = findRowByFirstCell(sheet, "Total (Budgeted Lines)");
     const unbudgetedHeaderRow = findRowByFirstCell(sheet, "UNBUDGETED");
     const unbudgetedLineRow = findRowByFirstCell(sheet, "Surprise Gift");
 

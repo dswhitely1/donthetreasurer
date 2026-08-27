@@ -582,7 +582,7 @@ export function generateReportPdf(
     }
 
     budgetRows.push([
-      { content: "Total", styles: { fontStyle: "bold" } },
+      { content: "Total (Budgeted Lines)", styles: { fontStyle: "bold" } },
       { content: formatCurrency(budgetData.netTotals.budgeted), styles: { halign: "right", fontStyle: "bold" } },
       { content: formatCurrency(budgetData.netTotals.actual), styles: { halign: "right", fontStyle: "bold" } },
       {

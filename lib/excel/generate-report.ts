@@ -623,7 +623,7 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
   }
 
   const totalRow = sheet.addRow([
-    "Total",
+    "Total (Budgeted Lines)",
     data.netTotals.budgeted,
     data.netTotals.actual,
     data.netTotals.variance,
