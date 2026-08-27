@@ -88,6 +88,17 @@ A budgeted net of exactly zero is rejected — a line that plans nothing is nois
 
 Single migration file, `supabase/migrations/20260826000001_untyped_categories.sql`. **Step order is load-bearing** — the signed conversion in step 1 reads `category_type`, which step 5 destroys.
 
+### Step 0 — Drop the positive-only guard FIRST
+
+`budget_line_items.amount` carries `CHECK (amount > 0)` from its original migration. Step 1 writes negative amounts and the merge loop can produce negative or zero sums, so leaving that constraint in place **aborts the migration on its very first statement** — the check is not deferrable.
+
+```sql
+ALTER TABLE public.budget_line_items
+  DROP CONSTRAINT budget_line_items_amount_check;
+```
+
+This must precede step 1. Earlier drafts of this document placed it in step 5, alongside the `amount <> 0` constraint that replaces it; that ordering does not run.
+
 ### Step 1 — Convert budget amounts to signed, while type still exists
 
 ```sql
@@ -138,7 +149,7 @@ For the three line-item tables this assertion is belt-and-braces: `ON DELETE RES
 
 ### Step 5 — Drop the column and apply new constraints
 
-Drop `category_type`, add the unique index from §3.1 and the `amount <> 0` constraint from §3.2.
+Drop `category_type`, add the unique index from §3.1 and the `amount <> 0` constraint from §3.2. The old `amount > 0` constraint is already gone — it was dropped in step 0, not here.
 
 **The merge can produce a zero net that violates the constraint being added.** A pair budgeted at 5,000 income and 5,000 expense sums to exactly 0, and the `amount <> 0` check would then abort the migration. Delete zero-amount budget line items after the merge and before adding the constraint — a line planning a net of zero carries no information.
 

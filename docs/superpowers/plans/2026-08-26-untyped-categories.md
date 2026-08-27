@@ -1346,6 +1346,18 @@ Create `supabase/migrations/20260826000001_untyped_categories.sql`. Step order i
 -- Migration: Untyped categories and signed budget amounts
 -- Direction now comes from transactions.transaction_type, not the category.
 -- NOT REVERSIBLE. Snapshot before applying.
+--
+-- Step order is load-bearing in TWO places:
+--   * The amount > 0 CHECK must be dropped FIRST (step 0). Step 1 writes
+--     negative amounts and the merge loop can produce negative or zero sums.
+--     The check is not deferrable, so leaving it aborts the first UPDATE.
+--   * The signing in step 1 reads category_type, which the final ALTER drops.
+--     Reverse them and every expense budget line silently keeps a positive
+--     sign -- data corruption with no error.
+
+-- Step 0: release the positive-only guard before writing signed amounts.
+ALTER TABLE public.budget_line_items
+  DROP CONSTRAINT budget_line_items_amount_check;
 
 -- Step 1: sign budget amounts while category_type still exists.
 UPDATE public.budget_line_items AS bli
@@ -1450,9 +1462,8 @@ DELETE FROM public.budget_line_items WHERE amount = 0;
 -- Step 5: drop the column and apply the new constraints.
 ALTER TABLE public.categories DROP COLUMN category_type;
 
-ALTER TABLE public.budget_line_items
-  DROP CONSTRAINT budget_line_items_amount_check;
-
+-- The old amount > 0 constraint is already gone -- dropped in step 0, because
+-- step 1 could not have written negative amounts with it still in place.
 ALTER TABLE public.budget_line_items
   ADD CONSTRAINT budget_line_items_amount_nonzero CHECK (amount <> 0);
 
