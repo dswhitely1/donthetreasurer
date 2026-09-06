@@ -8,8 +8,39 @@ function formatExcelDate(dateStr: string): string {
   return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
+/**
+ * Real `Date` for a `YYYY-MM-DD` string. Parsed as UTC midnight, not local:
+ * ExcelJS derives the Excel serial number from the UTC epoch, so a local
+ * midnight would land a day early for any runtime east of GMT.
+ */
+function toExcelDate(dateStr: string): Date {
+  return new Date(dateStr + "T00:00:00Z");
+}
+
+/**
+ * Currency values arrive as float sums, so a total can land on 3548.0299999999997.
+ * The number format hides that, but the stored value is what gets re-summed or
+ * pasted elsewhere — round before writing.
+ */
+function round2(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 const POSITIVE_COLOR = "FF16A34A"; // green-600
 const NEGATIVE_COLOR = "FFDC2626"; // red-600
+const BANNER_BG = "FF1E293B"; // slate-800
+const BANNER_TEXT = "FFFFFFFF";
+const COLUMN_HEADER_BG = "FFE2E8F0"; // slate-200
+const RULE_COLOR = "FF94A3B8"; // slate-400
+const SUBTOTAL_BG = "FFF1F5F9"; // slate-100
+const MUTED_TEXT = "FF666666";
+
+/**
+ * Accounting format: decimal points line up down the column, negatives read as
+ * (1,234.00), and an exact zero shows a dash instead of $0.00.
+ */
+const CURRENCY_FMT = '_($* #,##0.00_);_($* (#,##0.00);_($* "-"??_);_(@_)';
+const DATE_FMT = "mm/dd/yyyy";
 
 /**
  * Font colour for a signed amount. Used on columns that carry a direction in
@@ -21,12 +52,87 @@ function signedColor(value: number): string {
   return value >= 0 ? POSITIVE_COLOR : NEGATIVE_COLOR;
 }
 
+/**
+ * Dark full-width banner used as the first row of every sheet, so the sheets in
+ * one workbook read as a single report rather than separate exports.
+ */
+function writeBanner(
+  sheet: ExcelJS.Worksheet,
+  row: number,
+  lastColumn: number,
+  text: string,
+  size = 16
+) {
+  const r = sheet.getRow(row);
+  r.getCell(1).value = text;
+  r.getCell(1).font = { size, bold: true, color: { argb: BANNER_TEXT } };
+  r.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
+  for (let c = 1; c <= lastColumn; c++) {
+    r.getCell(c).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: BANNER_BG },
+    };
+  }
+  r.height = size + 8;
+  sheet.mergeCells(row, 1, row, lastColumn);
+}
+
+/** Centred, muted context line under a banner (date range, generated timestamp). */
+function writeBannerSubtitle(
+  sheet: ExcelJS.Worksheet,
+  row: number,
+  lastColumn: number,
+  text: string
+) {
+  const r = sheet.getRow(row);
+  r.getCell(1).value = text;
+  r.getCell(1).font = { size: 9, italic: true, color: { argb: MUTED_TEXT } };
+  r.getCell(1).alignment = { horizontal: "center" };
+  sheet.mergeCells(row, 1, row, lastColumn);
+}
+
+/**
+ * Fit-to-width printing with the column header row repeated on every page.
+ * Without this a 12-column sheet prints portrait at 100% and spills columns
+ * onto unreadable overflow pages.
+ */
+function applyPrintSetup(
+  sheet: ExcelJS.Worksheet,
+  opts?: { headerRow?: number; orientation?: "portrait" | "landscape" }
+) {
+  sheet.pageSetup = {
+    orientation: opts?.orientation ?? "landscape",
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    ...(opts?.headerRow === undefined
+      ? {}
+      : { printTitlesRow: `${opts.headerRow}:${opts.headerRow}` }),
+    margins: {
+      left: 0.4,
+      right: 0.4,
+      top: 0.5,
+      bottom: 0.5,
+      header: 0.3,
+      footer: 0.3,
+    },
+  };
+  sheet.headerFooter = { oddFooter: "&L&A&R Page &P of &N" };
+}
+
 export async function generateReportWorkbook(
   data: ReportData,
   budgetData?: BudgetReportData | null,
   seasonsData?: SeasonsReportData | null
 ): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
+  workbook.creator = "Treasurer";
+  workbook.lastModifiedBy = "Treasurer";
+  workbook.company = data.organizationName;
+  workbook.title = `${data.organizationName} — Transaction Report`;
+  workbook.created = new Date(data.generatedAt);
+  workbook.modified = new Date(data.generatedAt);
 
   buildTransactionsSheet(workbook, data);
   buildSummarySheet(workbook, data);
@@ -51,21 +157,28 @@ function addTransactionRows(
     const isFirst = i === 0;
 
     const row = sheet.addRow([
-      isFirst ? formatExcelDate(txn.transactionDate) : "",
+      isFirst ? toExcelDate(txn.transactionDate) : "",
       isFirst ? txn.accountName : "",
       isFirst ? txn.checkNumber ?? "" : "",
       isFirst ? txn.vendor ?? "" : "",
       isFirst ? txn.description : "",
       li.categoryLabel,
       li.memo ?? "",
-      txn.transactionType === "income" ? li.amount : null,
-      txn.transactionType === "expense" ? li.amount : null,
+      txn.transactionType === "income" ? round2(li.amount) : null,
+      txn.transactionType === "expense" ? round2(li.amount) : null,
       isFirst
         ? txn.status.charAt(0).toUpperCase() + txn.status.slice(1)
         : "",
-      isFirst && txn.clearedAt ? formatExcelDate(txn.clearedAt.slice(0, 10)) : "",
+      isFirst && txn.clearedAt ? toExcelDate(txn.clearedAt.slice(0, 10)) : "",
       null, // Running balance left blank in grouped view
     ]);
+
+    // Dates go in as real Dates rather than pre-formatted text, so both date
+    // columns sort, filter and pivot chronologically in Excel.
+    for (const c of [1, 11]) {
+      const cell = row.getCell(c);
+      if (cell.value instanceof Date) cell.numFmt = DATE_FMT;
+    }
 
     const incomeCell = row.getCell(8);
     const expenseCell = row.getCell(9);
@@ -102,13 +215,28 @@ function addSubtotalRow(
     "",
     "",
     label,
-    income || null,
-    expense || null,
+    income ? round2(income) : null,
+    expense ? round2(expense) : null,
     "",
     "",
     null,
   ]);
   row.font = { bold };
+
+  // A rule above every subtotal, plus a fill on the bolder account totals, so
+  // they read as boundaries instead of blending into the data rows above them.
+  for (let c = 1; c <= 12; c++) {
+    const cell = row.getCell(c);
+    cell.border = { top: { style: "thin", color: { argb: RULE_COLOR } } };
+    if (bold) {
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: SUBTOTAL_BG },
+      };
+    }
+  }
+
   const incomeCell = row.getCell(8);
   const expenseCell = row.getCell(9);
   if (incomeCell.value !== null) {
@@ -139,7 +267,7 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
   sheet.columns = [
     { key: "txnDate", width: 15 },
     { key: "account", width: 20 },
-    { key: "checkNum", width: 10 },
+    { key: "checkNum", width: 16 },
     { key: "vendor", width: 20 },
     { key: "description", width: 40 },
     { key: "category", width: 30 },
@@ -151,27 +279,21 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
     { key: "runningBalance", width: 15 },
   ];
 
-  // Header section
-  const titleRow = sheet.addRow([data.organizationName]);
-  titleRow.font = { size: 14, bold: true };
-  sheet.mergeCells("A1:L1");
-
-  const subtitleRow = sheet.addRow(["Transaction Report"]);
-  subtitleRow.font = { size: 12 };
-  sheet.mergeCells("A2:L2");
+  // Header section — banner plus muted context lines, the same treatment the
+  // Summary sheet uses, so the two sheets look like one report.
+  writeBanner(sheet, 1, 12, data.organizationName);
+  writeBanner(sheet, 2, 12, "Transaction Report", 11);
 
   const dateRangeText = data.fiscalYearLabel
     ? `${data.fiscalYearLabel} — Cleared: ${formatExcelDate(data.startDate)} to ${formatExcelDate(data.endDate)} (includes all uncleared)`
     : `Cleared: ${formatExcelDate(data.startDate)} to ${formatExcelDate(data.endDate)} (includes all uncleared)`;
-  const dateRangeRow = sheet.addRow([dateRangeText]);
-  dateRangeRow.font = { italic: true };
-  sheet.mergeCells("A3:L3");
-
-  const generatedRow = sheet.addRow([
-    `Generated: ${new Date(data.generatedAt).toLocaleString()}`,
-  ]);
-  generatedRow.font = { italic: true, color: { argb: "FF666666" } };
-  sheet.mergeCells("A4:L4");
+  writeBannerSubtitle(sheet, 3, 12, dateRangeText);
+  writeBannerSubtitle(
+    sheet,
+    4,
+    12,
+    `Generated: ${new Date(data.generatedAt).toLocaleString()}`
+  );
 
   // Blank row
   sheet.addRow([]);
@@ -180,7 +302,7 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
   const headerRow = sheet.addRow([
     "Transaction Date",
     "Account",
-    "Check #",
+    "Check # / Method",
     "Vendor",
     "Description",
     "Category",
@@ -192,21 +314,29 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
     "Running Balance",
   ]);
   headerRow.font = { bold: true };
+  headerRow.height = 18;
   headerRow.eachCell((cell) => {
+    cell.alignment = { vertical: "middle" };
     cell.fill = {
       type: "pattern",
       pattern: "solid",
-      fgColor: { argb: "FFE2E8F0" },
+      fgColor: { argb: COLUMN_HEADER_BG },
     };
     cell.border = {
-      bottom: { style: "thin", color: { argb: "FF94A3B8" } },
+      top: { style: "thin", color: { argb: RULE_COLOR } },
+      bottom: { style: "thin", color: { argb: RULE_COLOR } },
     };
   });
 
-  // Freeze panes: rows 1-6 frozen, columns not frozen
-  sheet.views = [{ state: "frozen", ySplit: 6, xSplit: 0 }];
+  // Freeze panes: rows 1-6 frozen, columns not frozen. Gridlines off — the
+  // banded section headers and subtotal rules already carry the structure.
+  sheet.views = [
+    { state: "frozen", ySplit: 6, xSplit: 0, showGridLines: false },
+  ];
+  sheet.properties.tabColor = { argb: BANNER_BG };
+  applyPrintSetup(sheet, { headerRow: 6 });
 
-  const currencyFmt = "$#,##0.00";
+  const currencyFmt = CURRENCY_FMT;
 
   if (data.transactions.length === 0) {
     const emptyRow = sheet.addRow([
@@ -260,7 +390,7 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
       const startRow = sheet.addRow([
         "", "", "", "", "", "", "Starting Balance:",
         null, null, "", "",
-        acctBalance.startingBalance,
+        round2(acctBalance.startingBalance),
       ]);
       startRow.font = { italic: true };
       startRow.getCell(12).numFmt = currencyFmt;
@@ -330,7 +460,7 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
       const endRow = sheet.addRow([
         "", "", "", "", "", "", "Ending Balance:",
         null, null, "", "",
-        acctBalance.endingBalance,
+        round2(acctBalance.endingBalance),
       ]);
       endRow.font = { italic: true };
       endRow.getCell(12).numFmt = currencyFmt;
@@ -356,8 +486,8 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
     "",
     "",
     "GRAND TOTAL:",
-    grandTotalIncome || null,
-    grandTotalExpense || null,
+    grandTotalIncome ? round2(grandTotalIncome) : null,
+    grandTotalExpense ? round2(grandTotalExpense) : null,
     "",
     "",
     null,
@@ -384,7 +514,7 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
   const sheet = workbook.addWorksheet("Summary");
   const { summary } = data;
 
-  const currencyFmt = "$#,##0.00";
+  const currencyFmt = CURRENCY_FMT;
 
   // 4-column layout: A (category label), B-D (In / Out / Net currency)
   sheet.getColumn(1).width = 32; // A: Category label
@@ -395,49 +525,43 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
   const HEADER_FILL: ExcelJS.FillPattern = {
     type: "pattern",
     pattern: "solid",
-    fgColor: { argb: "FF1E293B" }, // slate-800
+    fgColor: { argb: BANNER_BG },
   };
   const HEADER_FONT: Partial<ExcelJS.Font> = {
     bold: true,
-    color: { argb: "FFFFFFFF" },
+    color: { argb: BANNER_TEXT },
     size: 10,
   };
 
   // Row 1: "Summary" title spanning A1:D1
-  const titleRow = sheet.getRow(1);
-  titleRow.getCell(1).value = "Summary";
-  titleRow.getCell(1).font = { size: 16, bold: true, color: { argb: "FFFFFFFF" } };
-  titleRow.getCell(1).fill = HEADER_FILL;
-  titleRow.getCell(1).alignment = { horizontal: "center" };
-  for (let c = 2; c <= 4; c++) {
-    titleRow.getCell(c).fill = HEADER_FILL;
-  }
-  sheet.mergeCells("A1:D1");
+  writeBanner(sheet, 1, 4, "Summary");
 
   // Row 2: Org name + date range
   const dateBasisLabel = data.dateBasis === "transaction_date" ? "Transaction Date" : "Cleared Date";
-  const infoRow = sheet.getRow(2);
   const dateRangeText = data.fiscalYearLabel
     ? `${data.organizationName}  |  ${data.fiscalYearLabel}  |  ${formatExcelDate(data.startDate)} to ${formatExcelDate(data.endDate)}  |  Date Basis: ${dateBasisLabel}`
     : `${data.organizationName}  |  ${formatExcelDate(data.startDate)} to ${formatExcelDate(data.endDate)}  |  Date Basis: ${dateBasisLabel}`;
-  infoRow.getCell(1).value = dateRangeText;
-  infoRow.getCell(1).font = { size: 9, italic: true, color: { argb: "FF666666" } };
-  infoRow.getCell(1).alignment = { horizontal: "center" };
-  sheet.mergeCells("A2:D2");
+  writeBannerSubtitle(sheet, 2, 4, dateRangeText);
 
   // Row 3: blank separator
   // Freeze panes: title rows frozen
-  sheet.views = [{ state: "frozen", ySplit: 3, xSplit: 0 }];
+  sheet.views = [
+    { state: "frozen", ySplit: 3, xSplit: 0, showGridLines: false },
+  ];
+  sheet.properties.tabColor = { argb: BANNER_BG };
+  applyPrintSetup(sheet, { orientation: "portrait" });
 
   // Helpers that write into a specific column pair (colOffset 1=left A-B, 4=right D-E)
   function writeSectionHeader(row: number, colOffset: number, title: string) {
     const r = sheet.getRow(row);
     const labelCell = r.getCell(colOffset);
-    const valueCell = r.getCell(colOffset + 1);
     labelCell.value = title;
     labelCell.font = HEADER_FONT;
-    labelCell.fill = HEADER_FILL;
-    valueCell.fill = HEADER_FILL;
+    // Fill through the last column: a bar that stops at column B looks
+    // truncated against the four-column category table below it.
+    for (let c = colOffset; c <= 4; c++) {
+      r.getCell(c).fill = HEADER_FILL;
+    }
   }
 
   function writeAmountRow(
@@ -454,7 +578,7 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
     labelCell.value = displayLabel;
     if (opts?.bold) labelCell.font = { bold: true };
     if (opts?.italic) labelCell.font = { italic: true };
-    valueCell.value = amount;
+    valueCell.value = round2(amount);
     valueCell.numFmt = currencyFmt;
     valueCell.alignment = { horizontal: "right" };
     const fontOpts: Partial<ExcelJS.Font> = {};
@@ -526,12 +650,27 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
   if (summary.categoryTotals.length > 0) {
     let categoryRow = leftRow + 2;
 
+    writeSectionHeader(categoryRow, 1, "CATEGORY BREAKDOWN");
+    categoryRow++;
+
     const header = sheet.getRow(categoryRow);
     header.getCell(1).value = "Category";
-    header.getCell(2).value = "In";
-    header.getCell(3).value = "Out";
+    // "Income" / "Expense" rather than "In" / "Out": same concept as the
+    // Transactions sheet, so it gets the same name.
+    header.getCell(2).value = "Income";
+    header.getCell(3).value = "Expense";
     header.getCell(4).value = "Net";
     header.font = { bold: true };
+    for (let c = 1; c <= 4; c++) {
+      header.getCell(c).fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: COLUMN_HEADER_BG },
+      };
+      header.getCell(c).border = {
+        bottom: { style: "thin", color: { argb: RULE_COLOR } },
+      };
+    }
     categoryRow++;
 
     const firstDataRow = categoryRow;
@@ -539,9 +678,9 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
     for (const group of summary.categoryTotals) {
       const groupRow = sheet.getRow(categoryRow);
       groupRow.getCell(1).value = group.parentName;
-      groupRow.getCell(2).value = group.totalIn;
-      groupRow.getCell(3).value = group.totalOut;
-      groupRow.getCell(4).value = group.net;
+      groupRow.getCell(2).value = round2(group.totalIn);
+      groupRow.getCell(3).value = round2(group.totalOut);
+      groupRow.getCell(4).value = round2(group.net);
       const groupBold = group.children.length > 0;
       if (groupBold) groupRow.font = { bold: true };
       // Set after the row font: assigning row.font would otherwise overwrite
@@ -555,9 +694,9 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
       for (const child of group.children) {
         const childRow = sheet.getRow(categoryRow);
         childRow.getCell(1).value = `    ${child.name}`;
-        childRow.getCell(2).value = child.in;
-        childRow.getCell(3).value = child.out;
-        childRow.getCell(4).value = child.net;
+        childRow.getCell(2).value = round2(child.in);
+        childRow.getCell(3).value = round2(child.out);
+        childRow.getCell(4).value = round2(child.net);
         childRow.getCell(4).font = { color: { argb: signedColor(child.net) } };
         categoryRow++;
       }
@@ -565,14 +704,19 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
 
     const totalRow = sheet.getRow(categoryRow);
     totalRow.getCell(1).value = "Total";
-    totalRow.getCell(2).value = summary.totalIncome;
-    totalRow.getCell(3).value = summary.totalExpenses;
-    totalRow.getCell(4).value = summary.netChange;
+    totalRow.getCell(2).value = round2(summary.totalIncome);
+    totalRow.getCell(3).value = round2(summary.totalExpenses);
+    totalRow.getCell(4).value = round2(summary.netChange);
     totalRow.font = { bold: true };
     totalRow.getCell(4).font = {
       bold: true,
       color: { argb: signedColor(summary.netChange) },
     };
+    for (let c = 1; c <= 4; c++) {
+      totalRow.getCell(c).border = {
+        top: { style: "double", color: { argb: BANNER_BG } },
+      };
+    }
 
     for (let r = firstDataRow; r <= categoryRow; r++) {
       for (let c = 2; c <= 4; c++) {
@@ -588,7 +732,7 @@ function formatPercentOfPlan(percent: number | null): string {
 
 function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
   const sheet = workbook.addWorksheet("Budget vs. Actuals");
-  const currencyFmt = "$#,##0.00";
+  const currencyFmt = CURRENCY_FMT;
 
   sheet.columns = [
     { key: "category", width: 35 },
@@ -599,15 +743,13 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
   ];
 
   // Header
-  const titleRow = sheet.addRow([`Budget vs. Actuals: ${data.budgetName}`]);
-  titleRow.font = { size: 14, bold: true };
-  sheet.mergeCells(`A1:E1`);
-
-  const dateRow = sheet.addRow([
-    `${formatExcelDate(data.startDate)} to ${formatExcelDate(data.endDate)} (${data.status})`,
-  ]);
-  dateRow.font = { size: 10, italic: true };
-  sheet.mergeCells(`A2:E2`);
+  writeBanner(sheet, 1, 5, `Budget vs. Actuals: ${data.budgetName}`, 14);
+  writeBannerSubtitle(
+    sheet,
+    2,
+    5,
+    `${formatExcelDate(data.startDate)} to ${formatExcelDate(data.endDate)} (${data.status})`
+  );
 
   sheet.addRow([]);
 
@@ -620,23 +762,32 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
     "% of Plan",
   ]);
   headerRow.font = { bold: true };
+  headerRow.height = 18;
   headerRow.eachCell((cell) => {
+    cell.alignment = { vertical: "middle" };
     cell.fill = {
       type: "pattern",
       pattern: "solid",
-      fgColor: { argb: "FFE2E8F0" },
+      fgColor: { argb: COLUMN_HEADER_BG },
     };
     cell.border = {
-      bottom: { style: "thin", color: { argb: "FF94A3B8" } },
+      top: { style: "thin", color: { argb: RULE_COLOR } },
+      bottom: { style: "thin", color: { argb: RULE_COLOR } },
     };
   });
+
+  sheet.views = [
+    { state: "frozen", ySplit: 4, xSplit: 0, showGridLines: false },
+  ];
+  sheet.properties.tabColor = { argb: BANNER_BG };
+  applyPrintSetup(sheet, { headerRow: 4, orientation: "portrait" });
 
   for (const line of data.netLines) {
     const row = sheet.addRow([
       line.categoryName,
-      line.budgeted,
-      line.actual,
-      line.variance,
+      round2(line.budgeted),
+      round2(line.actual),
+      round2(line.variance),
       formatPercentOfPlan(line.percentOfPlan),
     ]);
     row.getCell(4).fill = {
@@ -654,9 +805,9 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
 
   const totalRow = sheet.addRow([
     "Total (Budgeted Lines)",
-    data.netTotals.budgeted,
-    data.netTotals.actual,
-    data.netTotals.variance,
+    round2(data.netTotals.budgeted),
+    round2(data.netTotals.actual),
+    round2(data.netTotals.variance),
     "",
   ]);
   totalRow.font = { bold: true };
@@ -688,7 +839,13 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
       };
     });
     for (const line of data.unbudgetedNet) {
-      const row = sheet.addRow([line.categoryName, 0, line.actual, line.variance, "—"]);
+      const row = sheet.addRow([
+        line.categoryName,
+        0,
+        round2(line.actual),
+        round2(line.variance),
+        "—",
+      ]);
       row.getCell(2).font = { color: { argb: signedColor(0) } };
       row.getCell(3).font = { color: { argb: signedColor(line.actual) } };
       for (let c = 2; c <= 4; c++) row.getCell(c).numFmt = currencyFmt;
@@ -698,7 +855,7 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
 
 function buildSeasonsSheet(workbook: ExcelJS.Workbook, data: SeasonsReportData) {
   const sheet = workbook.addWorksheet("Active Seasons");
-  const currencyFmt = "$#,##0.00";
+  const currencyFmt = CURRENCY_FMT;
   const pctFmt = "0.0%";
 
   sheet.columns = [
@@ -714,9 +871,7 @@ function buildSeasonsSheet(workbook: ExcelJS.Workbook, data: SeasonsReportData) 
   ];
 
   // Title
-  const titleRow = sheet.addRow(["Active Seasons Summary"]);
-  titleRow.font = { size: 14, bold: true };
-  sheet.mergeCells("A1:I1");
+  writeBanner(sheet, 1, 9, "Active Seasons Summary", 14);
 
   sheet.addRow([]);
 
@@ -733,33 +888,42 @@ function buildSeasonsSheet(workbook: ExcelJS.Workbook, data: SeasonsReportData) 
     "Collection Rate",
   ]);
   headerRow.font = { bold: true };
+  headerRow.height = 18;
   headerRow.eachCell((cell) => {
+    cell.alignment = { vertical: "middle" };
     cell.fill = {
       type: "pattern",
       pattern: "solid",
-      fgColor: { argb: "FFE2E8F0" },
+      fgColor: { argb: COLUMN_HEADER_BG },
     };
     cell.border = {
-      bottom: { style: "thin", color: { argb: "FF94A3B8" } },
+      top: { style: "thin", color: { argb: RULE_COLOR } },
+      bottom: { style: "thin", color: { argb: RULE_COLOR } },
     };
   });
 
   // Freeze panes
-  sheet.views = [{ state: "frozen", ySplit: 3, xSplit: 0 }];
+  sheet.views = [
+    { state: "frozen", ySplit: 3, xSplit: 0, showGridLines: false },
+  ];
+  sheet.properties.tabColor = { argb: BANNER_BG };
+  applyPrintSetup(sheet, { headerRow: 3 });
 
   for (const season of data.seasons) {
     const row = sheet.addRow([
       season.seasonName,
-      formatExcelDate(season.startDate),
-      formatExcelDate(season.endDate),
-      season.baseFee,
+      toExcelDate(season.startDate),
+      toExcelDate(season.endDate),
+      round2(season.baseFee),
       season.enrolledCount,
-      season.totalExpected,
-      season.totalCollected,
-      season.totalOutstanding,
+      round2(season.totalExpected),
+      round2(season.totalCollected),
+      round2(season.totalOutstanding),
       season.collectionRate / 100,
     ]);
 
+    row.getCell(2).numFmt = DATE_FMT;
+    row.getCell(3).numFmt = DATE_FMT;
     row.getCell(4).numFmt = currencyFmt;
     row.getCell(6).numFmt = currencyFmt;
     row.getCell(7).numFmt = currencyFmt;
@@ -777,9 +941,9 @@ function buildSeasonsSheet(workbook: ExcelJS.Workbook, data: SeasonsReportData) 
       "",
       "",
       data.grandTotals.enrolledCount,
-      data.grandTotals.totalExpected,
-      data.grandTotals.totalCollected,
-      data.grandTotals.totalOutstanding,
+      round2(data.grandTotals.totalExpected),
+      round2(data.grandTotals.totalCollected),
+      round2(data.grandTotals.totalOutstanding),
       data.grandTotals.collectionRate / 100,
     ]);
     totalRow.font = { bold: true };
