@@ -388,7 +388,7 @@ describe("generateReportPdf budget section", () => {
       "Category",
       "Budgeted",
       "Actual",
-      "Variance",
+      "Variance (Actual - Budget)",
       "% of Plan",
     ]);
 
@@ -402,12 +402,15 @@ describe("generateReportPdf budget section", () => {
     ]);
   });
 
-  it("colors the variance cell by favorable, not by the sign of variance", () => {
+  it("colours the variance cell only when a line is over budget", () => {
+    // Favorable lines take no colour: colouring them green marked nearly every
+    // row at the start of a fiscal year, purely because the money had not been
+    // spent yet.
     const budgetData = makeBudgetData({
       netLines: [
         {
           categoryId: "c",
-          categoryName: "Fundraiser",
+          categoryName: "Income → Fundraiser",
           budgeted: -1000,
           actual: -800,
           variance: 200,
@@ -416,7 +419,7 @@ describe("generateReportPdf budget section", () => {
         },
         {
           categoryId: "d",
-          categoryName: "Grants",
+          categoryName: "Income → Grants",
           budgeted: 500,
           actual: 400,
           variance: -100,
@@ -432,8 +435,8 @@ describe("generateReportPdf budget section", () => {
     const budgetTable = capturedTables().find(
       (t) => t.head?.[0]?.[0] === "Category" && t.head?.[0]?.[1] === "Budgeted"
     );
-    const favorableRow = findRowByFirstCellText(budgetTable!, "Fundraiser");
-    const unfavorableRow = findRowByFirstCellText(budgetTable!, "Grants");
+    const favorableRow = findRowByFirstCellText(budgetTable!, "    Fundraiser");
+    const unfavorableRow = findRowByFirstCellText(budgetTable!, "    Grants");
 
     const varianceCell = favorableRow[3];
     const unfavorableVarianceCell = unfavorableRow[3];
@@ -441,7 +444,7 @@ describe("generateReportPdf budget section", () => {
       typeof varianceCell === "object" &&
         !Array.isArray(varianceCell) &&
         varianceCell?.styles?.textColor
-    ).toEqual([22, 163, 74]); // GREEN — budgeted and actual are both negative, but actual beat budgeted
+    ).toBeUndefined(); // favorable — no colour, nothing to flag
 
     expect(
       typeof unfavorableVarianceCell === "object" &&
@@ -450,7 +453,7 @@ describe("generateReportPdf budget section", () => {
     ).toEqual([220, 38, 38]); // RED — a positive budgeted amount that actual fell short of
   });
 
-  it("renders a null percentOfPlan as an em dash and a negative one unclamped", () => {
+  it("leaves % of Plan blank when there is no budget, unclamped otherwise", () => {
     const budgetData = makeBudgetData({
       netLines: [
         {
@@ -481,7 +484,7 @@ describe("generateReportPdf budget section", () => {
 
     const nullRow = findRowByFirstCellText(budgetTable!, "No Budget Set");
     const negativeRow = findRowByFirstCellText(budgetTable!, "Lost Money");
-    expect(rowText(nullRow)[4]).toBe("—");
+    expect(rowText(nullRow)[4]).toBe("");
     expect(rowText(negativeRow)[4]).toBe("-6.5%");
   });
 
@@ -541,5 +544,96 @@ describe("generateReportPdf budget section", () => {
       "",
     ]);
     expect(isBoldRow(totalRow)).toBe(true);
+  });
+});
+
+describe("generateReportPdf budget grouping", () => {
+  function line(
+    categoryName: string,
+    budgeted: number,
+    actual: number
+  ): BudgetReportData["netLines"][number] {
+    return {
+      categoryId: categoryName,
+      categoryName,
+      budgeted,
+      actual,
+      variance: actual - budgeted,
+      favorable: actual >= budgeted,
+      percentOfPlan: budgeted === 0 ? null : (actual / budgeted) * 100,
+    };
+  }
+
+  function budgetTableOf(budgetData: BudgetReportData): RecordedTable {
+    generateReportPdf(makeReportData(), budgetData);
+    return capturedTables().find(
+      (t) => t.head?.[0]?.[0] === "Category" && t.head?.[0]?.[1] === "Budgeted"
+    )!;
+  }
+
+  it("groups lines under their parent, alphabetically, indenting children", () => {
+    const table = budgetTableOf(
+      makeBudgetData({
+        netLines: [
+          line("Zebra → Stripes", 100, 50),
+          line("Alpha → Beta", 200, 100),
+          line("Zebra → Hooves", 300, 150),
+        ],
+        netTotals: { budgeted: 600, actual: 300, variance: -300 },
+      })
+    );
+
+    const labels = table.body!.map((row) => cellText(row[0]));
+    const start = labels.indexOf("Alpha");
+
+    expect(labels.slice(start, start + 5)).toEqual([
+      "Alpha",
+      "    Beta",
+      "Zebra",
+      "    Hooves",
+      "    Stripes",
+    ]);
+  });
+
+  it("rolls a group up onto its header row", () => {
+    const table = budgetTableOf(
+      makeBudgetData({
+        netLines: [
+          line("Ops → Supplies", 200, 150),
+          line("Ops → Travel", 300, 90),
+        ],
+        netTotals: { budgeted: 500, actual: 240, variance: -260 },
+      })
+    );
+
+    expect(rowText(findRowByFirstCellText(table, "Ops"))).toEqual([
+      "Ops",
+      "$500.00",
+      "$240.00",
+      "-$260.00",
+      "48.0%",
+    ]);
+  });
+
+  it("leaves a behind-plan line uncoloured until it has activity", () => {
+    const table = budgetTableOf(
+      makeBudgetData({
+        netLines: [
+          line("Fundraisers → Box Tops", 200, 0),
+          line("Fundraisers → Kona Ice", 2000, 926.97),
+        ],
+        netTotals: { budgeted: 2200, actual: 926.97, variance: -1273.03 },
+      })
+    );
+
+    const colorOfVariance = (label: string) => {
+      const cell = findRowByFirstCellText(table, label)[3];
+      return typeof cell === "object" && !Array.isArray(cell)
+        ? cell?.styles?.textColor
+        : undefined;
+    };
+
+    expect(colorOfVariance("    Box Tops")).toBeUndefined();
+    expect(colorOfVariance("    Kona Ice")).toEqual([220, 38, 38]);
   });
 });

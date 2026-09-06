@@ -8,6 +8,14 @@ import type {
   ReportTransaction,
   SeasonsReportData,
 } from "@/lib/reports/types";
+import {
+  groupBudgetLines,
+  isOverBudget,
+  rollUpGroup,
+  rollUpPercentOfPlan,
+} from "@/lib/reports/budget-grouping";
+
+import type { BudgetGroup } from "@/lib/reports/budget-grouping";
 import type { BudgetReportData } from "@/lib/reports/fetch-budget-data";
 
 function formatPdfDate(dateStr: string): string {
@@ -561,36 +569,103 @@ export function generateReportPdf(
     );
     budgetY += 15;
 
-    // Single net budget table: one row per category with a signed net.
-    const budgetHead = [["Category", "Budgeted", "Actual", "Variance", "% of Plan"]];
+    // Net budget table, grouped by parent category. Budget line items are
+    // stored in insertion order, which interleaves parents down the page and
+    // repeats the "Parent > Child" prefix on every row.
+    const budgetHead = [
+      [
+        "Category",
+        "Budgeted",
+        "Actual",
+        // Budgets are signed, so a positive variance on an expense line means
+        // under-spent -- which reads backwards without the direction stated.
+        "Variance (Actual - Budget)",
+        "% of Plan",
+      ],
+    ];
     const budgetRows: CellInput[][] = [];
 
-    for (const line of budgetData.netLines) {
+    const pushBudgetRow = (
+      label: string,
+      line: {
+        budgeted: number;
+        actual: number;
+        variance: number;
+        percentOfPlan: number | null;
+      },
+      opts: { bold?: boolean; group?: boolean; overBudget?: boolean } = {}
+    ) => {
+      const base = {
+        ...(opts.bold ? { fontStyle: "bold" as const } : {}),
+        ...(opts.group ? { fillColor: GRAY_BG } : {}),
+      };
       budgetRows.push([
-        sanitizeText(line.categoryName),
-        { content: formatCurrency(line.budgeted), styles: { halign: "right" } },
-        { content: formatCurrency(line.actual), styles: { halign: "right" } },
+        { content: sanitizeText(label), styles: { ...base } },
+        {
+          content: formatCurrency(line.budgeted),
+          styles: { ...base, halign: "right" },
+        },
+        {
+          content: formatCurrency(line.actual),
+          styles: { ...base, halign: "right" },
+        },
         {
           content: formatCurrency(line.variance),
-          styles: { halign: "right", textColor: line.favorable ? GREEN : RED },
+          // Only over-budget lines take a colour. Colouring the favorable ones
+          // green too marked almost every row at the start of a fiscal year,
+          // purely because the money had not been spent yet.
+          styles: {
+            ...base,
+            halign: "right",
+            ...(opts.overBudget ? { textColor: RED } : {}),
+          },
         },
         {
-          content: line.percentOfPlan === null ? "—" : `${line.percentOfPlan.toFixed(1)}%`,
-          styles: { halign: "right" },
+          content:
+            line.percentOfPlan === null
+              ? ""
+              : `${line.percentOfPlan.toFixed(1)}%`,
+          styles: { ...base, halign: "right" },
         },
       ]);
-    }
+    };
 
-    budgetRows.push([
-      { content: "Total (Budgeted Lines)", styles: { fontStyle: "bold" } },
-      { content: formatCurrency(budgetData.netTotals.budgeted), styles: { halign: "right", fontStyle: "bold" } },
-      { content: formatCurrency(budgetData.netTotals.actual), styles: { halign: "right", fontStyle: "bold" } },
+    const pushBudgetGroups = (groups: readonly BudgetGroup[]) => {
+      for (const group of groups) {
+        const rollUp = rollUpGroup(group);
+        pushBudgetRow(
+          group.parentName,
+          { ...rollUp, percentOfPlan: rollUpPercentOfPlan(rollUp) },
+          {
+            bold: true,
+            group: true,
+            overBudget: isOverBudget(
+              rollUp.actual >= rollUp.budgeted,
+              rollUp.actual
+            ),
+          }
+        );
+        for (const { label, line } of group.children) {
+          pushBudgetRow(`    ${label}`, line, {
+            overBudget: isOverBudget(line.favorable, line.actual),
+          });
+        }
+      }
+    };
+
+    pushBudgetGroups(groupBudgetLines(budgetData.netLines));
+
+    pushBudgetRow(
+      "Total (Budgeted Lines)",
+      { ...budgetData.netTotals, percentOfPlan: null },
       {
-        content: formatCurrency(budgetData.netTotals.variance),
-        styles: { halign: "right", fontStyle: "bold" },
-      },
-      { content: "", styles: { fontStyle: "bold" } },
-    ]);
+        bold: true,
+        overBudget: isOverBudget(
+          budgetData.netTotals.actual >= budgetData.netTotals.budgeted,
+          budgetData.netTotals.actual
+        ),
+      }
+    );
 
     if (budgetData.unbudgetedNet.length > 0) {
       budgetRows.push([
@@ -600,18 +675,41 @@ export function generateReportPdf(
           styles: { fillColor: HEADER_BG, fontStyle: "bold", fontSize: 8 },
         },
       ]);
-      for (const line of budgetData.unbudgetedNet) {
-        budgetRows.push([
-          sanitizeText(line.categoryName),
-          { content: formatCurrency(0), styles: { halign: "right" } },
-          { content: formatCurrency(line.actual), styles: { halign: "right" } },
-          {
-            content: formatCurrency(line.variance),
-            styles: { halign: "right", textColor: line.favorable ? GREEN : RED },
-          },
-          { content: "—", styles: { halign: "right" } },
-        ]);
-      }
+
+      pushBudgetGroups(groupBudgetLines(budgetData.unbudgetedNet));
+
+      const unbudgetedActual = budgetData.unbudgetedNet.reduce(
+        (sum, line) => sum + line.actual,
+        0
+      );
+      pushBudgetRow(
+        "Total (Unbudgeted Lines)",
+        {
+          budgeted: 0,
+          actual: unbudgetedActual,
+          variance: unbudgetedActual,
+          percentOfPlan: null,
+        },
+        { bold: true }
+      );
+
+      const allActual = budgetData.netTotals.actual + unbudgetedActual;
+      pushBudgetRow(
+        "Total (All Lines)",
+        {
+          budgeted: budgetData.netTotals.budgeted,
+          actual: allActual,
+          variance: allActual - budgetData.netTotals.budgeted,
+          percentOfPlan: null,
+        },
+        {
+          bold: true,
+          overBudget: isOverBudget(
+            allActual >= budgetData.netTotals.budgeted,
+            allActual
+          ),
+        }
+      );
     }
 
     autoTable(doc, {

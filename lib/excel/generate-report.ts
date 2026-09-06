@@ -1,7 +1,15 @@
 import ExcelJS from "exceljs";
 
 import type { AccountBalanceSummary, ReportData, ReportTransaction, SeasonsReportData } from "@/lib/reports/types";
-import type { BudgetNetLine, BudgetReportData } from "@/lib/reports/fetch-budget-data";
+import {
+  groupBudgetLines,
+  isOverBudget,
+  rollUpGroup,
+  rollUpPercentOfPlan,
+} from "@/lib/reports/budget-grouping";
+
+import type { BudgetGroup } from "@/lib/reports/budget-grouping";
+import type { BudgetReportData } from "@/lib/reports/fetch-budget-data";
 
 function formatExcelDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
@@ -737,86 +745,6 @@ function toPercentRatio(percent: number | null): number | null {
   return percent === null ? null : percent / 100;
 }
 
-interface BudgetGroup {
-  parentName: string;
-  /** The budget line on the parent category itself, if the budget has one. */
-  parentLine: BudgetNetLine | null;
-  /** Child lines, labelled with the child segment only. */
-  children: { label: string; line: BudgetNetLine }[];
-}
-
-/**
- * Splits a `Parent → Child` category label. A label with no arrow belongs to a
- * top-level category and has no child segment.
- */
-function splitCategoryLabel(name: string): { parent: string; child: string | null } {
-  const i = name.indexOf(" → ");
-  return i === -1
-    ? { parent: name, child: null }
-    : { parent: name.slice(0, i), child: name.slice(i + 3) };
-}
-
-/**
- * Groups budget lines under their parent category, alphabetically by parent and
- * then by child. Budget line items are stored in insertion order, which
- * interleaves parents down the sheet and forces every row to repeat its
- * `Parent → Child` prefix.
- */
-function groupBudgetLines(lines: readonly BudgetNetLine[]): BudgetGroup[] {
-  const groups = new Map<string, BudgetGroup>();
-
-  for (const line of lines) {
-    const { parent, child } = splitCategoryLabel(line.categoryName);
-    const group = groups.get(parent) ?? {
-      parentName: parent,
-      parentLine: null,
-      children: [],
-    };
-    if (child === null) {
-      group.parentLine = line;
-    } else {
-      group.children.push({ label: child, line });
-    }
-    groups.set(parent, group);
-  }
-
-  const sorted = [...groups.values()].sort((a, b) =>
-    a.parentName.localeCompare(b.parentName)
-  );
-  for (const group of sorted) {
-    group.children.sort((a, b) => a.label.localeCompare(b.label));
-  }
-  return sorted;
-}
-
-/**
- * Roll-up shown on a group header row. When the budget carries a line on the
- * parent category itself that line is already the roll-up — `buildNetLine`
- * folds every descendant into a parent's actual — so summing it together with
- * the child rows would double count.
- */
-function rollUpGroup(group: BudgetGroup): {
-  budgeted: number;
-  actual: number;
-  variance: number;
-} {
-  if (group.parentLine) {
-    const { budgeted, actual, variance } = group.parentLine;
-    return { budgeted, actual, variance };
-  }
-  let budgeted = 0;
-  let actual = 0;
-  for (const { line } of group.children) {
-    budgeted += line.budgeted;
-    actual += line.actual;
-  }
-  return {
-    budgeted: round2(budgeted),
-    actual: round2(actual),
-    variance: round2(actual - budgeted),
-  };
-}
-
 function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
   const sheet = workbook.addWorksheet("Budget vs. Actuals");
   const currencyFmt = CURRENCY_FMT;
@@ -900,9 +828,8 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
         };
       }
     }
-    // Only lines that are actually over budget get a fill. Filling the
-    // favorable ones too painted almost every row green at the start of a
-    // fiscal year, purely because the money had not been spent yet.
+    // Only lines that are actually over budget get a fill, and only once they
+    // have activity to compare — see isOverBudget.
     if (opts.unfavorable) {
       row.getCell(4).fill = {
         type: "pattern",
@@ -926,22 +853,21 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
       const rollUp = rollUpGroup(group);
       writeLineRow(
         group.parentName,
-        {
-          ...rollUp,
-          percentOfPlan:
-            rollUp.budgeted === 0
-              ? null
-              : (rollUp.actual / rollUp.budgeted) * 100,
-        },
+        { ...rollUp, percentOfPlan: rollUpPercentOfPlan(rollUp) },
         {
           bold: true,
           fill: SUBTOTAL_BG,
-          unfavorable: rollUp.actual < rollUp.budgeted,
+          unfavorable: isOverBudget(
+            rollUp.actual >= rollUp.budgeted,
+            rollUp.actual
+          ),
         }
       );
 
       for (const { label, line } of group.children) {
-        writeLineRow(`    ${label}`, line, { unfavorable: !line.favorable });
+        writeLineRow(`    ${label}`, line, {
+          unfavorable: isOverBudget(line.favorable, line.actual),
+        });
       }
     }
   }
@@ -951,7 +877,13 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
   const totalRow = writeLineRow(
     "Total (Budgeted Lines)",
     { ...data.netTotals, percentOfPlan: null },
-    { bold: true, unfavorable: data.netTotals.actual < data.netTotals.budgeted }
+    {
+      bold: true,
+      unfavorable: isOverBudget(
+        data.netTotals.actual >= data.netTotals.budgeted,
+        data.netTotals.actual
+      ),
+    }
   );
   totalRow.getCell(5).value = null;
   totalRow.eachCell((cell) => {
@@ -993,7 +925,13 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
         variance: round2(allActual - data.netTotals.budgeted),
         percentOfPlan: null,
       },
-      { bold: true, unfavorable: allActual < data.netTotals.budgeted }
+      {
+        bold: true,
+        unfavorable: isOverBudget(
+          allActual >= data.netTotals.budgeted,
+          allActual
+        ),
+      }
     );
     allRow.getCell(5).value = null;
     allRow.eachCell((cell) => {
