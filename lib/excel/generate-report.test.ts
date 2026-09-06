@@ -397,7 +397,7 @@ describe("generateReportWorkbook budget sheet", () => {
     expect(sheet.getCell(headerRow, 1).value).toBe("Category");
     expect(sheet.getCell(headerRow, 2).value).toBe("Budgeted");
     expect(sheet.getCell(headerRow, 3).value).toBe("Actual");
-    expect(sheet.getCell(headerRow, 4).value).toBe("Variance");
+    expect(sheet.getCell(headerRow, 4).value).toBe("Variance (Actual − Budget)");
     expect(sheet.getCell(headerRow, 5).value).toBe("% of Plan");
 
     const dataRow = headerRow + 1;
@@ -405,7 +405,9 @@ describe("generateReportWorkbook budget sheet", () => {
     expect(sheet.getCell(dataRow, 2).value).toBe(3100);
     expect(sheet.getCell(dataRow, 3).value).toBe(3400);
     expect(sheet.getCell(dataRow, 4).value).toBe(300);
-    expect(sheet.getCell(dataRow, 5).value).toBe("109.7%");
+    // Percent as a ratio behind a percent format, not a formatted string.
+    expect(sheet.getCell(dataRow, 5).value).toBeCloseTo(1.0968, 4);
+    expect(sheet.getCell(dataRow, 5).numFmt).toBe("0.0%");
 
     const firstCells: unknown[] = [];
     sheet.eachRow((row) => firstCells.push(row.getCell(1).value));
@@ -414,15 +416,17 @@ describe("generateReportWorkbook budget sheet", () => {
     expect(firstCells).not.toContain("COMBINED INCOME & EXPENSE");
   });
 
-  it("colors the variance cell by favorable, not by the sign of variance", async () => {
+  it("fills the variance cell only when a line is over budget", async () => {
     // budgeted and actual are both negative, but actual (-800) beats
     // budgeted (-1000) — favorable keys on the budget-vs-actual comparison,
-    // not on the sign of either figure alone.
+    // not on the sign of either figure alone. Favorable lines take no fill:
+    // filling them painted nearly every row at the start of a fiscal year,
+    // purely because the money had not been spent yet.
     const budgetData = makeBudgetData({
       netLines: [
         {
           categoryId: "c",
-          categoryName: "Fundraiser",
+          categoryName: "Income → Fundraiser",
           budgeted: -1000,
           actual: -800,
           variance: 200,
@@ -431,7 +435,7 @@ describe("generateReportWorkbook budget sheet", () => {
         },
         {
           categoryId: "d",
-          categoryName: "Grants",
+          categoryName: "Income → Grants",
           budgeted: 500,
           actual: 400,
           variance: -100,
@@ -443,17 +447,19 @@ describe("generateReportWorkbook budget sheet", () => {
     });
 
     const sheet = await budgetSheetOf(budgetData);
-    const favorableRow = findRowByFirstCell(sheet, "Fundraiser");
-    const unfavorableRow = findRowByFirstCell(sheet, "Grants");
+    const favorableRow = findRowByFirstCell(sheet, "    Fundraiser");
+    const unfavorableRow = findRowByFirstCell(sheet, "    Grants");
 
-    const favorableFill = sheet.getCell(favorableRow, 4).fill as ExcelJS.FillPattern;
-    const unfavorableFill = sheet.getCell(unfavorableRow, 4).fill as ExcelJS.FillPattern;
-
-    expect(favorableFill.fgColor?.argb).toBe("FFD6F5D6");
-    expect(unfavorableFill.fgColor?.argb).toBe("FFF8D7D7");
+    expect(
+      (sheet.getCell(favorableRow, 4).fill as ExcelJS.FillPattern).fgColor?.argb
+    ).toBeUndefined();
+    expect(
+      (sheet.getCell(unfavorableRow, 4).fill as ExcelJS.FillPattern).fgColor
+        ?.argb
+    ).toBe("FFF8D7D7");
   });
 
-  it("renders a null percentOfPlan as an em dash and a negative one unclamped", async () => {
+  it("writes % of Plan as a number, left blank when there is no budget", async () => {
     const budgetData = makeBudgetData({
       netLines: [
         {
@@ -481,8 +487,10 @@ describe("generateReportWorkbook budget sheet", () => {
     const nullRow = findRowByFirstCell(sheet, "No Budget Set");
     const negativeRow = findRowByFirstCell(sheet, "Lost Money");
 
-    expect(sheet.getCell(nullRow, 5).value).toBe("—");
-    expect(sheet.getCell(negativeRow, 5).value).toBe("-6.5%");
+    expect(sheet.getCell(nullRow, 5).value).toBeNull();
+    // Negative percentages stay unclamped rather than flooring at zero.
+    expect(sheet.getCell(negativeRow, 5).value).toBeCloseTo(-0.065, 5);
+    expect(sheet.getCell(negativeRow, 5).numFmt).toBe("0.0%");
   });
 
   it("renders unbudgeted lines after the Total row, under their own heading", async () => {
@@ -610,7 +618,7 @@ describe("generateReportWorkbook signed colour", () => {
         netLines: [
           {
             categoryId: "a",
-            categoryName: "Concessions",
+            categoryName: "Fundraisers → Concessions",
             budgeted: 2000,
             actual: 2500,
             variance: 500,
@@ -619,7 +627,7 @@ describe("generateReportWorkbook signed colour", () => {
           },
           {
             categoryId: "b",
-            categoryName: "Uniforms",
+            categoryName: "Program → Uniforms",
             budgeted: -1000,
             actual: -800,
             variance: 200,
@@ -631,8 +639,8 @@ describe("generateReportWorkbook signed colour", () => {
       })
     );
 
-    const incomeRow = findRowByFirstCell(sheet, "Concessions");
-    const expenseRow = findRowByFirstCell(sheet, "Uniforms");
+    const incomeRow = findRowByFirstCell(sheet, "    Concessions");
+    const expenseRow = findRowByFirstCell(sheet, "    Uniforms");
 
     expect(colorOf(sheet, incomeRow, 2)).toBe(GREEN);
     expect(colorOf(sheet, incomeRow, 3)).toBe(GREEN);
@@ -640,13 +648,14 @@ describe("generateReportWorkbook signed colour", () => {
     expect(colorOf(sheet, expenseRow, 2)).toBe(RED);
     expect(colorOf(sheet, expenseRow, 3)).toBe(RED);
 
-    // Variance keeps the favorable/unfavorable fill and gets no sign colour --
-    // under-spending an expense line is negative but good, so a sign colour
-    // here would contradict the fill in the same cell.
+    // Variance keeps its over-budget fill and gets no sign colour -- under-
+    // spending an expense line is negative but good, so a sign colour here
+    // would contradict the fill in the same cell. This line is favorable, so
+    // it carries no fill at all.
     expect(colorOf(sheet, expenseRow, 4)).toBeUndefined();
     expect(
       (sheet.getCell(expenseRow, 4).fill as ExcelJS.FillPattern).fgColor?.argb
-    ).toBe("FFD6F5D6");
+    ).toBeUndefined();
   });
 });
 
@@ -818,5 +827,106 @@ describe("workbook presentation", () => {
 
     expect(wb.creator).toBe("Treasurer");
     expect(wb.title).toContain("Corydon Foundation");
+  });
+});
+
+describe("budget sheet grouping", () => {
+  function line(
+    categoryName: string,
+    budgeted: number,
+    actual: number
+  ): BudgetReportData["netLines"][number] {
+    return {
+      categoryId: categoryName,
+      categoryName,
+      budgeted,
+      actual,
+      variance: actual - budgeted,
+      favorable: actual >= budgeted,
+      percentOfPlan: budgeted === 0 ? null : (actual / budgeted) * 100,
+    };
+  }
+
+  it("groups lines under their parent, alphabetically, indenting children", async () => {
+    // Budget line items are stored in insertion order, which interleaves
+    // parents down the sheet and repeats the prefix on every row.
+    const sheet = await budgetSheetOf(
+      makeBudgetData({
+        netLines: [
+          line("Zebra → Stripes", 100, 50),
+          line("Alpha → Beta", 200, 100),
+          line("Zebra → Hooves", 300, 150),
+        ],
+        netTotals: { budgeted: 600, actual: 300, variance: -300 },
+      })
+    );
+
+    const firstCells: unknown[] = [];
+    sheet.eachRow((row) => firstCells.push(row.getCell(1).value));
+    const start = firstCells.indexOf("Alpha");
+
+    expect(firstCells.slice(start, start + 5)).toEqual([
+      "Alpha",
+      "    Beta",
+      "Zebra",
+      "    Hooves",
+      "    Stripes",
+    ]);
+  });
+
+  it("rolls a group up onto its bold header row", async () => {
+    const sheet = await budgetSheetOf(
+      makeBudgetData({
+        netLines: [line("Ops → Supplies", 200, 150), line("Ops → Travel", 300, 90)],
+        netTotals: { budgeted: 500, actual: 240, variance: -260 },
+      })
+    );
+
+    const groupRow = findRowByFirstCell(sheet, "Ops");
+    expect(sheet.getCell(groupRow, 2).value).toBe(500);
+    expect(sheet.getCell(groupRow, 3).value).toBe(240);
+    expect(sheet.getCell(groupRow, 4).value).toBe(-260);
+    expect(sheet.getCell(groupRow, 5).value).toBeCloseTo(0.48, 4);
+    expect(sheet.getCell(groupRow, 1).font?.bold).toBe(true);
+  });
+
+  it("uses a parent's own budget line as the roll-up rather than summing", async () => {
+    // buildNetLine already folds every descendant into a parent's actual, so
+    // adding the child rows on top of it would double count.
+    const sheet = await budgetSheetOf(
+      makeBudgetData({
+        netLines: [
+          line("Fundraisers", 1000, 650),
+          line("Fundraisers → Coin Wars", 400, 250),
+          line("Fundraisers → Kona Ice", 600, 650),
+        ],
+        netTotals: { budgeted: 1000, actual: 650, variance: -350 },
+      })
+    );
+
+    const groupRow = findRowByFirstCell(sheet, "Fundraisers");
+    expect(sheet.getCell(groupRow, 2).value).toBe(1000);
+    expect(sheet.getCell(groupRow, 3).value).toBe(650);
+    expect(findRowByFirstCell(sheet, "    Coin Wars")).toBe(groupRow + 1);
+    expect(findRowByFirstCell(sheet, "    Kona Ice")).toBe(groupRow + 2);
+  });
+
+  it("totals the unbudgeted section and every line together", async () => {
+    const sheet = await budgetSheetOf(
+      makeBudgetData({
+        netLines: [line("Ops → Supplies", 1000, 400)],
+        unbudgetedNet: [line("Ops → 990 Filing", 0, -50), line("Ops → Fees", 0, -22)],
+        netTotals: { budgeted: 1000, actual: 400, variance: -600 },
+      })
+    );
+
+    const unbudgetedTotal = findRowByFirstCell(sheet, "Total (Unbudgeted Lines)");
+    expect(sheet.getCell(unbudgetedTotal, 3).value).toBe(-72);
+
+    const allTotal = findRowByFirstCell(sheet, "Total (All Lines)");
+    expect(allTotal).toBeGreaterThan(unbudgetedTotal);
+    expect(sheet.getCell(allTotal, 2).value).toBe(1000);
+    expect(sheet.getCell(allTotal, 3).value).toBe(328);
+    expect(sheet.getCell(allTotal, 4).value).toBe(-672);
   });
 });
