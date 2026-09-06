@@ -119,6 +119,16 @@ export default async function CategoryDetailPage({
           <CardTitle>{category.name}</CardTitle>
         </CardHeader>
         <CardContent>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Direction:{" "}
+            {category.primary_direction === "income"
+              ? "Income"
+              : category.primary_direction === "expense"
+                ? "Expense"
+                : category.primary_direction === "neither"
+                  ? "Neither (transfer)"
+                  : "Not set"}
+          </p>
           <dl className="grid grid-cols-2 gap-4 text-sm">
             {parentCategory && (
               <div className="col-span-2">

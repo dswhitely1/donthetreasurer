@@ -39,6 +39,7 @@ export function CategoryForm({
   const [state, formAction, pending] = useActionState(createCategory, null);
   const [isSubcategory, setIsSubcategory] = useState(false);
   const [selectedParentId, setSelectedParentId] = useState("");
+  const [direction, setDirection] = useState("");
 
   return (
     <div className="mx-auto max-w-lg">
@@ -67,6 +68,7 @@ export function CategoryForm({
                 value={selectedParentId}
               />
             )}
+            <input type="hidden" name="primary_direction" value={direction} />
             {state?.error && (
               <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
                 {state.error}
@@ -144,6 +146,27 @@ export function CategoryForm({
                     : "e.g. Operations"
                 }
               />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="primary_direction">Direction (optional)</Label>
+              <Select value={direction} onValueChange={setDirection}>
+                <SelectTrigger id="primary_direction">
+                  <SelectValue placeholder="Leave unset for now" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="income">Income</SelectItem>
+                  <SelectItem value="expense">Expense</SelectItem>
+                  <SelectItem value="neither">
+                    Neither (transfers between your accounts)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Groups this category on the categories page. It does not limit
+                which transactions can use it — any category can take both
+                income and expenses.
+              </p>
             </div>
 
             <div className="mt-2 flex gap-3">
