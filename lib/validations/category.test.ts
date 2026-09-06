@@ -140,3 +140,47 @@ describe("mergeCategorySchema", () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe("primary_direction", () => {
+  const base = {
+    organization_id: "3f6b0e34-9f0a-4c0e-9a2a-1d3e5f7a9b1c",
+    name: "Fundraisers",
+  };
+
+  it.each(["income", "expense", "neither"])("accepts %s", (dir) => {
+    const result = createCategorySchema.safeParse({
+      ...base,
+      primary_direction: dir,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts an empty string as unset", () => {
+    const result = createCategorySchema.safeParse({
+      ...base,
+      primary_direction: "",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts the field being absent entirely", () => {
+    const result = createCategorySchema.safeParse(base);
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects the retired 'both' spelling", () => {
+    const result = createCategorySchema.safeParse({
+      ...base,
+      primary_direction: "both",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an arbitrary value", () => {
+    const result = createCategorySchema.safeParse({
+      ...base,
+      primary_direction: "transfer",
+    });
+    expect(result.success).toBe(false);
+  });
+});

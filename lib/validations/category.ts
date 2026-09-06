@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+export const CATEGORY_DIRECTIONS = ["income", "expense", "neither"] as const;
+export type CategoryDirection = (typeof CATEGORY_DIRECTIONS)[number];
+
 export const createCategorySchema = z.object({
   organization_id: z.string().uuid("Invalid organization ID."),
   name: z
@@ -9,6 +12,14 @@ export const createCategorySchema = z.object({
   parent_id: z
     .string()
     .uuid("Invalid parent category ID.")
+    .optional()
+    .or(z.literal("")),
+  // Empty string is how an unset <Select> arrives from FormData; it is
+  // normalised to SQL NULL in the action, matching parent_id.
+  primary_direction: z
+    .enum(CATEGORY_DIRECTIONS, {
+      message: "Direction must be income, expense, or neither.",
+    })
     .optional()
     .or(z.literal("")),
 });
