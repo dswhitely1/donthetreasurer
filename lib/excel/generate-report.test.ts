@@ -526,3 +526,126 @@ describe("generateReportWorkbook budget sheet", () => {
     expect(sheet.getCell(totalRow, 4).value).toBe(300);
   });
 });
+
+describe("generateReportWorkbook signed colour", () => {
+  const GREEN = "FF16A34A";
+  const RED = "FFDC2626";
+
+  function colorOf(sheet: ExcelJS.Worksheet, row: number, col: number) {
+    return (sheet.getCell(row, col).font?.color as { argb?: string } | undefined)
+      ?.argb;
+  }
+
+  it("colours the Summary Net column by sign, on parents, children and total", async () => {
+    const sheet = await summarySheetOf(
+      makeReportData({
+        summary: {
+          totalIncome: 1000,
+          totalExpenses: 1500,
+          netChange: -500,
+          balanceByStatus: { uncleared: 0, cleared: 0, reconciled: 0 },
+          categoryTotals: [
+            {
+              parentName: "Fundraisers",
+              totalIn: 1000,
+              totalOut: 200,
+              net: 800,
+              children: [
+                { name: "Popcorn", in: 1000, out: 200, net: 800 },
+              ],
+            },
+            {
+              parentName: "Uniforms",
+              totalIn: 0,
+              totalOut: 1300,
+              net: -1300,
+              children: [],
+            },
+          ],
+        },
+      })
+    );
+
+    const positiveRow = findRowByFirstCell(sheet, "Fundraisers");
+    const childRow = findRowByFirstCell(sheet, "    Popcorn");
+    const negativeRow = findRowByFirstCell(sheet, "Uniforms");
+    const totalRow = findRowByFirstCell(sheet, "Total");
+
+    expect(colorOf(sheet, positiveRow, 4)).toBe(GREEN);
+    expect(colorOf(sheet, childRow, 4)).toBe(GREEN);
+    expect(colorOf(sheet, negativeRow, 4)).toBe(RED);
+    // netChange is -500, so the total must read red even though In is positive.
+    expect(colorOf(sheet, totalRow, 4)).toBe(RED);
+  });
+
+  it("keeps the parent row bold when colouring its Net cell", async () => {
+    const sheet = await summarySheetOf(
+      makeReportData({
+        summary: {
+          totalIncome: 500,
+          totalExpenses: 0,
+          netChange: 500,
+          balanceByStatus: { uncleared: 0, cleared: 0, reconciled: 0 },
+          categoryTotals: [
+            {
+              parentName: "Grants",
+              totalIn: 500,
+              totalOut: 0,
+              net: 500,
+              children: [{ name: "State", in: 500, out: 0, net: 500 }],
+            },
+          ],
+        },
+      })
+    );
+
+    const row = findRowByFirstCell(sheet, "Grants");
+    expect(sheet.getCell(row, 4).font?.bold).toBe(true);
+    expect(colorOf(sheet, row, 4)).toBe(GREEN);
+  });
+
+  it("sign-colours Budgeted and Actual but leaves Variance to its fill", async () => {
+    const sheet = await budgetSheetOf(
+      makeBudgetData({
+        netLines: [
+          {
+            categoryId: "a",
+            categoryName: "Concessions",
+            budgeted: 2000,
+            actual: 2500,
+            variance: 500,
+            favorable: true,
+            percentOfPlan: 125,
+          },
+          {
+            categoryId: "b",
+            categoryName: "Uniforms",
+            budgeted: -1000,
+            actual: -800,
+            variance: 200,
+            favorable: true,
+            percentOfPlan: 80,
+          },
+        ],
+        netTotals: { budgeted: 1000, actual: 1700, variance: 700 },
+      })
+    );
+
+    const incomeRow = findRowByFirstCell(sheet, "Concessions");
+    const expenseRow = findRowByFirstCell(sheet, "Uniforms");
+
+    expect(colorOf(sheet, incomeRow, 2)).toBe(GREEN);
+    expect(colorOf(sheet, incomeRow, 3)).toBe(GREEN);
+    // Signed budget amounts: an expense line is negative, so it reads red.
+    expect(colorOf(sheet, expenseRow, 2)).toBe(RED);
+    expect(colorOf(sheet, expenseRow, 3)).toBe(RED);
+
+    // Variance keeps the favorable/unfavorable fill and gets no sign colour --
+    // under-spending an expense line is negative but good, so a sign colour
+    // here would contradict the fill in the same cell.
+    expect(colorOf(sheet, expenseRow, 4)).toBeUndefined();
+    expect(
+      (sheet.getCell(expenseRow, 4).fill as ExcelJS.FillPattern).fgColor?.argb
+    ).toBe("FFD6F5D6");
+  });
+});
