@@ -302,10 +302,10 @@ describe("generateReportWorkbook", () => {
     expect(totalIncomeRow).not.toBeNull();
     expect((totalIncomeRow as unknown as ExcelJS.Row).getCell(2).value).toBe(5000);
 
-    // Category table now carries a single In/Out/Net row per parent
+    // Category table now carries a single Income/Expense/Net row per parent
     const headerRow = findRowByFirstCell(sheet, "Category");
-    expect(sheet.getCell(headerRow, 2).value).toBe("In");
-    expect(sheet.getCell(headerRow, 3).value).toBe("Out");
+    expect(sheet.getCell(headerRow, 2).value).toBe("Income");
+    expect(sheet.getCell(headerRow, 3).value).toBe("Expense");
     expect(sheet.getCell(headerRow, 4).value).toBe("Net");
 
     const donationsRow = findRowByFirstCell(sheet, "Donations");
@@ -319,7 +319,7 @@ describe("generateReportWorkbook", () => {
     expect(sheet.getCell(operationsRow, 4).value).toBe(-2000);
   });
 
-  it("renders a single In/Out/Net category table", async () => {
+  it("renders a single Income/Expense/Net category table", async () => {
     const data = makeReportData({
       summary: {
         totalIncome: 8200,
@@ -335,8 +335,8 @@ describe("generateReportWorkbook", () => {
     const sheet = await summarySheetOf(data);
     const headerRow = findRowByFirstCell(sheet, "Category");
 
-    expect(sheet.getCell(headerRow, 2).value).toBe("In");
-    expect(sheet.getCell(headerRow, 3).value).toBe("Out");
+    expect(sheet.getCell(headerRow, 2).value).toBe("Income");
+    expect(sheet.getCell(headerRow, 3).value).toBe("Expense");
     expect(sheet.getCell(headerRow, 4).value).toBe("Net");
     expect(sheet.getCell(headerRow + 1, 1).value).toBe("Poinsettias");
     expect(sheet.getCell(headerRow + 1, 2).value).toBe(8200);
@@ -647,5 +647,176 @@ describe("generateReportWorkbook signed colour", () => {
     expect(
       (sheet.getCell(expenseRow, 4).fill as ExcelJS.FillPattern).fgColor?.argb
     ).toBe("FFD6F5D6");
+  });
+});
+
+describe("workbook presentation", () => {
+  function findRowByCell(
+    sheet: ExcelJS.Worksheet,
+    column: number,
+    value: unknown
+  ): number {
+    let found = -1;
+    sheet.eachRow((row, rowNumber) => {
+      if (found === -1 && row.getCell(column).value === value) {
+        found = rowNumber;
+      }
+    });
+    if (found === -1) {
+      throw new Error(`No row with ${String(value)} in column ${column}`);
+    }
+    return found;
+  }
+
+  async function transactionsSheetOf(
+    data: ReportData
+  ): Promise<ExcelJS.Worksheet> {
+    const buffer = await generateReportWorkbook(data);
+    const wb = await parseWorkbook(buffer);
+    return wb.getWorksheet("Transactions")!;
+  }
+
+  function makeTransactions(
+    amounts: readonly number[]
+  ): ReportData["transactions"] {
+    return amounts.map((amount, i) => ({
+      id: `t${i}`,
+      transactionDate: "2025-03-15",
+      createdAt: null,
+      accountName: "Checking",
+      checkNumber: null,
+      vendor: "Vendor",
+      description: "Thing",
+      transactionType: "expense" as const,
+      amount,
+      status: "uncleared" as const,
+      clearedAt: null,
+      lineItems: [{ categoryLabel: "Ops → Supplies", amount, memo: null }],
+      runningBalance: 0,
+    }));
+  }
+
+  it("writes both date columns as real Dates, not pre-formatted text", async () => {
+    const data = makeReportData({
+      transactions: [
+        {
+          id: "t1",
+          transactionDate: "2025-03-15",
+          createdAt: null,
+          accountName: "Checking",
+          checkNumber: null,
+          vendor: "Vendor",
+          description: "Thing",
+          transactionType: "expense",
+          amount: 100,
+          status: "cleared",
+          clearedAt: "2025-03-21T10:00:00Z",
+          lineItems: [{ categoryLabel: "Ops → Supplies", amount: 100, memo: null }],
+          runningBalance: 0,
+        },
+      ],
+    });
+
+    const sheet = await transactionsSheetOf(data);
+    const dataRow = sheet.getRow(9);
+
+    expect(dataRow.getCell(1).value).toBeInstanceOf(Date);
+    expect(dataRow.getCell(11).value).toBeInstanceOf(Date);
+    expect(dataRow.getCell(1).numFmt).toBe("mm/dd/yyyy");
+    expect(dataRow.getCell(11).numFmt).toBe("mm/dd/yyyy");
+
+    // UTC midnight, so the Excel serial lands on the intended calendar day
+    // whatever timezone the export runs in.
+    expect((dataRow.getCell(1).value as Date).toISOString()).toBe(
+      "2025-03-15T00:00:00.000Z"
+    );
+    expect((dataRow.getCell(11).value as Date).toISOString()).toBe(
+      "2025-03-21T00:00:00.000Z"
+    );
+  });
+
+  it("leaves the date format off continuation rows that carry no date", async () => {
+    const data = makeReportData({
+      transactions: [
+        {
+          id: "t1",
+          transactionDate: "2025-03-15",
+          createdAt: null,
+          accountName: "Checking",
+          checkNumber: null,
+          vendor: "Vendor",
+          description: "Split",
+          transactionType: "expense",
+          amount: 300,
+          status: "uncleared",
+          clearedAt: null,
+          lineItems: [
+            { categoryLabel: "Cat A", amount: 200, memo: null },
+            { categoryLabel: "Cat B", amount: 100, memo: null },
+          ],
+          runningBalance: 0,
+        },
+      ],
+    });
+
+    const sheet = await transactionsSheetOf(data);
+
+    expect(sheet.getRow(9).getCell(1).value).toBeInstanceOf(Date);
+    expect(sheet.getRow(10).getCell(1).value).toBe("");
+    expect(sheet.getRow(10).getCell(1).numFmt).toBeUndefined();
+  });
+
+  it("rounds float-summed subtotals so the stored value matches the display", async () => {
+    // 0.1 + 0.2 sums to 0.30000000000000004 in IEEE 754; the number format
+    // would hide that, but anyone re-summing the column would not.
+    const data = makeReportData({ transactions: makeTransactions([0.1, 0.2]) });
+
+    const sheet = await transactionsSheetOf(data);
+    const subtotalRow = findRowByCell(sheet, 7, "Uncleared Subtotal:");
+
+    expect(sheet.getCell(subtotalRow, 9).value).toBe(0.3);
+  });
+
+  it("prints landscape, fit to width, repeating the column header row", async () => {
+    const sheet = await transactionsSheetOf(makeReportData());
+
+    expect(sheet.pageSetup.orientation).toBe("landscape");
+    expect(sheet.pageSetup.fitToPage).toBe(true);
+    expect(sheet.pageSetup.fitToWidth).toBe(1);
+    expect(sheet.pageSetup.fitToHeight).toBe(0);
+    expect(sheet.pageSetup.printTitlesRow).toBe("6:6");
+  });
+
+  it("rules and fills the account total row so it reads as a boundary", async () => {
+    const data = makeReportData({ transactions: makeTransactions([100]) });
+
+    const sheet = await transactionsSheetOf(data);
+    const totalRow = findRowByCell(sheet, 7, "Checking Total:");
+
+    expect(sheet.getCell(totalRow, 1).border?.top?.style).toBe("thin");
+    expect(
+      (sheet.getCell(totalRow, 1).fill as ExcelJS.FillPattern).fgColor?.argb
+    ).toBe("FFF1F5F9");
+  });
+
+  it("extends Summary section bars across the full table width", async () => {
+    const sheet = await summarySheetOf(makeReportData());
+    const sectionRow = findRowByFirstCell(sheet, "OVERALL SUMMARY");
+
+    for (let c = 1; c <= 4; c++) {
+      expect(
+        (sheet.getCell(sectionRow, c).fill as ExcelJS.FillPattern).fgColor?.argb
+      ).toBe("FF1E293B");
+    }
+  });
+
+  it("sets workbook metadata instead of leaving the creator unknown", async () => {
+    const buffer = await generateReportWorkbook(
+      makeReportData({ organizationName: "Corydon Foundation" })
+    );
+    const wb = await parseWorkbook(buffer);
+
+    expect(wb.creator).toBe("Treasurer");
+    expect(wb.title).toContain("Corydon Foundation");
   });
 });
