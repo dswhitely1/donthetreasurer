@@ -911,6 +911,30 @@ describe("budget sheet grouping", () => {
     expect(findRowByFirstCell(sheet, "    Kona Ice")).toBe(groupRow + 2);
   });
 
+  it("leaves a behind-plan line unfilled until it has activity", async () => {
+    // At the start of a fiscal year every income line sits at zero collected,
+    // so favorable alone would flag them all for no reason.
+    const sheet = await budgetSheetOf(
+      makeBudgetData({
+        netLines: [
+          line("Fundraisers → Box Tops", 200, 0),
+          line("Fundraisers → Kona Ice", 2000, 926.97),
+        ],
+        netTotals: { budgeted: 2200, actual: 926.97, variance: -1273.03 },
+      })
+    );
+
+    const noActivity = findRowByFirstCell(sheet, "    Box Tops");
+    const underway = findRowByFirstCell(sheet, "    Kona Ice");
+
+    expect(
+      (sheet.getCell(noActivity, 4).fill as ExcelJS.FillPattern).fgColor?.argb
+    ).toBeUndefined();
+    expect(
+      (sheet.getCell(underway, 4).fill as ExcelJS.FillPattern).fgColor?.argb
+    ).toBe("FFF8D7D7");
+  });
+
   it("totals the unbudgeted section and every line together", async () => {
     const sheet = await budgetSheetOf(
       makeBudgetData({
