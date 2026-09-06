@@ -176,6 +176,23 @@ describe("primary_direction", () => {
     expect(result.success).toBe(false);
   });
 
+  it("surfaces the custom message at issues[0], not a generic union error", () => {
+    // Regression: a nested .enum().optional().or(z.literal("")) union
+    // produced a top-level "invalid_union" issue whose message was the
+    // generic "Invalid input" — the carefully-worded message never
+    // reached the user, since actions return issues[0].message verbatim.
+    const result = createCategorySchema.safeParse({
+      ...base,
+      primary_direction: "both",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe(
+        "Direction must be income, expense, or neither."
+      );
+    }
+  });
+
   it("rejects an arbitrary value", () => {
     const result = createCategorySchema.safeParse({
       ...base,

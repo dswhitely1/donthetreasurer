@@ -1,9 +1,12 @@
-// HAND-EDITED for the untyped-categories migration
-// (supabase/migrations/20260826000001_untyped_categories.sql): the
-// `category_type` column/enum was removed from `categories` here by hand,
-// because regenerating this file requires a live database with that
-// migration already applied. Once the migration has been applied, regenerate
-// this file for real and discard this comment:
+// HAND-EDITED for two categories migrations, because regenerating this file
+// requires a live database with both already applied:
+//   - untyped-categories (supabase/migrations/20260826000001_untyped_categories.sql):
+//     the `category_type` column/enum was removed from `categories` by hand.
+//   - category-primary-direction (supabase/migrations/20260905000001_category_primary_direction.sql):
+//     the `primary_direction` column was added to `categories` by hand
+//     (Row/Insert/Update below).
+// Once both migrations have been applied, regenerate this file for real and
+// discard this comment:
 //
 //   npx supabase gen types typescript --linked > types/database.ts
 

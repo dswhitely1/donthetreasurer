@@ -16,12 +16,15 @@ export const createCategorySchema = z.object({
     .or(z.literal("")),
   // Empty string is how an unset <Select> arrives from FormData; it is
   // normalised to SQL NULL in the action, matching parent_id.
+  //
+  // "" is folded into the same enum (rather than unioned via .or()) so a bad
+  // value produces one flat issue carrying our message, instead of Zod's
+  // generic "Invalid input" from an unresolved union.
   primary_direction: z
-    .enum(CATEGORY_DIRECTIONS, {
+    .enum([...CATEGORY_DIRECTIONS, ""], {
       message: "Direction must be income, expense, or neither.",
     })
-    .optional()
-    .or(z.literal("")),
+    .optional(),
 });
 
 export const updateCategorySchema = createCategorySchema.extend({

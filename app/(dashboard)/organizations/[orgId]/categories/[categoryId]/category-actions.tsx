@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 
 import type { Tables } from "@/types/database";
 import { updateCategory, deactivateCategory, mergeCategory, reassignCategory } from "../actions";
+import { DirectionSelect } from "../direction-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -86,8 +87,6 @@ export function CategoryActions({
             name="parent_id"
             value={category.parent_id ?? ""}
           />
-          <input type="hidden" name="primary_direction" value={direction} />
-
           {updateState?.error && (
             <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {updateState.error}
@@ -105,26 +104,11 @@ export function CategoryActions({
             />
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="edit-primary_direction">Direction (optional)</Label>
-            <Select value={direction} onValueChange={setDirection}>
-              <SelectTrigger id="edit-primary_direction">
-                <SelectValue placeholder="Leave unset for now" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="income">Income</SelectItem>
-                <SelectItem value="expense">Expense</SelectItem>
-                <SelectItem value="neither">
-                  Neither (transfers between your accounts)
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Groups this category on the categories page. It does not limit
-              which transactions can use it — any category can take both
-              income and expenses.
-            </p>
-          </div>
+          <DirectionSelect
+            id="edit-primary_direction"
+            value={direction}
+            onValueChange={setDirection}
+          />
 
           <div className="flex gap-3">
             <Button type="submit" disabled={updatePending}>

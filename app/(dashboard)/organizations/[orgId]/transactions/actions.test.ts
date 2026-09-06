@@ -211,6 +211,55 @@ describe("transaction actions", () => {
       );
     });
 
+    it("accepts a category labeled primary_direction 'income' on an EXPENSE transaction", async () => {
+      // primary_direction is a label only (see docs/superpowers/specs/
+      // 2026-09-05-category-primary-direction-design.md, Decision 1) — it
+      // must never restrict which transactions a category can be used on.
+      // This is the single property whose violation would make the whole
+      // feature wrong.
+      let callCount = 0;
+      mockSupabase.from.mockImplementation(() => {
+        callCount++;
+        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
+        const methods = ["select", "insert", "update", "delete", "eq", "neq", "in", "is", "order", "limit"];
+        for (const m of methods) chain[m] = vi.fn(() => chain);
+
+        const results: Record<number, { data: unknown; error: null }> = {
+          1: { data: { id: accountId, organization_id: orgId, account_type: "checking" }, error: null },
+          2: { data: { id: orgId }, error: null },
+          3: {
+            data: [
+              {
+                id: catId,
+                organization_id: orgId,
+                is_active: true,
+                primary_direction: "income",
+              },
+            ],
+            error: null,
+          },
+          4: { data: { id: txnId }, error: null },
+          5: { data: null, error: null },
+        };
+
+        const result = results[callCount] ?? { data: null, error: null };
+        chain.single = vi.fn(() => Promise.resolve(result));
+        Object.defineProperty(chain, "then", {
+          value: (resolve?: (v: unknown) => unknown, reject?: (r: unknown) => unknown) =>
+            Promise.resolve(result).then(resolve, reject),
+          writable: true,
+          configurable: true,
+        });
+
+        return chain;
+      });
+
+      const fd = makeCreateTxnFormData({ transaction_type: "expense" });
+      await expect(createTransaction(null, fd)).rejects.toBeInstanceOf(
+        RedirectError
+      );
+    });
+
     it("sets cleared_at when status is cleared", async () => {
       setupSuccessfulCreate(mockSupabase);
 

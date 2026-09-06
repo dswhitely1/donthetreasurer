@@ -3,6 +3,7 @@
 import { useActionState, useState, useEffect, useRef } from "react";
 
 import { createCategoryInline } from "./actions";
+import { DirectionSelect } from "./direction-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -102,8 +103,6 @@ export function CreateCategoryDialog({
             name="parent_id"
             value={isSubcategory ? selectedParentId : ""}
           />
-          <input type="hidden" name="primary_direction" value={direction} />
-
           {state && "error" in state && state.error && (
             <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {state.error}
@@ -172,26 +171,7 @@ export function CreateCategoryDialog({
             />
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="primary_direction">Direction (optional)</Label>
-            <Select value={direction} onValueChange={setDirection}>
-              <SelectTrigger id="primary_direction">
-                <SelectValue placeholder="Leave unset for now" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="income">Income</SelectItem>
-                <SelectItem value="expense">Expense</SelectItem>
-                <SelectItem value="neither">
-                  Neither (transfers between your accounts)
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Groups this category on the categories page. It does not limit
-              which transactions can use it — any category can take both
-              income and expenses.
-            </p>
-          </div>
+          <DirectionSelect value={direction} onValueChange={setDirection} />
 
           <DialogFooter>
             <Button
