@@ -38,6 +38,7 @@ export async function createCategory(
     organization_id: formData.get("organization_id") as string,
     name: formData.get("name") as string,
     parent_id: (formData.get("parent_id") as string) ?? "",
+    primary_direction: (formData.get("primary_direction") as string) ?? "",
   };
 
   const parsed = createCategorySchema.safeParse(raw);
@@ -88,6 +89,8 @@ export async function createCategory(
       organization_id: parsed.data.organization_id,
       name: parsed.data.name,
       parent_id: parentId,
+      // "" (nothing selected) becomes SQL NULL, same as parent_id.
+      primary_direction: parsed.data.primary_direction || null,
     })
     .select("id")
     .single();
@@ -118,6 +121,7 @@ export async function updateCategory(
     organization_id: formData.get("organization_id") as string,
     name: formData.get("name") as string,
     parent_id: (formData.get("parent_id") as string) ?? "",
+    primary_direction: (formData.get("primary_direction") as string) ?? "",
   };
 
   const parsed = updateCategorySchema.safeParse(raw);
@@ -161,6 +165,8 @@ export async function updateCategory(
     .from("categories")
     .update({
       name: parsed.data.name,
+      // "" (nothing selected) becomes SQL NULL, same as parent_id.
+      primary_direction: parsed.data.primary_direction || null,
     })
     .eq("id", parsed.data.id)
     .eq("organization_id", parsed.data.organization_id);
@@ -415,6 +421,7 @@ export async function createCategoryInline(
     organization_id: formData.get("organization_id") as string,
     name: formData.get("name") as string,
     parent_id: (formData.get("parent_id") as string) ?? "",
+    primary_direction: (formData.get("primary_direction") as string) ?? "",
   };
 
   const parsed = createCategorySchema.safeParse(raw);
@@ -465,6 +472,8 @@ export async function createCategoryInline(
       organization_id: parsed.data.organization_id,
       name: parsed.data.name,
       parent_id: parentId,
+      // "" (nothing selected) becomes SQL NULL, same as parent_id.
+      primary_direction: parsed.data.primary_direction || null,
     })
     .select("id, name, parent_id")
     .single();

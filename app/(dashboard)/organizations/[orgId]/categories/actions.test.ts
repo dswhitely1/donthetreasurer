@@ -611,4 +611,150 @@ describe("category actions", () => {
       }
     });
   });
+
+  describe("primary_direction persistence", () => {
+    const CHAIN_METHODS = [
+      "select", "insert", "update", "delete", "eq", "in", "is", "order", "limit",
+    ];
+
+    function makeChain(): Record<string, ReturnType<typeof vi.fn>> {
+      const chain: Record<string, ReturnType<typeof vi.fn>> = {};
+      for (const m of CHAIN_METHODS) chain[m] = vi.fn(() => chain);
+      Object.defineProperty(chain, "then", {
+        value: (
+          resolve?: (v: unknown) => unknown,
+          reject?: (r: unknown) => unknown
+        ) => Promise.resolve({ data: null, error: null }).then(resolve, reject),
+        writable: true,
+        configurable: true,
+      });
+      return chain;
+    }
+
+    /** Sequence for createCategory without a parent: org check, then insert. */
+    function captureInsert() {
+      const insertSpy = vi.fn();
+      let callCount = 0;
+      mockSupabase.from.mockImplementation(() => {
+        callCount++;
+        const chain = makeChain();
+        if (callCount === 1) {
+          chain.single = vi.fn(() =>
+            Promise.resolve({ data: { id: orgId }, error: null })
+          );
+        } else {
+          chain.insert = vi.fn((payload: unknown) => {
+            insertSpy(payload);
+            return chain;
+          });
+          chain.single = vi.fn(() =>
+            Promise.resolve({ data: { id: catId }, error: null })
+          );
+        }
+        return chain;
+      });
+      return insertSpy;
+    }
+
+    /** Sequence for updateCategory: org check, current category, then update. */
+    function captureUpdate() {
+      const updateSpy = vi.fn();
+      let callCount = 0;
+      mockSupabase.from.mockImplementation(() => {
+        callCount++;
+        const chain = makeChain();
+        if (callCount === 1) {
+          chain.single = vi.fn(() =>
+            Promise.resolve({ data: { id: orgId }, error: null })
+          );
+        } else if (callCount === 2) {
+          chain.single = vi.fn(() =>
+            Promise.resolve({
+              data: { id: catId, parent_id: null },
+              error: null,
+            })
+          );
+        } else {
+          chain.update = vi.fn((payload: unknown) => {
+            updateSpy(payload);
+            return chain;
+          });
+        }
+        return chain;
+      });
+      return updateSpy;
+    }
+
+    it("writes the selected direction on create", async () => {
+      const insertSpy = captureInsert();
+      const fd = makeFormData({
+        organization_id: orgId,
+        name: "Fundraisers",
+        primary_direction: "income",
+      });
+
+      await expect(createCategory(null, fd)).rejects.toBeInstanceOf(
+        RedirectError
+      );
+      expect(insertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ primary_direction: "income" })
+      );
+    });
+
+    it("writes null when the direction is left unset", async () => {
+      const insertSpy = captureInsert();
+      const fd = makeFormData({
+        organization_id: orgId,
+        name: "Undecided",
+        primary_direction: "",
+      });
+
+      await expect(createCategory(null, fd)).rejects.toBeInstanceOf(
+        RedirectError
+      );
+      expect(insertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ primary_direction: null })
+      );
+    });
+
+    it("writes null when the field is absent entirely", async () => {
+      const insertSpy = captureInsert();
+      const fd = makeFormData({ organization_id: orgId, name: "No Field" });
+
+      await expect(createCategory(null, fd)).rejects.toBeInstanceOf(
+        RedirectError
+      );
+      expect(insertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ primary_direction: null })
+      );
+    });
+
+    it("rejects a value outside the allowed set", async () => {
+      const fd = makeFormData({
+        organization_id: orgId,
+        name: "Bad",
+        primary_direction: "both",
+      });
+
+      const result = await createCategory(null, fd);
+      expect(result?.error).toBeDefined();
+    });
+
+    it("updates the direction on an existing category", async () => {
+      const updateSpy = captureUpdate();
+      const fd = makeFormData({
+        id: catId,
+        organization_id: orgId,
+        name: "Transfer",
+        primary_direction: "neither",
+      });
+
+      await expect(updateCategory(null, fd)).rejects.toBeInstanceOf(
+        RedirectError
+      );
+      expect(updateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ primary_direction: "neither" })
+      );
+    });
+  });
 });
