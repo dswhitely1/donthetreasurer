@@ -1,7 +1,7 @@
 import ExcelJS from "exceljs";
 
 import type { AccountBalanceSummary, ReportData, ReportTransaction, SeasonsReportData } from "@/lib/reports/types";
-import type { BudgetReportData } from "@/lib/reports/fetch-budget-data";
+import type { BudgetNetLine, BudgetReportData } from "@/lib/reports/fetch-budget-data";
 
 function formatExcelDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
@@ -41,6 +41,8 @@ const MUTED_TEXT = "FF666666";
  */
 const CURRENCY_FMT = '_($* #,##0.00_);_($* (#,##0.00);_($* "-"??_);_(@_)';
 const DATE_FMT = "mm/dd/yyyy";
+const PERCENT_FMT = "0.0%";
+const UNFAVORABLE_BG = "FFF8D7D7"; // red-100
 
 /**
  * Font colour for a signed amount. Used on columns that carry a direction in
@@ -726,8 +728,93 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
   }
 }
 
-function formatPercentOfPlan(percent: number | null): string {
-  return percent === null ? "—" : `${percent.toFixed(1)}%`;
+/**
+ * `percentOfPlan` arrives as a percentage (109.68 means 109.7%), but Excel's
+ * percent format expects a ratio. Written as a number rather than a formatted
+ * string so the column sorts, filters and conditional-formats.
+ */
+function toPercentRatio(percent: number | null): number | null {
+  return percent === null ? null : percent / 100;
+}
+
+interface BudgetGroup {
+  parentName: string;
+  /** The budget line on the parent category itself, if the budget has one. */
+  parentLine: BudgetNetLine | null;
+  /** Child lines, labelled with the child segment only. */
+  children: { label: string; line: BudgetNetLine }[];
+}
+
+/**
+ * Splits a `Parent → Child` category label. A label with no arrow belongs to a
+ * top-level category and has no child segment.
+ */
+function splitCategoryLabel(name: string): { parent: string; child: string | null } {
+  const i = name.indexOf(" → ");
+  return i === -1
+    ? { parent: name, child: null }
+    : { parent: name.slice(0, i), child: name.slice(i + 3) };
+}
+
+/**
+ * Groups budget lines under their parent category, alphabetically by parent and
+ * then by child. Budget line items are stored in insertion order, which
+ * interleaves parents down the sheet and forces every row to repeat its
+ * `Parent → Child` prefix.
+ */
+function groupBudgetLines(lines: readonly BudgetNetLine[]): BudgetGroup[] {
+  const groups = new Map<string, BudgetGroup>();
+
+  for (const line of lines) {
+    const { parent, child } = splitCategoryLabel(line.categoryName);
+    const group = groups.get(parent) ?? {
+      parentName: parent,
+      parentLine: null,
+      children: [],
+    };
+    if (child === null) {
+      group.parentLine = line;
+    } else {
+      group.children.push({ label: child, line });
+    }
+    groups.set(parent, group);
+  }
+
+  const sorted = [...groups.values()].sort((a, b) =>
+    a.parentName.localeCompare(b.parentName)
+  );
+  for (const group of sorted) {
+    group.children.sort((a, b) => a.label.localeCompare(b.label));
+  }
+  return sorted;
+}
+
+/**
+ * Roll-up shown on a group header row. When the budget carries a line on the
+ * parent category itself that line is already the roll-up — `buildNetLine`
+ * folds every descendant into a parent's actual — so summing it together with
+ * the child rows would double count.
+ */
+function rollUpGroup(group: BudgetGroup): {
+  budgeted: number;
+  actual: number;
+  variance: number;
+} {
+  if (group.parentLine) {
+    const { budgeted, actual, variance } = group.parentLine;
+    return { budgeted, actual, variance };
+  }
+  let budgeted = 0;
+  let actual = 0;
+  for (const { line } of group.children) {
+    budgeted += line.budgeted;
+    actual += line.actual;
+  }
+  return {
+    budgeted: round2(budgeted),
+    actual: round2(actual),
+    variance: round2(actual - budgeted),
+  };
 }
 
 function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
@@ -735,10 +822,10 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
   const currencyFmt = CURRENCY_FMT;
 
   sheet.columns = [
-    { key: "category", width: 35 },
+    { key: "category", width: 42 },
     { key: "budgeted", width: 15 },
     { key: "actual", width: 15 },
-    { key: "variance", width: 15 },
+    { key: "variance", width: 20 },
     { key: "variancePct", width: 12 },
   ];
 
@@ -758,13 +845,15 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
     "Category",
     "Budgeted",
     "Actual",
-    "Variance",
+    // Spelling out the direction: budgets are signed, so a positive variance on
+    // an expense line means under-spent, which reads backwards without this.
+    "Variance (Actual − Budget)",
     "% of Plan",
   ]);
   headerRow.font = { bold: true };
-  headerRow.height = 18;
+  headerRow.height = 30;
   headerRow.eachCell((cell) => {
-    cell.alignment = { vertical: "middle" };
+    cell.alignment = { vertical: "middle", wrapText: true };
     cell.fill = {
       type: "pattern",
       pattern: "solid",
@@ -782,81 +871,139 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
   sheet.properties.tabColor = { argb: BANNER_BG };
   applyPrintSetup(sheet, { headerRow: 4, orientation: "portrait" });
 
-  for (const line of data.netLines) {
+  /** One data row: signed colours on Budgeted/Actual, percent as a ratio. */
+  function writeLineRow(
+    label: string,
+    line: {
+      budgeted: number;
+      actual: number;
+      variance: number;
+      percentOfPlan: number | null;
+    },
+    opts: { bold?: boolean; fill?: string; unfavorable?: boolean }
+  ): ExcelJS.Row {
     const row = sheet.addRow([
-      line.categoryName,
+      label,
       round2(line.budgeted),
       round2(line.actual),
       round2(line.variance),
-      formatPercentOfPlan(line.percentOfPlan),
+      toPercentRatio(line.percentOfPlan),
     ]);
-    row.getCell(4).fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: line.favorable ? "FFD6F5D6" : "FFF8D7D7" },
-    };
-    // Variance deliberately keeps its favorable/unfavorable fill and no sign
-    // colour: coming in under budget on an expense line is negative but good,
-    // so colouring it by sign would contradict the fill in the same cell.
-    row.getCell(2).font = { color: { argb: signedColor(line.budgeted) } };
-    row.getCell(3).font = { color: { argb: signedColor(line.actual) } };
+    const bold = opts.bold ?? false;
+    if (bold) row.font = { bold: true };
+    if (opts.fill) {
+      for (let c = 1; c <= 5; c++) {
+        row.getCell(c).fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: opts.fill },
+        };
+      }
+    }
+    // Only lines that are actually over budget get a fill. Filling the
+    // favorable ones too painted almost every row green at the start of a
+    // fiscal year, purely because the money had not been spent yet.
+    if (opts.unfavorable) {
+      row.getCell(4).fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: UNFAVORABLE_BG },
+      };
+    }
+    // Variance deliberately keeps its unfavorable fill and no sign colour:
+    // coming in under budget on an expense line is negative but good, so
+    // colouring it by sign would contradict the fill in the same cell.
+    row.getCell(2).font = { bold, color: { argb: signedColor(line.budgeted) } };
+    row.getCell(3).font = { bold, color: { argb: signedColor(line.actual) } };
     for (let c = 2; c <= 4; c++) row.getCell(c).numFmt = currencyFmt;
+    row.getCell(5).numFmt = PERCENT_FMT;
+    return row;
   }
 
-  const totalRow = sheet.addRow([
+  /** A parent header carrying the group roll-up, then its child lines. */
+  function writeGroups(groups: readonly BudgetGroup[]) {
+    for (const group of groups) {
+      const rollUp = rollUpGroup(group);
+      writeLineRow(
+        group.parentName,
+        {
+          ...rollUp,
+          percentOfPlan:
+            rollUp.budgeted === 0
+              ? null
+              : (rollUp.actual / rollUp.budgeted) * 100,
+        },
+        {
+          bold: true,
+          fill: SUBTOTAL_BG,
+          unfavorable: rollUp.actual < rollUp.budgeted,
+        }
+      );
+
+      for (const { label, line } of group.children) {
+        writeLineRow(`    ${label}`, line, { unfavorable: !line.favorable });
+      }
+    }
+  }
+
+  writeGroups(groupBudgetLines(data.netLines));
+
+  const totalRow = writeLineRow(
     "Total (Budgeted Lines)",
-    round2(data.netTotals.budgeted),
-    round2(data.netTotals.actual),
-    round2(data.netTotals.variance),
-    "",
-  ]);
-  totalRow.font = { bold: true };
-  totalRow.getCell(2).font = {
-    bold: true,
-    color: { argb: signedColor(data.netTotals.budgeted) },
-  };
-  totalRow.getCell(3).font = {
-    bold: true,
-    color: { argb: signedColor(data.netTotals.actual) },
-  };
-  for (let c = 2; c <= 4; c++) totalRow.getCell(c).numFmt = currencyFmt;
+    { ...data.netTotals, percentOfPlan: null },
+    { bold: true, unfavorable: data.netTotals.actual < data.netTotals.budgeted }
+  );
+  totalRow.getCell(5).value = null;
   totalRow.eachCell((cell) => {
     cell.border = {
-      top: { style: "double", color: { argb: "FF1E293B" } },
+      top: { style: "double", color: { argb: BANNER_BG } },
     };
   });
 
   if (data.unbudgetedNet.length > 0) {
     sheet.addRow([]);
-    const unbudgetedHeader = sheet.addRow(["UNBUDGETED"]);
-    unbudgetedHeader.font = { bold: true, size: 11 };
-    sheet.mergeCells(`A${unbudgetedHeader.number}:E${unbudgetedHeader.number}`);
-    unbudgetedHeader.eachCell((cell) => {
-      cell.fill = {
-        type: "pattern",
-        pattern: "solid",
-        fgColor: { argb: "FFF1F5F9" },
-      };
+    writeBanner(sheet, sheet.rowCount + 1, 5, "UNBUDGETED", 11);
+
+    writeGroups(groupBudgetLines(data.unbudgetedNet));
+
+    const unbudgetedActual = round2(
+      data.unbudgetedNet.reduce((sum, line) => sum + line.actual, 0)
+    );
+    const unbudgetedRow = writeLineRow(
+      "Total (Unbudgeted Lines)",
+      {
+        budgeted: 0,
+        actual: unbudgetedActual,
+        variance: unbudgetedActual,
+        percentOfPlan: null,
+      },
+      { bold: true }
+    );
+    unbudgetedRow.getCell(5).value = null;
+    unbudgetedRow.eachCell((cell) => {
+      cell.border = { top: { style: "thin", color: { argb: RULE_COLOR } } };
     });
-    for (const line of data.unbudgetedNet) {
-      const row = sheet.addRow([
-        line.categoryName,
-        0,
-        round2(line.actual),
-        round2(line.variance),
-        "—",
-      ]);
-      row.getCell(2).font = { color: { argb: signedColor(0) } };
-      row.getCell(3).font = { color: { argb: signedColor(line.actual) } };
-      for (let c = 2; c <= 4; c++) row.getCell(c).numFmt = currencyFmt;
-    }
+
+    const allActual = round2(data.netTotals.actual + unbudgetedActual);
+    const allRow = writeLineRow(
+      "Total (All Lines)",
+      {
+        budgeted: data.netTotals.budgeted,
+        actual: allActual,
+        variance: round2(allActual - data.netTotals.budgeted),
+        percentOfPlan: null,
+      },
+      { bold: true, unfavorable: allActual < data.netTotals.budgeted }
+    );
+    allRow.getCell(5).value = null;
+    allRow.eachCell((cell) => {
+      cell.border = { top: { style: "double", color: { argb: BANNER_BG } } };
+    });
   }
 }
-
 function buildSeasonsSheet(workbook: ExcelJS.Workbook, data: SeasonsReportData) {
   const sheet = workbook.addWorksheet("Active Seasons");
   const currencyFmt = CURRENCY_FMT;
-  const pctFmt = "0.0%";
 
   sheet.columns = [
     { key: "season", width: 30 },
@@ -930,7 +1077,7 @@ function buildSeasonsSheet(workbook: ExcelJS.Workbook, data: SeasonsReportData) 
     row.getCell(7).font = { color: { argb: POSITIVE_COLOR } };
     row.getCell(8).numFmt = currencyFmt;
     row.getCell(8).font = { color: { argb: NEGATIVE_COLOR } };
-    row.getCell(9).numFmt = pctFmt;
+    row.getCell(9).numFmt = PERCENT_FMT;
   }
 
   // Grand total row (only when multiple seasons)
@@ -952,7 +1099,7 @@ function buildSeasonsSheet(workbook: ExcelJS.Workbook, data: SeasonsReportData) 
     totalRow.getCell(7).font = { bold: true, color: { argb: POSITIVE_COLOR } };
     totalRow.getCell(8).numFmt = currencyFmt;
     totalRow.getCell(8).font = { bold: true, color: { argb: NEGATIVE_COLOR } };
-    totalRow.getCell(9).numFmt = pctFmt;
+    totalRow.getCell(9).numFmt = PERCENT_FMT;
     totalRow.eachCell((cell) => {
       cell.border = {
         top: { style: "double", color: { argb: "FF1E293B" } },
