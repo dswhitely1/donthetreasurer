@@ -106,7 +106,7 @@ export async function createTemplate(
   const categoryIds = parsedLineItems.data.map((li) => li.category_id);
   const { data: categories } = await supabase
     .from("categories")
-    .select("id, category_type, organization_id, is_active")
+    .select("id, organization_id, is_active")
     .in("id", categoryIds);
 
   if (!categories || categories.length !== new Set(categoryIds).size) {
@@ -120,11 +120,6 @@ export async function createTemplate(
     if (cat.organization_id !== parsed.data.organization_id) {
       return {
         error: "All categories must belong to the same organization.",
-      };
-    }
-    if (cat.category_type !== parsed.data.transaction_type) {
-      return {
-        error: `Category type must match transaction type (${parsed.data.transaction_type}).`,
       };
     }
   }
@@ -283,7 +278,7 @@ export async function updateTemplate(
   const categoryIds = parsedLineItems.data.map((li) => li.category_id);
   const { data: categories } = await supabase
     .from("categories")
-    .select("id, category_type, organization_id, is_active")
+    .select("id, organization_id, is_active")
     .in("id", categoryIds);
 
   if (!categories || categories.length !== new Set(categoryIds).size) {
@@ -297,11 +292,6 @@ export async function updateTemplate(
     if (cat.organization_id !== parsed.data.organization_id) {
       return {
         error: "All categories must belong to the same organization.",
-      };
-    }
-    if (cat.category_type !== parsed.data.transaction_type) {
-      return {
-        error: `Category type must match transaction type (${parsed.data.transaction_type}).`,
       };
     }
   }

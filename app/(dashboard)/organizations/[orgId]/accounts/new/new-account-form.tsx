@@ -17,15 +17,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import type { ExpenseCategory } from "../fee-config-fields";
+import type { FeeCategory } from "../fee-config-fields";
 
 export function NewAccountForm({
   orgId,
-  expenseCategories,
+  feeCategories,
   showSaved,
 }: Readonly<{
   orgId: string;
-  expenseCategories: ExpenseCategory[];
+  feeCategories: FeeCategory[];
   showSaved?: boolean;
 }>) {
   const [state, formAction, pending] = useActionState(createAccount, null);
@@ -95,7 +95,7 @@ export function NewAccountForm({
         />
       </div>
 
-      <FeeConfigFields expenseCategories={expenseCategories} />
+      <FeeConfigFields feeCategories={feeCategories} />
 
       <div className="mt-2 flex gap-3">
         <Button type="submit" name="_intent" value="save" disabled={pending}>

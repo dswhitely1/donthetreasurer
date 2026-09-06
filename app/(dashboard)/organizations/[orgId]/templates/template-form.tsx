@@ -40,7 +40,7 @@ import type { Tables } from "@/types/database";
 type Account = Pick<Tables<"accounts">, "id" | "name" | "account_type">;
 type Category = Pick<
   Tables<"categories">,
-  "id" | "name" | "category_type" | "parent_id"
+  "id" | "name" | "parent_id"
 >;
 
 interface LineItemState {
@@ -119,10 +119,8 @@ export function TemplateForm({
   const selectedAccount = accounts.find((a) => a.id === selectedAccountId);
   const isCheckingAccount = selectedAccount?.account_type === "checking";
 
-  // Filter categories by transaction type
-  const filteredCategories = localCategories.filter(
-    (c) => c.category_type === transactionType
-  );
+  // Every active category is selectable on every transaction type.
+  const filteredCategories = localCategories;
   const parentCats = filteredCategories.filter((c) => !c.parent_id);
   const childrenMap = new Map<string, Category[]>();
   for (const cat of filteredCategories) {
@@ -186,7 +184,6 @@ export function TemplateForm({
   function handleCategoryCreated(newCat: {
     id: string;
     name: string;
-    category_type: string;
     parent_id: string | null;
   }) {
     setLocalCategories((prev) => [...prev, newCat]);
@@ -198,7 +195,7 @@ export function TemplateForm({
 
   // Parent categories for inline creation dialog
   const parentCategoriesForDialog = localCategories.filter(
-    (c) => !c.parent_id && c.category_type === transactionType
+    (c) => !c.parent_id
   );
 
   return (
@@ -391,7 +388,7 @@ export function TemplateForm({
 
               {filteredCategories.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No {transactionType} categories found.{" "}
+                  No categories found.{" "}
                   <button
                     type="button"
                     className="underline hover:text-foreground"
@@ -568,7 +565,6 @@ export function TemplateForm({
         open={isCategoryDialogOpen}
         onOpenChange={setIsCategoryDialogOpen}
         orgId={orgId}
-        categoryType={transactionType}
         parentCategories={parentCategoriesForDialog}
         onCreated={handleCategoryCreated}
       />

@@ -22,7 +22,7 @@ import type { Tables } from "@/types/database";
 
 type Category = Pick<
   Tables<"categories">,
-  "id" | "name" | "category_type" | "parent_id"
+  "id" | "name" | "parent_id"
 >;
 
 interface LineItemState {
@@ -36,7 +36,6 @@ export function CategoryReassignForm({
   transactionId,
   orgId,
   transactionAmount,
-  transactionType,
   lineItems,
   categories,
   onCancel,
@@ -44,7 +43,6 @@ export function CategoryReassignForm({
   transactionId: string;
   orgId: string;
   transactionAmount: number;
-  transactionType: string;
   lineItems: Array<{ category_id: string; amount: number; memo: string | null }>;
   categories: Category[];
   onCancel: () => void;
@@ -66,10 +64,8 @@ export function CategoryReassignForm({
 
   let nextKey = items.length;
 
-  // Filter categories to match transaction type
-  const matchingCategories = categories.filter(
-    (c) => c.category_type === transactionType
-  );
+  // Every active category is selectable, regardless of transaction type.
+  const matchingCategories = categories;
   const parentCats = matchingCategories.filter((c) => !c.parent_id);
   const childrenMap = new Map<string, Category[]>();
   for (const cat of matchingCategories) {

@@ -2,11 +2,23 @@ import ExcelJS from "exceljs";
 
 import type { AccountBalanceSummary, ReportData, ReportTransaction, SeasonsReportData } from "@/lib/reports/types";
 import type { BudgetReportData } from "@/lib/reports/fetch-budget-data";
-import type { CombinedBudgetLine } from "@/lib/reports/budget-combined";
 
 function formatExcelDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+const POSITIVE_COLOR = "FF16A34A"; // green-600
+const NEGATIVE_COLOR = "FFDC2626"; // red-600
+
+/**
+ * Font colour for a signed amount. Used on columns that carry a direction in
+ * their sign (net, and the signed budget amounts) rather than columns that are
+ * always positive and take their colour from the column itself (In / Out).
+ * Zero reads as positive: a net of exactly 0 is not a loss.
+ */
+function signedColor(value: number): string {
+  return value >= 0 ? POSITIVE_COLOR : NEGATIVE_COLOR;
 }
 
 export async function generateReportWorkbook(
@@ -66,10 +78,10 @@ function addTransactionRows(
     }
 
     if (txn.transactionType === "income" && incomeCell.value !== null) {
-      incomeCell.font = { color: { argb: "FF16A34A" } };
+      incomeCell.font = { color: { argb: POSITIVE_COLOR } };
     }
     if (txn.transactionType === "expense" && expenseCell.value !== null) {
-      expenseCell.font = { color: { argb: "FFDC2626" } };
+      expenseCell.font = { color: { argb: NEGATIVE_COLOR } };
     }
   }
 }
@@ -101,11 +113,11 @@ function addSubtotalRow(
   const expenseCell = row.getCell(9);
   if (incomeCell.value !== null) {
     incomeCell.numFmt = currencyFmt;
-    incomeCell.font = { bold, color: { argb: "FF16A34A" } };
+    incomeCell.font = { bold, color: { argb: POSITIVE_COLOR } };
   }
   if (expenseCell.value !== null) {
     expenseCell.numFmt = currencyFmt;
-    expenseCell.font = { bold, color: { argb: "FFDC2626" } };
+    expenseCell.font = { bold, color: { argb: NEGATIVE_COLOR } };
   }
 }
 
@@ -355,11 +367,11 @@ function buildTransactionsSheet(workbook: ExcelJS.Workbook, data: ReportData) {
   const grandExpenseCell = grandRow.getCell(9);
   if (grandIncomeCell.value !== null) {
     grandIncomeCell.numFmt = currencyFmt;
-    grandIncomeCell.font = { size: 12, bold: true, color: { argb: "FF16A34A" } };
+    grandIncomeCell.font = { size: 12, bold: true, color: { argb: POSITIVE_COLOR } };
   }
   if (grandExpenseCell.value !== null) {
     grandExpenseCell.numFmt = currencyFmt;
-    grandExpenseCell.font = { size: 12, bold: true, color: { argb: "FFDC2626" } };
+    grandExpenseCell.font = { size: 12, bold: true, color: { argb: NEGATIVE_COLOR } };
   }
   grandRow.eachCell((cell) => {
     cell.border = {
@@ -374,12 +386,11 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
 
   const currencyFmt = "$#,##0.00";
 
-  // 5-column layout: A-B (left), C (spacer), D-E (right)
-  sheet.getColumn(1).width = 32; // A: Left label
-  sheet.getColumn(2).width = 16; // B: Left value
-  sheet.getColumn(3).width = 4;  // C: Spacer
-  sheet.getColumn(4).width = 32; // D: Right label
-  sheet.getColumn(5).width = 16; // E: Right value
+  // 4-column layout: A (category label), B-D (In / Out / Net currency)
+  sheet.getColumn(1).width = 32; // A: Category label
+  sheet.getColumn(2).width = 16; // B: In (currency)
+  sheet.getColumn(3).width = 16; // C: Out (currency)
+  sheet.getColumn(4).width = 16; // D: Net (currency)
 
   const HEADER_FILL: ExcelJS.FillPattern = {
     type: "pattern",
@@ -392,16 +403,16 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
     size: 10,
   };
 
-  // Row 1: "Summary" title spanning A1:E1
+  // Row 1: "Summary" title spanning A1:D1
   const titleRow = sheet.getRow(1);
   titleRow.getCell(1).value = "Summary";
   titleRow.getCell(1).font = { size: 16, bold: true, color: { argb: "FFFFFFFF" } };
   titleRow.getCell(1).fill = HEADER_FILL;
   titleRow.getCell(1).alignment = { horizontal: "center" };
-  for (let c = 2; c <= 5; c++) {
+  for (let c = 2; c <= 4; c++) {
     titleRow.getCell(c).fill = HEADER_FILL;
   }
-  sheet.mergeCells("A1:E1");
+  sheet.mergeCells("A1:D1");
 
   // Row 2: Org name + date range
   const dateBasisLabel = data.dateBasis === "transaction_date" ? "Transaction Date" : "Cleared Date";
@@ -412,7 +423,7 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
   infoRow.getCell(1).value = dateRangeText;
   infoRow.getCell(1).font = { size: 9, italic: true, color: { argb: "FF666666" } };
   infoRow.getCell(1).alignment = { horizontal: "center" };
-  sheet.mergeCells("A2:E2");
+  sheet.mergeCells("A2:D2");
 
   // Row 3: blank separator
   // Freeze panes: title rows frozen
@@ -470,13 +481,13 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
   // OVERALL SUMMARY
   writeSectionHeader(leftRow, 1, "OVERALL SUMMARY");
   leftRow++;
-  writeAmountRow(leftRow, 1, "Total Income:", summary.totalIncome, { color: "FF16A34A" });
+  writeAmountRow(leftRow, 1, "Total Income:", summary.totalIncome, { color: POSITIVE_COLOR });
   leftRow++;
-  writeAmountRow(leftRow, 1, "Total Expenses:", summary.totalExpenses, { color: "FFDC2626" });
+  writeAmountRow(leftRow, 1, "Total Expenses:", summary.totalExpenses, { color: NEGATIVE_COLOR });
   leftRow++;
   writeAmountRow(leftRow, 1, "Net Change:", summary.netChange, {
     bold: true,
-    color: summary.netChange >= 0 ? "FF16A34A" : "FFDC2626",
+    color: signedColor(summary.netChange),
   });
   leftRow += 2; // blank separator
 
@@ -495,7 +506,7 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
       writeAmountRow(leftRow, 1, "Net Change:", netChange, {
         indent: true,
         italic: true,
-        color: netChange >= 0 ? "FF16A34A" : "FFDC2626",
+        color: signedColor(netChange),
       });
       leftRow++;
     }
@@ -511,230 +522,68 @@ function buildSummarySheet(workbook: ExcelJS.Workbook, data: ReportData) {
   leftRow++;
   writeAmountRow(leftRow, 1, "Reconciled Balance:", summary.balanceByStatus.reconciled);
 
-  // ── Right Column (cols D-E, colOffset=4) ─────────────────────
-  let rightRow = 4;
+  // ── Category Totals (full-width, below the summary column) ──
+  if (summary.categoryTotals.length > 0) {
+    let categoryRow = leftRow + 2;
 
-  // INCOME BY CATEGORY
-  if (summary.incomeByCategory.length > 0) {
-    writeSectionHeader(rightRow, 4, "INCOME BY CATEGORY");
-    rightRow++;
-    for (const group of summary.incomeByCategory) {
-      // Collapsed root: single flat row
-      if (group.children.length === 0) {
-        writeAmountRow(rightRow, 4, group.parentName, group.subtotal, { color: "FF16A34A" });
-        rightRow++;
-        continue;
-      }
-      writeLabelRow(rightRow, 4, group.parentName, { bold: true });
-      rightRow++;
+    const header = sheet.getRow(categoryRow);
+    header.getCell(1).value = "Category";
+    header.getCell(2).value = "In";
+    header.getCell(3).value = "Out";
+    header.getCell(4).value = "Net";
+    header.font = { bold: true };
+    categoryRow++;
+
+    const firstDataRow = categoryRow;
+
+    for (const group of summary.categoryTotals) {
+      const groupRow = sheet.getRow(categoryRow);
+      groupRow.getCell(1).value = group.parentName;
+      groupRow.getCell(2).value = group.totalIn;
+      groupRow.getCell(3).value = group.totalOut;
+      groupRow.getCell(4).value = group.net;
+      const groupBold = group.children.length > 0;
+      if (groupBold) groupRow.font = { bold: true };
+      // Set after the row font: assigning row.font would otherwise overwrite
+      // this cell's colour, and assigning it here drops the row's bold.
+      groupRow.getCell(4).font = {
+        bold: groupBold,
+        color: { argb: signedColor(group.net) },
+      };
+      categoryRow++;
+
       for (const child of group.children) {
-        writeAmountRow(rightRow, 4, child.name, child.total, { indent: true, color: "FF16A34A" });
-        rightRow++;
-      }
-      if (group.children.length > 1) {
-        writeAmountRow(rightRow, 4, "Subtotal:", group.subtotal, { indent: true, italic: true, color: "FF16A34A" });
-        rightRow++;
-      }
-    }
-    rightRow++; // blank separator
-  }
-
-  // EXPENSES BY CATEGORY
-  if (summary.expensesByCategory.length > 0) {
-    writeSectionHeader(rightRow, 4, "EXPENSES BY CATEGORY");
-    rightRow++;
-    for (const group of summary.expensesByCategory) {
-      // Collapsed root: single flat row
-      if (group.children.length === 0) {
-        writeAmountRow(rightRow, 4, group.parentName, group.subtotal, { color: "FFDC2626" });
-        rightRow++;
-        continue;
-      }
-      writeLabelRow(rightRow, 4, group.parentName, { bold: true });
-      rightRow++;
-      for (const child of group.children) {
-        writeAmountRow(rightRow, 4, child.name, child.total, { indent: true, color: "FFDC2626" });
-        rightRow++;
-      }
-      if (group.children.length > 1) {
-        writeAmountRow(rightRow, 4, "Subtotal:", group.subtotal, { indent: true, italic: true, color: "FFDC2626" });
-        rightRow++;
+        const childRow = sheet.getRow(categoryRow);
+        childRow.getCell(1).value = `    ${child.name}`;
+        childRow.getCell(2).value = child.in;
+        childRow.getCell(3).value = child.out;
+        childRow.getCell(4).value = child.net;
+        childRow.getCell(4).font = { color: { argb: signedColor(child.net) } };
+        categoryRow++;
       }
     }
-  }
 
-  // ── Net by Category (full-width, below both columns) ────────
-  if (summary.netByCategory.length > 0) {
-    let netRow = Math.max(leftRow, rightRow) + 2;
-
-    // Section header spanning A-E
-    writeSectionHeader(netRow, 1, "NET BY CATEGORY");
-    const headerR = sheet.getRow(netRow);
-    for (let c = 2; c <= 5; c++) {
-      headerR.getCell(c).fill = HEADER_FILL;
-    }
-    sheet.mergeCells(`A${netRow}:E${netRow}`);
-    netRow++;
-
-    let combinedNet = 0;
-
-    for (const group of summary.netByCategory) {
-      // Parent name (bold, spanning full width)
-      writeLabelRow(netRow, 1, group.parentName, { bold: true });
-      netRow++;
-
-      // Income sub-section
-      writeLabelRow(netRow, 1, "Income:");
-      netRow++;
-
-      if (group.incomeChildren.length > 0) {
-        for (const child of group.incomeChildren) {
-          writeAmountRow(netRow, 1, child.name, child.total, { indent: true, color: "FF16A34A" });
-          netRow++;
-        }
-        if (group.incomeChildren.length > 1) {
-          writeAmountRow(netRow, 1, "Subtotal", group.totalIncome, { indent: true, italic: true, color: "FF16A34A" });
-          netRow++;
-        }
-      } else {
-        writeAmountRow(netRow, 1, "(root)", group.totalIncome, { indent: true, color: "FF16A34A" });
-        netRow++;
-      }
-
-      // Expense sub-section
-      writeLabelRow(netRow, 1, "Expenses:");
-      netRow++;
-
-      if (group.expenseChildren.length > 0) {
-        for (const child of group.expenseChildren) {
-          writeAmountRow(netRow, 1, child.name, child.total, { indent: true, color: "FFDC2626" });
-          netRow++;
-        }
-        if (group.expenseChildren.length > 1) {
-          writeAmountRow(netRow, 1, "Subtotal", group.totalExpenses, { indent: true, italic: true, color: "FFDC2626" });
-          netRow++;
-        }
-      } else {
-        writeAmountRow(netRow, 1, "(root)", group.totalExpenses, { indent: true, color: "FFDC2626" });
-        netRow++;
-      }
-
-      // Net row for this parent
-      const netColor = group.net >= 0 ? "FF16A34A" : "FFDC2626";
-      writeAmountRow(netRow, 1, "Net", group.net, { bold: true, color: netColor });
-      netRow++;
-
-      combinedNet += group.net;
-      netRow++; // blank separator
-    }
-
-    // Combined Net Total
-    const totalColor = combinedNet >= 0 ? "FF16A34A" : "FFDC2626";
-    writeAmountRow(netRow, 1, "Combined Net Total", combinedNet, { bold: true, color: totalColor });
-    sheet.getRow(netRow).getCell(2).border = {
-      top: { style: "double", color: { argb: "FF1E293B" } },
+    const totalRow = sheet.getRow(categoryRow);
+    totalRow.getCell(1).value = "Total";
+    totalRow.getCell(2).value = summary.totalIncome;
+    totalRow.getCell(3).value = summary.totalExpenses;
+    totalRow.getCell(4).value = summary.netChange;
+    totalRow.font = { bold: true };
+    totalRow.getCell(4).font = {
+      bold: true,
+      color: { argb: signedColor(summary.netChange) },
     };
+
+    for (let r = firstDataRow; r <= categoryRow; r++) {
+      for (let c = 2; c <= 4; c++) {
+        sheet.getCell(r, c).numFmt = currencyFmt;
+      }
+    }
   }
 }
 
-function addCombinedBudgetSection(
-  sheet: ExcelJS.Worksheet,
-  combinedLines: CombinedBudgetLine[],
-  currencyFmt: string
-) {
-  const sectionHeader = sheet.addRow(["COMBINED INCOME & EXPENSE"]);
-  sectionHeader.font = { bold: true, size: 11 };
-  sheet.mergeCells(`A${sectionHeader.number}:H${sectionHeader.number}`);
-  sectionHeader.eachCell((cell) => {
-    cell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FFF0F9FF" },
-    };
-  });
-
-  const colHeader = sheet.addRow([
-    "Category",
-    "Inc. Budgeted",
-    "Inc. Actual",
-    "Exp. Budgeted",
-    "Exp. Actual",
-    "Net Budgeted",
-    "Net Actual",
-    "Net Variance",
-  ]);
-  colHeader.font = { bold: true };
-  colHeader.eachCell((cell) => {
-    cell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FFE2E8F0" },
-    };
-    cell.border = {
-      bottom: { style: "thin", color: { argb: "FF94A3B8" } },
-    };
-  });
-
-  for (const line of combinedLines) {
-    const row = sheet.addRow([
-      line.categoryName,
-      line.incomeBudgeted,
-      line.incomeActual,
-      line.expenseBudgeted,
-      line.expenseActual,
-      line.netBudgeted,
-      line.netActual,
-      line.netVariance,
-    ]);
-    // Format currency cells
-    for (let i = 2; i <= 8; i++) {
-      row.getCell(i).numFmt = currencyFmt;
-    }
-    // Color income cells green
-    row.getCell(2).font = { color: { argb: "FF16A34A" } };
-    row.getCell(3).font = { color: { argb: "FF16A34A" } };
-    // Color expense cells red
-    row.getCell(4).font = { color: { argb: "FFDC2626" } };
-    row.getCell(5).font = { color: { argb: "FFDC2626" } };
-    // Color net cells based on sign
-    const netBudgetedColor = line.netBudgeted >= 0 ? "FF16A34A" : "FFDC2626";
-    const netActualColor = line.netActual >= 0 ? "FF16A34A" : "FFDC2626";
-    const netVarianceColor = line.netVariance >= 0 ? "FF16A34A" : "FFDC2626";
-    row.getCell(6).font = { color: { argb: netBudgetedColor } };
-    row.getCell(7).font = { color: { argb: netActualColor } };
-    row.getCell(8).font = { color: { argb: netVarianceColor } };
-  }
-
-  // Subtotal row
-  const totIncBudget = combinedLines.reduce((s, l) => s + l.incomeBudgeted, 0);
-  const totIncActual = combinedLines.reduce((s, l) => s + l.incomeActual, 0);
-  const totExpBudget = combinedLines.reduce((s, l) => s + l.expenseBudgeted, 0);
-  const totExpActual = combinedLines.reduce((s, l) => s + l.expenseActual, 0);
-  const totNetBudget = combinedLines.reduce((s, l) => s + l.netBudgeted, 0);
-  const totNetActual = combinedLines.reduce((s, l) => s + l.netActual, 0);
-  const totNetVariance = combinedLines.reduce((s, l) => s + l.netVariance, 0);
-
-  const totalRow = sheet.addRow([
-    "Combined Total",
-    totIncBudget,
-    totIncActual,
-    totExpBudget,
-    totExpActual,
-    totNetBudget,
-    totNetActual,
-    totNetVariance,
-  ]);
-  totalRow.font = { bold: true };
-  for (let i = 2; i <= 8; i++) {
-    totalRow.getCell(i).numFmt = currencyFmt;
-  }
-  totalRow.getCell(2).font = { bold: true, color: { argb: "FF16A34A" } };
-  totalRow.getCell(3).font = { bold: true, color: { argb: "FF16A34A" } };
-  totalRow.getCell(4).font = { bold: true, color: { argb: "FFDC2626" } };
-  totalRow.getCell(5).font = { bold: true, color: { argb: "FFDC2626" } };
-  totalRow.getCell(6).font = { bold: true, color: { argb: totNetBudget >= 0 ? "FF16A34A" : "FFDC2626" } };
-  totalRow.getCell(7).font = { bold: true, color: { argb: totNetActual >= 0 ? "FF16A34A" : "FFDC2626" } };
-  totalRow.getCell(8).font = { bold: true, color: { argb: totNetVariance >= 0 ? "FF16A34A" : "FFDC2626" } };
+function formatPercentOfPlan(percent: number | null): string {
+  return percent === null ? "—" : `${percent.toFixed(1)}%`;
 }
 
 function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
@@ -767,8 +616,8 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
     "Category",
     "Budgeted",
     "Actual",
-    "Variance ($)",
-    "Variance (%)",
+    "Variance",
+    "% of Plan",
   ]);
   headerRow.font = { bold: true };
   headerRow.eachCell((cell) => {
@@ -782,155 +631,69 @@ function buildBudgetSheet(workbook: ExcelJS.Workbook, data: BudgetReportData) {
     };
   });
 
-  function addBudgetRow(
-    label: string,
-    budgeted: number,
-    actual: number,
-    variance: number,
-    variancePct: number | null,
-    isFavorable: boolean,
-    bold = false
-  ) {
+  for (const line of data.netLines) {
     const row = sheet.addRow([
-      label,
-      budgeted,
-      actual,
-      variance,
-      variancePct !== null ? variancePct / 100 : null,
+      line.categoryName,
+      line.budgeted,
+      line.actual,
+      line.variance,
+      formatPercentOfPlan(line.percentOfPlan),
     ]);
-    if (bold) row.font = { bold: true };
-
-    row.getCell(2).numFmt = currencyFmt;
-    row.getCell(3).numFmt = currencyFmt;
-    row.getCell(4).numFmt = currencyFmt;
-    if (row.getCell(5).value !== null) {
-      row.getCell(5).numFmt = "0%";
-    }
-
-    // Conditional color for variance
-    const varianceColor = isFavorable ? "FF16A34A" : "FFDC2626";
-    row.getCell(4).font = { bold, color: { argb: varianceColor } };
-
-    // Green/red fill for variance cell
     row.getCell(4).fill = {
       type: "pattern",
       pattern: "solid",
-      fgColor: { argb: isFavorable ? "FFF0FDF4" : "FFFEF2F2" },
+      fgColor: { argb: line.favorable ? "FFD6F5D6" : "FFF8D7D7" },
     };
+    // Variance deliberately keeps its favorable/unfavorable fill and no sign
+    // colour: coming in under budget on an expense line is negative but good,
+    // so colouring it by sign would contradict the fill in the same cell.
+    row.getCell(2).font = { color: { argb: signedColor(line.budgeted) } };
+    row.getCell(3).font = { color: { argb: signedColor(line.actual) } };
+    for (let c = 2; c <= 4; c++) row.getCell(c).numFmt = currencyFmt;
   }
 
-  // Combined Income & Expense section
-  if (data.combinedLines.length > 0) {
-    addCombinedBudgetSection(sheet, data.combinedLines, currencyFmt);
-    sheet.addRow([]);
-  }
-
-  // Income section (unmatched only)
-  if (data.incomeLines.length > 0) {
-    const incomeHeader = sheet.addRow(["INCOME"]);
-    incomeHeader.font = { bold: true, size: 11 };
-    sheet.mergeCells(`A${incomeHeader.number}:E${incomeHeader.number}`);
-    incomeHeader.eachCell((cell) => {
-      cell.fill = {
-        type: "pattern",
-        pattern: "solid",
-        fgColor: { argb: "FFDBEAFE" },
-      };
-    });
-
-    for (const line of data.incomeLines) {
-      addBudgetRow(
-        line.categoryName,
-        line.budgeted,
-        line.actual,
-        line.variance,
-        line.variancePercent,
-        line.variance >= 0
-      );
-    }
-
-    const incomeBudgeted = data.incomeLines.reduce((s, l) => s + l.budgeted, 0);
-    const incomeActual = data.incomeLines.reduce((s, l) => s + l.actual, 0);
-    addBudgetRow(
-      "Income Subtotal",
-      incomeBudgeted,
-      incomeActual,
-      incomeActual - incomeBudgeted,
-      incomeBudgeted > 0
-        ? (incomeActual / incomeBudgeted) * 100
-        : null,
-      incomeActual >= incomeBudgeted,
-      true
-    );
-
-    sheet.addRow([]);
-  }
-
-  // Expenses section (unmatched only)
-  if (data.expenseLines.length > 0) {
-    const expenseHeader = sheet.addRow(["EXPENSES"]);
-    expenseHeader.font = { bold: true, size: 11 };
-    sheet.mergeCells(`A${expenseHeader.number}:E${expenseHeader.number}`);
-    expenseHeader.eachCell((cell) => {
-      cell.fill = {
-        type: "pattern",
-        pattern: "solid",
-        fgColor: { argb: "FFFEF2F2" },
-      };
-    });
-
-    for (const line of data.expenseLines) {
-      addBudgetRow(
-        line.categoryName,
-        line.budgeted,
-        line.actual,
-        line.variance,
-        line.variancePercent,
-        line.variance >= 0
-      );
-    }
-
-    const expenseBudgeted = data.expenseLines.reduce((s, l) => s + l.budgeted, 0);
-    const expenseActual = data.expenseLines.reduce((s, l) => s + l.actual, 0);
-    addBudgetRow(
-      "Expenses Subtotal",
-      expenseBudgeted,
-      expenseActual,
-      expenseBudgeted - expenseActual,
-      expenseBudgeted > 0
-        ? (expenseActual / expenseBudgeted) * 100
-        : null,
-      expenseActual <= expenseBudgeted,
-      true
-    );
-
-    sheet.addRow([]);
-  }
-
-  // Net summary
-  const netRow = sheet.addRow([
-    "NET",
-    data.totals.netBudget,
-    data.totals.netActual,
-    data.totals.netActual - data.totals.netBudget,
-    null,
+  const totalRow = sheet.addRow([
+    "Total (Budgeted Lines)",
+    data.netTotals.budgeted,
+    data.netTotals.actual,
+    data.netTotals.variance,
+    "",
   ]);
-  netRow.font = { bold: true, size: 11 };
-  netRow.getCell(2).numFmt = currencyFmt;
-  netRow.getCell(3).numFmt = currencyFmt;
-  netRow.getCell(4).numFmt = currencyFmt;
-
-  const netVariance = data.totals.netActual - data.totals.netBudget;
-  netRow.getCell(4).font = {
+  totalRow.font = { bold: true };
+  totalRow.getCell(2).font = {
     bold: true,
-    size: 11,
-    color: { argb: netVariance >= 0 ? "FF16A34A" : "FFDC2626" },
+    color: { argb: signedColor(data.netTotals.budgeted) },
   };
-  netRow.eachCell((cell) => {
+  totalRow.getCell(3).font = {
+    bold: true,
+    color: { argb: signedColor(data.netTotals.actual) },
+  };
+  for (let c = 2; c <= 4; c++) totalRow.getCell(c).numFmt = currencyFmt;
+  totalRow.eachCell((cell) => {
     cell.border = {
       top: { style: "double", color: { argb: "FF1E293B" } },
     };
   });
+
+  if (data.unbudgetedNet.length > 0) {
+    sheet.addRow([]);
+    const unbudgetedHeader = sheet.addRow(["UNBUDGETED"]);
+    unbudgetedHeader.font = { bold: true, size: 11 };
+    sheet.mergeCells(`A${unbudgetedHeader.number}:E${unbudgetedHeader.number}`);
+    unbudgetedHeader.eachCell((cell) => {
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFF1F5F9" },
+      };
+    });
+    for (const line of data.unbudgetedNet) {
+      const row = sheet.addRow([line.categoryName, 0, line.actual, line.variance, "—"]);
+      row.getCell(2).font = { color: { argb: signedColor(0) } };
+      row.getCell(3).font = { color: { argb: signedColor(line.actual) } };
+      for (let c = 2; c <= 4; c++) row.getCell(c).numFmt = currencyFmt;
+    }
+  }
 }
 
 function buildSeasonsSheet(workbook: ExcelJS.Workbook, data: SeasonsReportData) {
@@ -1000,9 +763,9 @@ function buildSeasonsSheet(workbook: ExcelJS.Workbook, data: SeasonsReportData) 
     row.getCell(4).numFmt = currencyFmt;
     row.getCell(6).numFmt = currencyFmt;
     row.getCell(7).numFmt = currencyFmt;
-    row.getCell(7).font = { color: { argb: "FF16A34A" } };
+    row.getCell(7).font = { color: { argb: POSITIVE_COLOR } };
     row.getCell(8).numFmt = currencyFmt;
-    row.getCell(8).font = { color: { argb: "FFDC2626" } };
+    row.getCell(8).font = { color: { argb: NEGATIVE_COLOR } };
     row.getCell(9).numFmt = pctFmt;
   }
 
@@ -1022,9 +785,9 @@ function buildSeasonsSheet(workbook: ExcelJS.Workbook, data: SeasonsReportData) 
     totalRow.font = { bold: true };
     totalRow.getCell(6).numFmt = currencyFmt;
     totalRow.getCell(7).numFmt = currencyFmt;
-    totalRow.getCell(7).font = { bold: true, color: { argb: "FF16A34A" } };
+    totalRow.getCell(7).font = { bold: true, color: { argb: POSITIVE_COLOR } };
     totalRow.getCell(8).numFmt = currencyFmt;
-    totalRow.getCell(8).font = { bold: true, color: { argb: "FFDC2626" } };
+    totalRow.getCell(8).font = { bold: true, color: { argb: NEGATIVE_COLOR } };
     totalRow.getCell(9).numFmt = pctFmt;
     totalRow.eachCell((cell) => {
       cell.border = {

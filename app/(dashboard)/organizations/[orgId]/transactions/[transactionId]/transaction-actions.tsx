@@ -18,7 +18,7 @@ type Account = Pick<
 >;
 type Category = Pick<
   Tables<"categories">,
-  "id" | "name" | "category_type" | "parent_id"
+  "id" | "name" | "parent_id"
 >;
 
 interface TransactionData {
@@ -102,7 +102,6 @@ export function TransactionActions({
           transactionId={transaction.id}
           orgId={orgId}
           transactionAmount={transaction.amount}
-          transactionType={transaction.transaction_type}
           lineItems={lineItems}
           categories={categories}
           onCancel={() => setIsReassigning(false)}

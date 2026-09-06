@@ -26,7 +26,6 @@ interface Category {
   id: string;
   name: string;
   parent_id: string | null;
-  category_type: string;
 }
 
 interface QuickTransactionDialogProps {
@@ -56,10 +55,8 @@ export function QuickTransactionDialog({
 
   const mutation = useCreateQuickTransaction(orgId);
 
-  // Filter categories by selected transaction type
-  const filteredCategories = categories.filter(
-    (c) => c.category_type === transactionType
-  );
+  // Every active category is selectable, regardless of transaction type.
+  const filteredCategories = categories;
 
   // Build display names with parent hierarchy
   const parentMap = new Map(categories.map((c) => [c.id, c]));

@@ -75,7 +75,7 @@ function setupSuccessfulCreate(mockSb: MockSupabaseClient) {
       1: { data: { id: accountId, organization_id: orgId, account_type: "checking" }, error: null }, // account check
       2: { data: { id: orgId }, error: null }, // org check
       3: {
-        data: [{ id: catId, category_type: "expense", organization_id: orgId, is_active: true }],
+        data: [{ id: catId, organization_id: orgId, is_active: true }],
         error: null,
       }, // categories check
       4: { data: { id: txnId }, error: null }, // insert transaction
@@ -170,7 +170,11 @@ describe("transaction actions", () => {
       expect(result?.error).toBe("Account not found.");
     });
 
-    it("returns error when category type doesn't match transaction type", async () => {
+    it("allows a category whose type differs from the transaction type", async () => {
+      // A category's own type no longer has to match the transaction's
+      // type - direction comes from the transaction, not the category.
+      // This simulates a mismatched category being used on the
+      // transaction and asserts it is accepted rather than rejected.
       let callCount = 0;
       mockSupabase.from.mockImplementation(() => {
         callCount++;
@@ -182,9 +186,11 @@ describe("transaction actions", () => {
           1: { data: { id: accountId, organization_id: orgId, account_type: "checking" }, error: null },
           2: { data: { id: orgId }, error: null },
           3: {
-            data: [{ id: catId, category_type: "income", organization_id: orgId, is_active: true }],
+            data: [{ id: catId, organization_id: orgId, is_active: true }],
             error: null,
-          }, // type mismatch: income category for expense txn
+          },
+          4: { data: { id: txnId }, error: null },
+          5: { data: null, error: null },
         };
 
         const result = results[callCount] ?? { data: null, error: null };
@@ -199,9 +205,59 @@ describe("transaction actions", () => {
         return chain;
       });
 
-      const fd = makeCreateTxnFormData();
-      const result = await createTransaction(null, fd);
-      expect(result?.error).toContain("Category type must match");
+      const fd = makeCreateTxnFormData(); // transaction_type: "expense"
+      await expect(createTransaction(null, fd)).rejects.toBeInstanceOf(
+        RedirectError
+      );
+    });
+
+    it("accepts a category labeled primary_direction 'income' on an EXPENSE transaction", async () => {
+      // primary_direction is a label only (see docs/superpowers/specs/
+      // 2026-09-05-category-primary-direction-design.md, Decision 1) — it
+      // must never restrict which transactions a category can be used on.
+      // This is the single property whose violation would make the whole
+      // feature wrong.
+      let callCount = 0;
+      mockSupabase.from.mockImplementation(() => {
+        callCount++;
+        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
+        const methods = ["select", "insert", "update", "delete", "eq", "neq", "in", "is", "order", "limit"];
+        for (const m of methods) chain[m] = vi.fn(() => chain);
+
+        const results: Record<number, { data: unknown; error: null }> = {
+          1: { data: { id: accountId, organization_id: orgId, account_type: "checking" }, error: null },
+          2: { data: { id: orgId }, error: null },
+          3: {
+            data: [
+              {
+                id: catId,
+                organization_id: orgId,
+                is_active: true,
+                primary_direction: "income",
+              },
+            ],
+            error: null,
+          },
+          4: { data: { id: txnId }, error: null },
+          5: { data: null, error: null },
+        };
+
+        const result = results[callCount] ?? { data: null, error: null };
+        chain.single = vi.fn(() => Promise.resolve(result));
+        Object.defineProperty(chain, "then", {
+          value: (resolve?: (v: unknown) => unknown, reject?: (r: unknown) => unknown) =>
+            Promise.resolve(result).then(resolve, reject),
+          writable: true,
+          configurable: true,
+        });
+
+        return chain;
+      });
+
+      const fd = makeCreateTxnFormData({ transaction_type: "expense" });
+      await expect(createTransaction(null, fd)).rejects.toBeInstanceOf(
+        RedirectError
+      );
     });
 
     it("sets cleared_at when status is cleared", async () => {
@@ -240,7 +296,7 @@ describe("transaction actions", () => {
         const results: Record<number, { data: unknown; error: unknown }> = {
           1: { data: { id: accountId, organization_id: orgId, account_type: "checking" }, error: null },
           2: { data: { id: orgId }, error: null },
-          3: { data: [{ id: catId, category_type: "expense", organization_id: orgId, is_active: true }], error: null },
+          3: { data: [{ id: catId, organization_id: orgId, is_active: true }], error: null },
           4: { data: { id: txnId }, error: null },
           5: { data: null, error: { message: "line item insert failed" } }, // line items fail
           6: { data: null, error: null }, // cleanup delete
@@ -324,7 +380,7 @@ describe("transaction actions", () => {
           1: { data: { id: txnId, status: "uncleared", account_id: accountId, cleared_at: null }, error: null },
           2: { data: { id: accountId, organization_id: orgId }, error: null },
           3: { data: { id: orgId }, error: null },
-          4: { data: [{ id: catId, category_type: "expense", organization_id: orgId, is_active: true }], error: null },
+          4: { data: [{ id: catId, organization_id: orgId, is_active: true }], error: null },
           5: { data: null, error: null }, // update
           6: { data: null, error: null }, // delete line items
           7: { data: null, error: null }, // insert line items
@@ -374,7 +430,7 @@ describe("transaction actions", () => {
           1: { data: { id: txnId, status: "cleared", account_id: accountId, cleared_at: "2025-01-01T00:00:00Z" }, error: null },
           2: { data: { id: accountId, organization_id: orgId }, error: null },
           3: { data: { id: orgId }, error: null },
-          4: { data: [{ id: catId, category_type: "expense", organization_id: orgId, is_active: true }], error: null },
+          4: { data: [{ id: catId, organization_id: orgId, is_active: true }], error: null },
           5: { data: null, error: null },
           6: { data: null, error: null },
           7: { data: null, error: null },

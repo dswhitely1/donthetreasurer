@@ -24,7 +24,6 @@ interface RawLineItem {
     id: string;
     name: string;
     parent_id: string | null;
-    category_type: string;
   } | null;
 }
 
@@ -63,16 +62,14 @@ export async function fetchReportData(
   // Fetch all categories for name resolution
   const { data: allCategories } = await supabase
     .from("categories")
-    .select("id, name, parent_id, category_type")
+    .select("id, name, parent_id")
     .eq("organization_id", orgId);
 
   const categoryList = allCategories ?? [];
   const categoryNameMap: Record<string, string> = {};
-  const categoryTypeMap: Record<string, string> = {};
   const categoryParentMap: Record<string, string | null> = {};
   for (const c of categoryList) {
     categoryNameMap[c.id] = c.name;
-    categoryTypeMap[c.id] = c.category_type;
     categoryParentMap[c.id] = c.parent_id;
   }
 
@@ -92,7 +89,7 @@ export async function fetchReportData(
         amount,
         category_id,
         memo,
-        categories(id, name, parent_id, category_type)
+        categories(id, name, parent_id)
       )
     `
     )

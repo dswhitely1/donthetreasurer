@@ -18,7 +18,7 @@ import type { Tables } from "@/types/database";
 type Account = Pick<Tables<"accounts">, "id" | "name" | "account_type">;
 type Category = Pick<
   Tables<"categories">,
-  "id" | "name" | "category_type" | "parent_id"
+  "id" | "name" | "parent_id"
 >;
 
 interface TemplateData {

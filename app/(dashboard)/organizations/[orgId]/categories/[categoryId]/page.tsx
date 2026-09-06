@@ -3,14 +3,12 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-import { CATEGORY_TYPE_LABELS } from "@/lib/validations/category";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { CategoryActions } from "./category-actions";
 
 export default async function CategoryDetailPage({
@@ -48,12 +46,11 @@ export default async function CategoryDetailPage({
   let parentCategory: {
     id: string;
     name: string;
-    category_type: string;
   } | null = null;
   if (category.parent_id) {
     const { data } = await supabase
       .from("categories")
-      .select("id, name, category_type")
+      .select("id, name")
       .eq("id", category.parent_id)
       .single();
     parentCategory = data;
@@ -83,17 +80,16 @@ export default async function CategoryDetailPage({
     ? new Set(lineItems.map((li) => li.transaction_id)).size
     : 0;
 
-  // Fetch eligible merge targets: same org, same type, active, not self (cross-hierarchy allowed)
+  // Fetch eligible merge targets: same org, active, not self (cross-hierarchy allowed)
   const { data: mergeTargets } = await supabase
     .from("categories")
     .select("id, name, parent_id, parent:categories!parent_id(name)")
     .eq("organization_id", orgId)
-    .eq("category_type", category.category_type)
     .eq("is_active", true)
     .neq("id", categoryId)
     .order("name");
 
-  // Fetch eligible reassign targets: same org, same type, active, top-level only, not self
+  // Fetch eligible reassign targets: same org, active, top-level only, not self
   const reassignTargets =
     !category.parent_id && subcategoryCount === 0
       ? (
@@ -101,18 +97,12 @@ export default async function CategoryDetailPage({
             .from("categories")
             .select("id, name")
             .eq("organization_id", orgId)
-            .eq("category_type", category.category_type)
             .eq("is_active", true)
             .is("parent_id", null)
             .neq("id", categoryId)
             .order("name")
         ).data ?? []
       : [];
-
-  const typeLabel =
-    CATEGORY_TYPE_LABELS[
-      category.category_type as keyof typeof CATEGORY_TYPE_LABELS
-    ] ?? category.category_type;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -126,12 +116,19 @@ export default async function CategoryDetailPage({
 
       <Card>
         <CardHeader>
-          <div className="flex items-start justify-between">
-            <CardTitle>{category.name}</CardTitle>
-            <Badge variant="secondary">{typeLabel}</Badge>
-          </div>
+          <CardTitle>{category.name}</CardTitle>
         </CardHeader>
         <CardContent>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Direction:{" "}
+            {category.primary_direction === "income"
+              ? "Income"
+              : category.primary_direction === "expense"
+                ? "Expense"
+                : category.primary_direction === "neither"
+                  ? "Neither (transfer)"
+                  : "Not set"}
+          </p>
           <dl className="grid grid-cols-2 gap-4 text-sm">
             {parentCategory && (
               <div className="col-span-2">
@@ -211,7 +208,6 @@ export default async function CategoryDetailPage({
           <CategoryActions
             category={category}
             orgId={orgId}
-            parentCategory={parentCategory}
             subcategoryCount={subcategoryCount}
             lineItemCount={lineItemCount ?? 0}
             transactionCount={transactionCount}

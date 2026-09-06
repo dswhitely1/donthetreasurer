@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Plus, Tag } from "lucide-react";
 
+import { groupCategoriesByDirection } from "@/lib/categories/group-by-direction";
 import { createClient } from "@/lib/supabase/server";
-import { CATEGORY_TYPE_LABELS } from "@/lib/validations/category";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -42,20 +41,8 @@ export default async function CategoriesPage({
     .eq("is_active", true)
     .order("name");
 
-  // Build hierarchy: group into parents and their children
   const allCategories = categories ?? [];
-  const parents = allCategories.filter((c) => !c.parent_id);
-  const childrenMap = new Map<string, typeof allCategories>();
-  for (const cat of allCategories) {
-    if (cat.parent_id) {
-      const existing = childrenMap.get(cat.parent_id) ?? [];
-      existing.push(cat);
-      childrenMap.set(cat.parent_id, existing);
-    }
-  }
-
-  const incomeParents = parents.filter((p) => p.category_type === "income");
-  const expenseParents = parents.filter((p) => p.category_type === "expense");
+  const groups = groupCategoriesByDirection(allCategories);
 
   return (
     <div>
@@ -78,94 +65,62 @@ export default async function CategoriesPage({
           />
         </div>
       ) : (
-        <div className="mt-6 space-y-8">
-          <CategorySection
-            title="Income Categories"
-            parents={incomeParents}
-            childrenMap={childrenMap}
-            orgId={orgId}
-          />
-          <CategorySection
-            title="Expense Categories"
-            parents={expenseParents}
-            childrenMap={childrenMap}
-            orgId={orgId}
-          />
+        <div className="mt-6 flex flex-col gap-8">
+          {groups.map((group) => (
+            <section key={group.key}>
+              <h2 className="mb-1 text-lg font-semibold">{group.title}</h2>
+              {group.key === "unclassified" && (
+                <p className="mb-3 text-sm text-muted-foreground">
+                  These categories have no direction set yet. Open one to label
+                  it as income, expense, or neither.
+                </p>
+              )}
+              {group.key === "neither" && (
+                <p className="mb-3 text-sm text-muted-foreground">
+                  Money moved between accounts your organization owns. Counted
+                  as neither income nor expense.
+                </p>
+              )}
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {group.parents.map(({ parent, children }) => (
+                  <Card key={parent.id}>
+                    <CardHeader className="pb-2">
+                      <Link
+                        href={`/organizations/${orgId}/categories/${parent.id}`}
+                        className="hover:underline"
+                      >
+                        <CardTitle className="text-base">
+                          {parent.name}
+                        </CardTitle>
+                      </Link>
+                    </CardHeader>
+                    <CardContent>
+                      {children.length > 0 ? (
+                        <ul className="space-y-1">
+                          {children.map((child) => (
+                            <li key={child.id}>
+                              <Link
+                                href={`/organizations/${orgId}/categories/${child.id}`}
+                                className="text-sm text-muted-foreground hover:text-foreground hover:underline"
+                              >
+                                {child.name}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          No subcategories
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </section>
+          ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function CategorySection({
-  title,
-  parents,
-  childrenMap,
-  orgId,
-}: Readonly<{
-  title: string;
-  parents: Array<{
-    id: string;
-    name: string;
-    category_type: string;
-  }>;
-  childrenMap: Map<
-    string,
-    Array<{ id: string; name: string; category_type: string }>
-  >;
-  orgId: string;
-}>) {
-  if (parents.length === 0) return null;
-
-  return (
-    <div>
-      <h3 className="mb-3 text-lg font-medium text-foreground">{title}</h3>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {parents.map((parent) => {
-          const children = childrenMap.get(parent.id) ?? [];
-          return (
-            <Card key={parent.id}>
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
-                  <Link
-                    href={`/organizations/${orgId}/categories/${parent.id}`}
-                    className="hover:underline"
-                  >
-                    <CardTitle className="text-base">
-                      {parent.name}
-                    </CardTitle>
-                  </Link>
-                  <Badge variant="secondary">
-                    {CATEGORY_TYPE_LABELS[
-                      parent.category_type as keyof typeof CATEGORY_TYPE_LABELS
-                    ] ?? parent.category_type}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {children.length > 0 ? (
-                  <ul className="space-y-1">
-                    {children.map((child) => (
-                      <li key={child.id}>
-                        <Link
-                          href={`/organizations/${orgId}/categories/${child.id}`}
-                          className="text-sm text-muted-foreground hover:text-foreground hover:underline"
-                        >
-                          {child.name}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    No subcategories
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
     </div>
   );
 }

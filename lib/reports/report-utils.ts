@@ -1,6 +1,6 @@
 import { addDays, format } from "date-fns";
 
-import type { ReportTransaction, ReportCategorySummary, ReportSummary, MergedCategorySummary } from "./types";
+import type { ReportTransaction, ReportSummary, CategoryNetSummary, CategoryNetSummaryChild } from "./types";
 
 export function getNextDay(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -38,44 +38,51 @@ export function findCategoryId(
   return "unknown";
 }
 
-export function buildCategorySummaries(
-  amountsByCatId: Record<string, number>,
+export function buildCategoryNetSummaries(
+  inByCatId: Record<string, number>,
+  outByCatId: Record<string, number>,
   categoryNameMap: Record<string, string>,
   categoryParentMap: Record<string, string | null>
-): ReportCategorySummary[] {
-  // Group by parent
-  const parentGroups: Record<string, { children: Record<string, number> }> = {};
+): CategoryNetSummary[] {
+  const parentGroups: Record<
+    string,
+    Record<string, { in: number; out: number }>
+  > = {};
 
-  for (const [catId, amount] of Object.entries(amountsByCatId)) {
+  function slot(catId: string): { in: number; out: number } {
     const parentId = categoryParentMap[catId];
-    const parentName = parentId && categoryNameMap[parentId]
-      ? categoryNameMap[parentId]
+    const hasParent = Boolean(parentId && categoryNameMap[parentId]);
+    const parentName = hasParent
+      ? categoryNameMap[parentId as string]
       : categoryNameMap[catId] ?? "Other";
-    const childName = parentId && categoryNameMap[parentId]
-      ? categoryNameMap[catId] ?? "Unknown"
-      : "(root)";
+    const childName = hasParent ? categoryNameMap[catId] ?? "Unknown" : "(root)";
 
-    if (!parentGroups[parentName]) {
-      parentGroups[parentName] = { children: {} };
-    }
-    parentGroups[parentName].children[childName] =
-      (parentGroups[parentName].children[childName] ?? 0) + amount;
+    parentGroups[parentName] ??= {};
+    parentGroups[parentName][childName] ??= { in: 0, out: 0 };
+    return parentGroups[parentName][childName];
+  }
+
+  for (const [catId, amount] of Object.entries(inByCatId)) {
+    slot(catId).in += amount;
+  }
+  for (const [catId, amount] of Object.entries(outByCatId)) {
+    slot(catId).out += amount;
   }
 
   return Object.entries(parentGroups)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([parentName, group]) => {
-      const children = Object.entries(group.children)
+    .map(([parentName, childMap]) => {
+      const children: CategoryNetSummaryChild[] = Object.entries(childMap)
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([name, total]) => ({ name, total }));
-      const subtotal = children.reduce((sum, c) => sum + c.total, 0);
+        .map(([name, v]) => ({ name, in: v.in, out: v.out, net: v.in - v.out }));
 
-      // Collapse: if the only child is "(root)", show as flat parent row
-      if (children.length === 1 && children[0].name === "(root)") {
-        return { parentName, children: [], subtotal };
-      }
+      const totalIn = children.reduce((s, c) => s + c.in, 0);
+      const totalOut = children.reduce((s, c) => s + c.out, 0);
 
-      return { parentName, children, subtotal };
+      const collapsed =
+        children.length === 1 && children[0].name === "(root)" ? [] : children;
+
+      return { parentName, children: collapsed, totalIn, totalOut, net: totalIn - totalOut };
     });
 }
 
@@ -110,48 +117,18 @@ export function computeSummary(
     }
   }
 
-  const incomeByCategory = buildCategorySummaries(incomeByCatId, categoryNameMap, categoryParentMap);
-  const expensesByCategory = buildCategorySummaries(expenseByCatId, categoryNameMap, categoryParentMap);
-
-  // Detect parent names present in both income and expense
-  const incomeParentNames = new Set(incomeByCategory.map((g) => g.parentName));
-  const expenseParentNames = new Set(expensesByCategory.map((g) => g.parentName));
-  const mergedParentNames = new Set(
-    [...incomeParentNames].filter((name) => expenseParentNames.has(name))
+  const categoryTotals = buildCategoryNetSummaries(
+    incomeByCatId,
+    expenseByCatId,
+    categoryNameMap,
+    categoryParentMap
   );
-
-  // Build merged categories and filter originals
-  const netByCategory: MergedCategorySummary[] = [];
-
-  if (mergedParentNames.size > 0) {
-    const incomeByParent = new Map(incomeByCategory.map((g) => [g.parentName, g]));
-    const expenseByParent = new Map(expensesByCategory.map((g) => [g.parentName, g]));
-
-    for (const parentName of [...mergedParentNames].sort()) {
-      const incomeGroup = incomeByParent.get(parentName)!;
-      const expenseGroup = expenseByParent.get(parentName)!;
-
-      netByCategory.push({
-        parentName,
-        incomeChildren: incomeGroup.children,
-        expenseChildren: expenseGroup.children,
-        totalIncome: incomeGroup.subtotal,
-        totalExpenses: expenseGroup.subtotal,
-        net: incomeGroup.subtotal - expenseGroup.subtotal,
-      });
-    }
-  }
-
-  const filteredIncome = incomeByCategory.filter((g) => !mergedParentNames.has(g.parentName));
-  const filteredExpenses = expensesByCategory.filter((g) => !mergedParentNames.has(g.parentName));
 
   return {
     totalIncome,
     totalExpenses,
     netChange: totalIncome - totalExpenses,
     balanceByStatus,
-    incomeByCategory: filteredIncome,
-    expensesByCategory: filteredExpenses,
-    netByCategory,
+    categoryTotals,
   };
 }

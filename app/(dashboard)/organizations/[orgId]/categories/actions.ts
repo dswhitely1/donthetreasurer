@@ -11,6 +11,25 @@ import {
   reassignCategorySchema,
 } from "@/lib/validations/category";
 
+/**
+ * The partial unique index added by 20260826000001_untyped_categories.sql:
+ * (organization_id, parent_id, lower(trim(name))) NULLS NOT DISTINCT
+ * WHERE is_active.
+ */
+const UNIQUE_ACTIVE_NAME_INDEX = "idx_categories_unique_active_name";
+const DUPLICATE_NAME_ERROR =
+  "A category with that name already exists here. Pick a different name.";
+
+/** True when a write collided with the unique active-name index (SQLSTATE 23505). */
+function isDuplicateActiveName(
+  error: { code?: string; message?: string; details?: string | null } | null
+): boolean {
+  if (!error || error.code !== "23505") return false;
+  return `${error.message ?? ""} ${error.details ?? ""}`.includes(
+    UNIQUE_ACTIVE_NAME_INDEX
+  );
+}
+
 export async function createCategory(
   _prevState: { error: string } | null,
   formData: FormData
@@ -18,8 +37,8 @@ export async function createCategory(
   const raw = {
     organization_id: formData.get("organization_id") as string,
     name: formData.get("name") as string,
-    category_type: formData.get("category_type") as string,
     parent_id: (formData.get("parent_id") as string) ?? "",
+    primary_direction: (formData.get("primary_direction") as string) ?? "",
   };
 
   const parsed = createCategorySchema.safeParse(raw);
@@ -49,11 +68,11 @@ export async function createCategory(
 
   const parentId = parsed.data.parent_id || null;
 
-  // If subcategory, verify parent exists in same org and types match
+  // If subcategory, verify parent exists in the same org
   if (parentId) {
     const { data: parent } = await supabase
       .from("categories")
-      .select("id, category_type, organization_id")
+      .select("id, organization_id")
       .eq("id", parentId)
       .eq("organization_id", parsed.data.organization_id)
       .eq("is_active", true)
@@ -62,12 +81,6 @@ export async function createCategory(
     if (!parent) {
       return { error: "Parent category not found." };
     }
-
-    if (parent.category_type !== parsed.data.category_type) {
-      return {
-        error: "Subcategory type must match parent category type.",
-      };
-    }
   }
 
   const { data, error } = await supabase
@@ -75,13 +88,17 @@ export async function createCategory(
     .insert({
       organization_id: parsed.data.organization_id,
       name: parsed.data.name,
-      category_type: parsed.data.category_type,
       parent_id: parentId,
+      // "" (nothing selected) becomes SQL NULL, same as parent_id.
+      primary_direction: parsed.data.primary_direction || null,
     })
     .select("id")
     .single();
 
   if (error) {
+    if (isDuplicateActiveName(error)) {
+      return { error: DUPLICATE_NAME_ERROR };
+    }
     return { error: "Failed to create category. Please try again." };
   }
 
@@ -103,8 +120,8 @@ export async function updateCategory(
     id: formData.get("id") as string,
     organization_id: formData.get("organization_id") as string,
     name: formData.get("name") as string,
-    category_type: formData.get("category_type") as string,
     parent_id: (formData.get("parent_id") as string) ?? "",
+    primary_direction: (formData.get("primary_direction") as string) ?? "",
   };
 
   const parsed = updateCategorySchema.safeParse(raw);
@@ -132,10 +149,10 @@ export async function updateCategory(
     return { error: "Organization not found." };
   }
 
-  // Fetch current category to check its structure
+  // Fetch current category to confirm it exists in this organization
   const { data: current } = await supabase
     .from("categories")
-    .select("id, parent_id, category_type")
+    .select("id, parent_id")
     .eq("id", parsed.data.id)
     .eq("organization_id", parsed.data.organization_id)
     .single();
@@ -144,52 +161,20 @@ export async function updateCategory(
     return { error: "Category not found." };
   }
 
-  // If subcategory, verify new type matches parent
-  if (current.parent_id) {
-    const { data: parent } = await supabase
-      .from("categories")
-      .select("category_type")
-      .eq("id", current.parent_id)
-      .single();
-
-    if (parent && parent.category_type !== parsed.data.category_type) {
-      return {
-        error: "Subcategory type must match parent category type.",
-      };
-    }
-  }
-
-  // If parent with children, verify children match new type
-  if (!current.parent_id) {
-    const { data: children } = await supabase
-      .from("categories")
-      .select("id, category_type")
-      .eq("parent_id", parsed.data.id)
-      .eq("is_active", true);
-
-    if (children && children.length > 0) {
-      const mismatch = children.some(
-        (c) => c.category_type !== parsed.data.category_type
-      );
-      if (mismatch) {
-        return {
-          error:
-            "Cannot change type: active subcategories have a different type. Update or deactivate them first.",
-        };
-      }
-    }
-  }
-
   const { error } = await supabase
     .from("categories")
     .update({
       name: parsed.data.name,
-      category_type: parsed.data.category_type,
+      // "" (nothing selected) becomes SQL NULL, same as parent_id.
+      primary_direction: parsed.data.primary_direction || null,
     })
     .eq("id", parsed.data.id)
     .eq("organization_id", parsed.data.organization_id);
 
   if (error) {
+    if (isDuplicateActiveName(error)) {
+      return { error: DUPLICATE_NAME_ERROR };
+    }
     return { error: "Failed to update category. Please try again." };
   }
 
@@ -362,7 +347,7 @@ export async function reassignCategory(
   // Fetch the source category
   const { data: source } = await supabase
     .from("categories")
-    .select("id, parent_id, category_type, is_active")
+    .select("id, parent_id, is_active")
     .eq("id", id)
     .eq("organization_id", organization_id)
     .single();
@@ -391,7 +376,7 @@ export async function reassignCategory(
   // Fetch the target parent
   const { data: target } = await supabase
     .from("categories")
-    .select("id, parent_id, category_type, is_active")
+    .select("id, parent_id, is_active")
     .eq("id", new_parent_id)
     .eq("organization_id", organization_id)
     .single();
@@ -408,10 +393,6 @@ export async function reassignCategory(
     return { error: "Target category is not active." };
   }
 
-  if (target.category_type !== source.category_type) {
-    return { error: "Target must be the same type (income/expense)." };
-  }
-
   const { error } = await supabase
     .from("categories")
     .update({ parent_id: new_parent_id })
@@ -419,6 +400,9 @@ export async function reassignCategory(
     .eq("organization_id", organization_id);
 
   if (error) {
+    if (isDuplicateActiveName(error)) {
+      return { error: DUPLICATE_NAME_ERROR };
+    }
     return { error: "Failed to reassign category. Please try again." };
   }
 
@@ -427,14 +411,17 @@ export async function reassignCategory(
 }
 
 export async function createCategoryInline(
-  _prevState: { error: string; data?: null } | { data: { id: string; name: string; category_type: string; parent_id: string | null }; error?: null } | null,
+  _prevState:
+    | { error: string; data?: null }
+    | { data: { id: string; name: string; parent_id: string | null }; error?: null }
+    | null,
   formData: FormData
 ) {
   const raw = {
     organization_id: formData.get("organization_id") as string,
     name: formData.get("name") as string,
-    category_type: formData.get("category_type") as string,
     parent_id: (formData.get("parent_id") as string) ?? "",
+    primary_direction: (formData.get("primary_direction") as string) ?? "",
   };
 
   const parsed = createCategorySchema.safeParse(raw);
@@ -464,11 +451,11 @@ export async function createCategoryInline(
 
   const parentId = parsed.data.parent_id || null;
 
-  // If subcategory, verify parent exists in same org and types match
+  // If subcategory, verify parent exists in the same org
   if (parentId) {
     const { data: parent } = await supabase
       .from("categories")
-      .select("id, category_type, organization_id")
+      .select("id, organization_id")
       .eq("id", parentId)
       .eq("organization_id", parsed.data.organization_id)
       .eq("is_active", true)
@@ -477,12 +464,6 @@ export async function createCategoryInline(
     if (!parent) {
       return { error: "Parent category not found." };
     }
-
-    if (parent.category_type !== parsed.data.category_type) {
-      return {
-        error: "Subcategory type must match parent category type.",
-      };
-    }
   }
 
   const { data, error } = await supabase
@@ -490,13 +471,17 @@ export async function createCategoryInline(
     .insert({
       organization_id: parsed.data.organization_id,
       name: parsed.data.name,
-      category_type: parsed.data.category_type,
       parent_id: parentId,
+      // "" (nothing selected) becomes SQL NULL, same as parent_id.
+      primary_direction: parsed.data.primary_direction || null,
     })
-    .select("id, name, category_type, parent_id")
+    .select("id, name, parent_id")
     .single();
 
   if (error) {
+    if (isDuplicateActiveName(error)) {
+      return { error: DUPLICATE_NAME_ERROR };
+    }
     return { error: "Failed to create category. Please try again." };
   }
 

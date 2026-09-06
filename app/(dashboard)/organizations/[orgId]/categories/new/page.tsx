@@ -29,7 +29,7 @@ export default async function NewCategoryPage({
   // Fetch active parent categories for the dropdown
   const { data: parentCategories } = await supabase
     .from("categories")
-    .select("id, name, category_type")
+    .select("id, name")
     .eq("organization_id", orgId)
     .is("parent_id", null)
     .eq("is_active", true)

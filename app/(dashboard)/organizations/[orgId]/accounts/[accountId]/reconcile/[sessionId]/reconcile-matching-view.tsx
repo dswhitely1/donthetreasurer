@@ -39,7 +39,6 @@ interface Category {
   id: string;
   name: string;
   parent_id: string | null;
-  category_type: string;
 }
 
 interface ReconcileMatchingViewProps {

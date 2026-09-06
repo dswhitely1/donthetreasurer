@@ -26,21 +26,6 @@ export interface AccountBalanceSummary {
   endingBalance: number;
 }
 
-export interface ReportCategorySummary {
-  parentName: string;
-  children: { name: string; total: number }[];
-  subtotal: number;
-}
-
-export interface MergedCategorySummary {
-  parentName: string;
-  incomeChildren: { name: string; total: number }[];
-  expenseChildren: { name: string; total: number }[];
-  totalIncome: number;
-  totalExpenses: number;
-  net: number;
-}
-
 export interface ReportSummary {
   totalIncome: number;
   totalExpenses: number;
@@ -50,9 +35,7 @@ export interface ReportSummary {
     cleared: number;
     reconciled: number;
   };
-  incomeByCategory: ReportCategorySummary[];
-  expensesByCategory: ReportCategorySummary[];
-  netByCategory: MergedCategorySummary[];
+  categoryTotals: CategoryNetSummary[];
 }
 
 export interface ReportData {
@@ -87,4 +70,19 @@ export interface SeasonSummaryLine extends SeasonTotals {
 export interface SeasonsReportData {
   seasons: SeasonSummaryLine[];
   grandTotals: SeasonTotals;
+}
+
+export interface CategoryNetSummaryChild {
+  name: string;
+  in: number;
+  out: number;
+  net: number;
+}
+
+export interface CategoryNetSummary {
+  parentName: string;
+  children: CategoryNetSummaryChild[];
+  totalIn: number;
+  totalOut: number;
+  net: number;
 }

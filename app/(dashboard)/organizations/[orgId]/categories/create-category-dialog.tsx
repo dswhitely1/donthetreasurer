@@ -3,10 +3,7 @@
 import { useActionState, useState, useEffect, useRef } from "react";
 
 import { createCategoryInline } from "./actions";
-import {
-  CATEGORY_TYPES,
-  CATEGORY_TYPE_LABELS,
-} from "@/lib/validations/category";
+import { DirectionSelect } from "./direction-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,42 +26,37 @@ import {
 interface ParentCategory {
   id: string;
   name: string;
-  category_type: string;
 }
 
 export function CreateCategoryDialog({
   open,
   onOpenChange,
   orgId,
-  categoryType,
   parentCategories,
   onCreated,
 }: Readonly<{
   open: boolean;
   onOpenChange: (open: boolean) => void;
   orgId: string;
-  categoryType: string;
   parentCategories: ParentCategory[];
   onCreated: (category: {
     id: string;
     name: string;
-    category_type: string;
     parent_id: string | null;
   }) => void;
 }>) {
   const [isSubcategory, setIsSubcategory] = useState(false);
   const [selectedParentId, setSelectedParentId] = useState("");
   const [name, setName] = useState("");
+  const [direction, setDirection] = useState("");
 
   const [state, formAction, pending] = useActionState(
     createCategoryInline,
     null
   );
 
-  // Filter parent categories to match the current category type
-  const eligibleParents = parentCategories.filter(
-    (c) => c.category_type === categoryType
-  );
+  // Every parent category is eligible, regardless of transaction type.
+  const eligibleParents = parentCategories;
 
   // Track which creation we've already handled (by category ID) to prevent
   // repeated firing when unstable callback refs change between renders.
@@ -90,6 +82,7 @@ export function CreateCategoryDialog({
       setIsSubcategory(false);
       setSelectedParentId("");
       setName("");
+      setDirection("");
     }
   }, [open]);
 
@@ -97,9 +90,7 @@ export function CreateCategoryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            New {CATEGORY_TYPE_LABELS[categoryType as keyof typeof CATEGORY_TYPE_LABELS] ?? categoryType} Category
-          </DialogTitle>
+          <DialogTitle>New Category</DialogTitle>
           <DialogDescription>
             Create a category without leaving the form.
           </DialogDescription>
@@ -107,13 +98,11 @@ export function CreateCategoryDialog({
 
         <form action={formAction} className="flex flex-col gap-4">
           <input type="hidden" name="organization_id" value={orgId} />
-          <input type="hidden" name="category_type" value={categoryType} />
           <input
             type="hidden"
             name="parent_id"
             value={isSubcategory ? selectedParentId : ""}
           />
-
           {state && "error" in state && state.error && (
             <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {state.error}
@@ -181,6 +170,8 @@ export function CreateCategoryDialog({
               autoFocus
             />
           </div>
+
+          <DirectionSelect value={direction} onValueChange={setDirection} />
 
           <DialogFooter>
             <Button

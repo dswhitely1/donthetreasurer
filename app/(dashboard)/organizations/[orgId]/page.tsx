@@ -133,7 +133,7 @@ export default async function OrganizationOverviewPage({
           name,
           start_date,
           end_date,
-          budget_line_items(amount, category_id, categories(category_type))
+          budget_line_items(amount, category_id)
         `
         )
         .eq("organization_id", orgId)
@@ -315,16 +315,10 @@ export default async function OrganizationOverviewPage({
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {activeBudgets.map((b) => {
                 const items = b.budget_line_items ?? [];
-                let budgetedIncome = 0;
-                let budgetedExpenses = 0;
-                for (const li of items) {
-                  const cat = li.categories as { category_type: string } | null;
-                  if (cat?.category_type === "income") {
-                    budgetedIncome += li.amount;
-                  } else {
-                    budgetedExpenses += li.amount;
-                  }
-                }
+                const netBudgeted = items.reduce(
+                  (sum, li) => sum + li.amount,
+                  0
+                );
 
                 return (
                   <Link
@@ -339,23 +333,17 @@ export default async function OrganizationOverviewPage({
                     <p className="mt-1 text-xs text-muted-foreground">
                       {formatDate(b.start_date)} &ndash; {formatDate(b.end_date)}
                     </p>
-                    <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-xs text-muted-foreground">
-                          Income
-                        </span>
-                        <p className="font-medium tabular-nums text-income">
-                          {formatCurrency(budgetedIncome)}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-xs text-muted-foreground">
-                          Expenses
-                        </span>
-                        <p className="font-medium tabular-nums text-expense">
-                          {formatCurrency(budgetedExpenses)}
-                        </p>
-                      </div>
+                    <div className="mt-2 text-sm">
+                      <span className="text-xs text-muted-foreground">
+                        Net Budgeted
+                      </span>
+                      <p
+                        className={`font-medium tabular-nums ${
+                          netBudgeted >= 0 ? "text-income" : "text-expense"
+                        }`}
+                      >
+                        {formatCurrency(netBudgeted)}
+                      </p>
                     </div>
                   </Link>
                 );

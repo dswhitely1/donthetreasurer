@@ -4,7 +4,7 @@ import {
   getNextDay,
   resolveCategoryLabel,
   findCategoryId,
-  buildCategorySummaries,
+  buildCategoryNetSummaries,
   computeSummary,
 } from "./report-utils";
 
@@ -103,70 +103,6 @@ describe("findCategoryId", () => {
   });
 });
 
-describe("buildCategorySummaries", () => {
-  const nameMap = {
-    c1: "Donations",
-    c2: "Individual",
-    c3: "Corporate",
-    c4: "Grants",
-  };
-  const parentMap: Record<string, string | null> = {
-    c1: null,
-    c2: "c1",
-    c3: "c1",
-    c4: null,
-  };
-
-  it("groups children under parent", () => {
-    const result = buildCategorySummaries(
-      { c2: 100, c3: 200 },
-      nameMap,
-      parentMap
-    );
-    expect(result).toHaveLength(1);
-    expect(result[0].parentName).toBe("Donations");
-    expect(result[0].children).toHaveLength(2);
-    expect(result[0].subtotal).toBe(300);
-  });
-
-  it("sorts parents alphabetically", () => {
-    const result = buildCategorySummaries(
-      { c2: 100, c4: 50 },
-      nameMap,
-      parentMap
-    );
-    expect(result.map((r) => r.parentName)).toEqual(["Donations", "Grants"]);
-  });
-
-  it("sorts children alphabetically", () => {
-    const result = buildCategorySummaries(
-      { c3: 200, c2: 100 },
-      nameMap,
-      parentMap
-    );
-    expect(result[0].children.map((c) => c.name)).toEqual([
-      "Corporate",
-      "Individual",
-    ]);
-  });
-
-  it("collapses root category (no parent) to flat row with no children", () => {
-    const result = buildCategorySummaries(
-      { c4: 500 },
-      nameMap,
-      parentMap
-    );
-    expect(result).toHaveLength(1);
-    expect(result[0].parentName).toBe("Grants");
-    expect(result[0].children).toHaveLength(0);
-    expect(result[0].subtotal).toBe(500);
-  });
-
-  it("returns empty array for no amounts", () => {
-    expect(buildCategorySummaries({}, nameMap, parentMap)).toEqual([]);
-  });
-});
-
 describe("computeSummary", () => {
   const nameMap = { c1: "Donations", c2: "Individual", c3: "Supplies" };
   const parentMap: Record<string, string | null> = {
@@ -245,7 +181,15 @@ describe("computeSummary", () => {
     expect(result.balanceByStatus.uncleared).toBe(0);
   });
 
-  it("groups income and expense by category", () => {
+  it("returns empty summaries for no transactions", () => {
+    const result = computeSummary([], nameMap, parentMap);
+    expect(result.totalIncome).toBe(0);
+    expect(result.totalExpenses).toBe(0);
+    expect(result.netChange).toBe(0);
+    expect(result.categoryTotals).toEqual([]);
+  });
+
+  it("computeSummary groups a parent/child category into one categoryTotals row", () => {
     const transactions: ReportTransaction[] = [
       makeTxn({
         id: "t1",
@@ -258,31 +202,27 @@ describe("computeSummary", () => {
     ];
 
     const result = computeSummary(transactions, nameMap, parentMap);
-    expect(result.incomeByCategory).toHaveLength(1);
-    expect(result.incomeByCategory[0].parentName).toBe("Donations");
+    expect(result.categoryTotals).toEqual([
+      {
+        parentName: "Donations",
+        children: [{ name: "Individual", in: 500, out: 0, net: 500 }],
+        totalIn: 500,
+        totalOut: 0,
+        net: 500,
+      },
+    ]);
   });
 
-  it("returns empty summaries for no transactions", () => {
-    const result = computeSummary([], nameMap, parentMap);
-    expect(result.totalIncome).toBe(0);
-    expect(result.totalExpenses).toBe(0);
-    expect(result.netChange).toBe(0);
-    expect(result.incomeByCategory).toEqual([]);
-    expect(result.expensesByCategory).toEqual([]);
-  });
-
-  it("merges parent categories with both income and expense into netByCategory", () => {
+  it("computeSummary aggregates a parent's income-only and expense-only children into one row", () => {
     const dualNameMap = {
       c1: "Band Gigs",
       c2: "Wedding Gigs",
       c3: "Equipment Rental",
-      c4: "Supplies",
     };
     const dualParentMap: Record<string, string | null> = {
       c1: null,
       c2: "c1",
       c3: "c1",
-      c4: null,
     };
 
     const transactions: ReportTransaction[] = [
@@ -302,139 +242,120 @@ describe("computeSummary", () => {
           { categoryLabel: "Band Gigs → Equipment Rental", amount: 200, memo: null },
         ],
       }),
-      makeTxn({
-        id: "t3",
-        transactionType: "expense",
-        amount: 50,
-        lineItems: [{ categoryLabel: "Supplies", amount: 50, memo: null }],
-      }),
     ];
 
     const result = computeSummary(transactions, dualNameMap, dualParentMap);
 
-    // "Band Gigs" has both income and expense → merged
-    expect(result.netByCategory).toHaveLength(1);
-    expect(result.netByCategory[0].parentName).toBe("Band Gigs");
-    expect(result.netByCategory[0].incomeChildren).toEqual([
-      { name: "Wedding Gigs", total: 500 },
-    ]);
-    expect(result.netByCategory[0].expenseChildren).toEqual([
-      { name: "Equipment Rental", total: 200 },
-    ]);
-    expect(result.netByCategory[0].totalIncome).toBe(500);
-    expect(result.netByCategory[0].totalExpenses).toBe(200);
-    expect(result.netByCategory[0].net).toBe(300);
-
-    // "Band Gigs" removed from income and expense arrays
-    expect(result.incomeByCategory).toHaveLength(0);
-    expect(result.expensesByCategory).toHaveLength(1);
-    expect(result.expensesByCategory[0].parentName).toBe("Supplies");
-  });
-
-  it("leaves netByCategory empty when no parent names overlap", () => {
-    const transactions: ReportTransaction[] = [
-      makeTxn({
-        id: "t1",
-        transactionType: "income",
-        amount: 500,
-        lineItems: [
-          { categoryLabel: "Donations → Individual", amount: 500, memo: null },
+    expect(result.categoryTotals).toEqual([
+      {
+        parentName: "Band Gigs",
+        children: [
+          { name: "Equipment Rental", in: 0, out: 200, net: -200 },
+          { name: "Wedding Gigs", in: 500, out: 0, net: 500 },
         ],
-      }),
-      makeTxn({
-        id: "t2",
-        transactionType: "expense",
-        amount: 200,
-        lineItems: [{ categoryLabel: "Supplies", amount: 200, memo: null }],
-      }),
-    ];
-
-    const result = computeSummary(transactions, nameMap, parentMap);
-    expect(result.netByCategory).toHaveLength(0);
-    expect(result.incomeByCategory).toHaveLength(1);
-    expect(result.expensesByCategory).toHaveLength(1);
+        totalIn: 500,
+        totalOut: 200,
+        net: 300,
+      },
+    ]);
   });
 
-  it("merges collapsed root categories that appear in both income and expense", () => {
-    const rootNameMap = {
-      c1: "Merchandise",
-      c2: "Supplies",
-    };
-    const rootParentMap: Record<string, string | null> = {
-      c1: null,
-      c2: null,
-    };
+  it("computeSummary emits categoryTotals with a two-sided category as one row", () => {
+    const nameMap = { poin: "Poinsettias" };
+    const parentMap: Record<string, string | null> = { poin: null };
 
-    const transactions: ReportTransaction[] = [
-      makeTxn({
-        id: "t1",
-        transactionType: "income",
-        amount: 300,
-        lineItems: [{ categoryLabel: "Merchandise", amount: 300, memo: null }],
-      }),
-      makeTxn({
-        id: "t2",
-        transactionType: "expense",
-        amount: 100,
-        lineItems: [{ categoryLabel: "Merchandise", amount: 100, memo: null }],
-      }),
-    ];
+    const summary = computeSummary(
+      [
+        makeTxn({ transactionType: "income", amount: 8200, lineItems: [{ categoryLabel: "Poinsettias", amount: 8200, memo: null }] }),
+        makeTxn({ transactionType: "expense", amount: 5100, lineItems: [{ categoryLabel: "Poinsettias", amount: 5100, memo: null }] }),
+      ],
+      nameMap,
+      parentMap
+    );
 
-    const result = computeSummary(transactions, rootNameMap, rootParentMap);
-    expect(result.netByCategory).toHaveLength(1);
-    expect(result.netByCategory[0].parentName).toBe("Merchandise");
-    // Collapsed roots have empty children arrays
-    expect(result.netByCategory[0].incomeChildren).toEqual([]);
-    expect(result.netByCategory[0].expenseChildren).toEqual([]);
-    expect(result.netByCategory[0].totalIncome).toBe(300);
-    expect(result.netByCategory[0].totalExpenses).toBe(100);
-    expect(result.netByCategory[0].net).toBe(200);
+    expect(summary.categoryTotals).toEqual([
+      { parentName: "Poinsettias", children: [], totalIn: 8200, totalOut: 5100, net: 3100 },
+    ]);
+    expect(summary.totalIncome).toBe(8200);
+    expect(summary.totalExpenses).toBe(5100);
+    expect(summary.netChange).toBe(3100);
+  });
+});
+
+describe("buildCategoryNetSummaries", () => {
+  const nameMap = {
+    dues: "Dues",
+    poin: "Poinsettias",
+    unif: "Uniforms",
+    pfund: "Fundraising",
+    pchild: "Poinsettia Sale",
+  };
+  const parentMap: Record<string, string | null> = {
+    dues: null,
+    poin: null,
+    unif: null,
+    pfund: null,
+    pchild: "pfund",
+  };
+
+  it("produces one row per category with in, out and net", () => {
+    const result = buildCategoryNetSummaries(
+      { dues: 12400, poin: 8200 },
+      { poin: 5100, unif: 4650 },
+      nameMap,
+      parentMap
+    );
+
+    expect(result).toEqual([
+      { parentName: "Dues", children: [], totalIn: 12400, totalOut: 0, net: 12400 },
+      { parentName: "Poinsettias", children: [], totalIn: 8200, totalOut: 5100, net: 3100 },
+      { parentName: "Uniforms", children: [], totalIn: 0, totalOut: 4650, net: -4650 },
+    ]);
   });
 
-  it("sorts netByCategory alphabetically by parentName", () => {
-    const sortNameMap = {
-      c1: "Zebra Events",
-      c2: "Gig A",
-      c3: "Alpha Shows",
-      c4: "Show B",
-    };
-    const sortParentMap: Record<string, string | null> = {
-      c1: null,
-      c2: "c1",
-      c3: null,
-      c4: "c3",
-    };
+  it("keeps a two-sided category as a single row", () => {
+    const result = buildCategoryNetSummaries(
+      { poin: 8200 },
+      { poin: 5100 },
+      nameMap,
+      parentMap
+    );
 
-    const transactions: ReportTransaction[] = [
-      makeTxn({
-        id: "t1",
-        transactionType: "income",
-        amount: 100,
-        lineItems: [{ categoryLabel: "Zebra Events → Gig A", amount: 100, memo: null }],
-      }),
-      makeTxn({
-        id: "t2",
-        transactionType: "expense",
-        amount: 50,
-        lineItems: [{ categoryLabel: "Zebra Events → Gig A", amount: 50, memo: null }],
-      }),
-      makeTxn({
-        id: "t3",
-        transactionType: "income",
-        amount: 200,
-        lineItems: [{ categoryLabel: "Alpha Shows → Show B", amount: 200, memo: null }],
-      }),
-      makeTxn({
-        id: "t4",
-        transactionType: "expense",
-        amount: 75,
-        lineItems: [{ categoryLabel: "Alpha Shows → Show B", amount: 75, memo: null }],
-      }),
-    ];
+    expect(result).toHaveLength(1);
+    expect(result[0].net).toBe(3100);
+  });
 
-    const result = computeSummary(transactions, sortNameMap, sortParentMap);
-    expect(result.netByCategory).toHaveLength(2);
-    expect(result.netByCategory[0].parentName).toBe("Alpha Shows");
-    expect(result.netByCategory[1].parentName).toBe("Zebra Events");
+  it("nests children under their parent and subtotals them", () => {
+    const result = buildCategoryNetSummaries(
+      { pchild: 8200 },
+      { pchild: 5100 },
+      nameMap,
+      parentMap
+    );
+
+    expect(result).toEqual([
+      {
+        parentName: "Fundraising",
+        children: [{ name: "Poinsettia Sale", in: 8200, out: 5100, net: 3100 }],
+        totalIn: 8200,
+        totalOut: 5100,
+        net: 3100,
+      },
+    ]);
+  });
+
+  it("sorts parents alphabetically", () => {
+    const result = buildCategoryNetSummaries(
+      { unif: 1, dues: 1 },
+      {},
+      nameMap,
+      parentMap
+    );
+
+    expect(result.map((g) => g.parentName)).toEqual(["Dues", "Uniforms"]);
+  });
+
+  it("returns an empty array when there is no activity", () => {
+    expect(buildCategoryNetSummaries({}, {}, nameMap, parentMap)).toEqual([]);
   });
 });

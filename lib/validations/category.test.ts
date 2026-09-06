@@ -4,31 +4,16 @@ import {
   createCategorySchema,
   updateCategorySchema,
   mergeCategorySchema,
-  CATEGORY_TYPES,
-  CATEGORY_TYPE_LABELS,
 } from "./category";
 
 const validOrgId = "550e8400-e29b-41d4-a716-446655440000";
 const validCatId = "660e8400-e29b-41d4-a716-446655440000";
-
-describe("CATEGORY_TYPES and CATEGORY_TYPE_LABELS", () => {
-  it("has income and expense types", () => {
-    expect(CATEGORY_TYPES).toEqual(["income", "expense"]);
-  });
-
-  it("has labels for every type", () => {
-    for (const type of CATEGORY_TYPES) {
-      expect(CATEGORY_TYPE_LABELS[type]).toBeDefined();
-    }
-  });
-});
 
 describe("createCategorySchema", () => {
   it("accepts valid input without parent_id", () => {
     const result = createCategorySchema.safeParse({
       organization_id: validOrgId,
       name: "Donations",
-      category_type: "income",
     });
     expect(result.success).toBe(true);
   });
@@ -37,7 +22,6 @@ describe("createCategorySchema", () => {
     const result = createCategorySchema.safeParse({
       organization_id: validOrgId,
       name: "Individual Donations",
-      category_type: "income",
       parent_id: validCatId,
     });
     expect(result.success).toBe(true);
@@ -47,7 +31,6 @@ describe("createCategorySchema", () => {
     const result = createCategorySchema.safeParse({
       organization_id: validOrgId,
       name: "Operations",
-      category_type: "expense",
       parent_id: "",
     });
     expect(result.success).toBe(true);
@@ -57,7 +40,6 @@ describe("createCategorySchema", () => {
     const result = createCategorySchema.safeParse({
       organization_id: validOrgId,
       name: "",
-      category_type: "income",
     });
     expect(result.success).toBe(false);
   });
@@ -66,16 +48,6 @@ describe("createCategorySchema", () => {
     const result = createCategorySchema.safeParse({
       organization_id: validOrgId,
       name: "A".repeat(101),
-      category_type: "income",
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects invalid category type", () => {
-    const result = createCategorySchema.safeParse({
-      organization_id: validOrgId,
-      name: "Test",
-      category_type: "other",
     });
     expect(result.success).toBe(false);
   });
@@ -84,21 +56,28 @@ describe("createCategorySchema", () => {
     const result = createCategorySchema.safeParse({
       organization_id: validOrgId,
       name: "Test",
-      category_type: "income",
       parent_id: "not-a-uuid",
     });
     expect(result.success).toBe(false);
   });
 
-  it("accepts both income and expense types", () => {
-    for (const type of CATEGORY_TYPES) {
-      const result = createCategorySchema.safeParse({
-        organization_id: validOrgId,
-        name: "Test",
-        category_type: type,
-      });
-      expect(result.success).toBe(true);
-    }
+  it("carries no category type — direction comes from the transaction", () => {
+    const result = createCategorySchema.safeParse({
+      organization_id: validOrgId,
+      name: "Poinsettias",
+      category_type: "income",
+    });
+    expect(result.success).toBe(true);
+    expect(result.success && result.data).not.toHaveProperty("category_type");
+  });
+
+  it("accepts the same name whether it is used for income or expense", () => {
+    const result = createCategorySchema.safeParse({
+      organization_id: validOrgId,
+      name: "Poinsettias",
+    });
+    expect(result.success).toBe(true);
+    expect(result.success && result.data.name).toBe("Poinsettias");
   });
 });
 
@@ -108,7 +87,6 @@ describe("updateCategorySchema", () => {
       id: "not-uuid",
       organization_id: validOrgId,
       name: "Test",
-      category_type: "income",
     });
     expect(result.success).toBe(false);
   });
@@ -118,7 +96,6 @@ describe("updateCategorySchema", () => {
       id: validCatId,
       organization_id: validOrgId,
       name: "Updated Category",
-      category_type: "expense",
     });
     expect(result.success).toBe(true);
   });
@@ -159,6 +136,67 @@ describe("mergeCategorySchema", () => {
       source_id: validCatId,
       target_id: "not-uuid",
       organization_id: validOrgId,
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("primary_direction", () => {
+  const base = {
+    organization_id: "3f6b0e34-9f0a-4c0e-9a2a-1d3e5f7a9b1c",
+    name: "Fundraisers",
+  };
+
+  it.each(["income", "expense", "neither"])("accepts %s", (dir) => {
+    const result = createCategorySchema.safeParse({
+      ...base,
+      primary_direction: dir,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts an empty string as unset", () => {
+    const result = createCategorySchema.safeParse({
+      ...base,
+      primary_direction: "",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts the field being absent entirely", () => {
+    const result = createCategorySchema.safeParse(base);
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects the retired 'both' spelling", () => {
+    const result = createCategorySchema.safeParse({
+      ...base,
+      primary_direction: "both",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("surfaces the custom message at issues[0], not a generic union error", () => {
+    // Regression: a nested .enum().optional().or(z.literal("")) union
+    // produced a top-level "invalid_union" issue whose message was the
+    // generic "Invalid input" — the carefully-worded message never
+    // reached the user, since actions return issues[0].message verbatim.
+    const result = createCategorySchema.safeParse({
+      ...base,
+      primary_direction: "both",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe(
+        "Direction must be income, expense, or neither."
+      );
+    }
+  });
+
+  it("rejects an arbitrary value", () => {
+    const result = createCategorySchema.safeParse({
+      ...base,
+      primary_direction: "transfer",
     });
     expect(result.success).toBe(false);
   });

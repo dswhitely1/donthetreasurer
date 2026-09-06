@@ -1,3 +1,15 @@
+// HAND-EDITED for two categories migrations, because regenerating this file
+// requires a live database with both already applied:
+//   - untyped-categories (supabase/migrations/20260826000001_untyped_categories.sql):
+//     the `category_type` column/enum was removed from `categories` by hand.
+//   - category-primary-direction (supabase/migrations/20260905000001_category_primary_direction.sql):
+//     the `primary_direction` column was added to `categories` by hand
+//     (Row/Insert/Update below).
+// Once both migrations have been applied, regenerate this file for real and
+// discard this comment:
+//
+//   npx supabase gen types typescript --linked > types/database.ts
+
 export type Json =
   | string
   | number
@@ -165,33 +177,33 @@ export type Database = {
       }
       categories: {
         Row: {
-          category_type: string
           created_at: string | null
           id: string
           is_active: boolean | null
           name: string
           organization_id: string
           parent_id: string | null
+          primary_direction: string | null
           updated_at: string | null
         }
         Insert: {
-          category_type: string
           created_at?: string | null
           id?: string
           is_active?: boolean | null
           name: string
           organization_id: string
           parent_id?: string | null
+          primary_direction?: string | null
           updated_at?: string | null
         }
         Update: {
-          category_type?: string
           created_at?: string | null
           id?: string
           is_active?: boolean | null
           name?: string
           organization_id?: string
           parent_id?: string | null
+          primary_direction?: string | null
           updated_at?: string | null
         }
         Relationships: [

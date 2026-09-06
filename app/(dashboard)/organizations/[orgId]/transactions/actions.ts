@@ -94,11 +94,11 @@ export async function createTransaction(
     return { error: "Organization not found." };
   }
 
-  // Validate all category_ids: exist, active, same org, type matches
+  // Validate all category_ids: exist, active, same org
   const categoryIds = parsedLineItems.data.map((li) => li.category_id);
   const { data: categories } = await supabase
     .from("categories")
-    .select("id, category_type, organization_id, is_active")
+    .select("id, organization_id, is_active")
     .in("id", categoryIds);
 
   if (!categories || categories.length !== new Set(categoryIds).size) {
@@ -112,11 +112,6 @@ export async function createTransaction(
     if (cat.organization_id !== account.organization_id) {
       return {
         error: "All categories must belong to the same organization.",
-      };
-    }
-    if (cat.category_type !== parsed.data.transaction_type) {
-      return {
-        error: `Category type must match transaction type (${parsed.data.transaction_type}).`,
       };
     }
   }
@@ -336,7 +331,7 @@ export async function updateTransaction(
   const categoryIds = parsedLineItems.data.map((li) => li.category_id);
   const { data: categories } = await supabase
     .from("categories")
-    .select("id, category_type, organization_id, is_active")
+    .select("id, organization_id, is_active")
     .in("id", categoryIds);
 
   if (!categories || categories.length !== new Set(categoryIds).size) {
@@ -350,11 +345,6 @@ export async function updateTransaction(
     if (cat.organization_id !== account.organization_id) {
       return {
         error: "All categories must belong to the same organization.",
-      };
-    }
-    if (cat.category_type !== parsed.data.transaction_type) {
-      return {
-        error: `Category type must match transaction type (${parsed.data.transaction_type}).`,
       };
     }
   }

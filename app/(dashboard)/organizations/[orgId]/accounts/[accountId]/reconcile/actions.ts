@@ -365,7 +365,7 @@ export async function createQuickTransaction(
   // Validate category
   const { data: category } = await supabase
     .from("categories")
-    .select("id, category_type, organization_id, is_active")
+    .select("id, organization_id, is_active")
     .eq("id", parsed.data.category_id)
     .single();
 
@@ -379,12 +379,6 @@ export async function createQuickTransaction(
 
   if (category.organization_id !== account.organization_id) {
     return { error: "Category does not belong to this organization." };
-  }
-
-  if (category.category_type !== parsed.data.transaction_type) {
-    return {
-      error: `Category type must match transaction type (${parsed.data.transaction_type}).`,
-    };
   }
 
   // Create the transaction with status uncleared
