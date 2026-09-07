@@ -40,6 +40,9 @@ export const createOrganizationSchema = z.object({
   seasons_enabled: z
     .preprocess((val) => val === "true" || val === true, z.boolean())
     .default(false),
+  sponsors_enabled: z
+    .preprocess((val) => val === "true" || val === true, z.boolean())
+    .default(false),
 });
 
 export const updateOrganizationSchema = createOrganizationSchema.extend({
