@@ -225,7 +225,7 @@ const transactionSchema = z.object({
 type TransactionFormData = z.infer<typeof transactionSchema>;
 ```
 
-See the **react-hook-form** skill for integrating these types with forms.
+See the **forms** skill for integrating these types with forms.
 
 ## Generic Patterns
 

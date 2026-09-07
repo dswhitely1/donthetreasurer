@@ -106,7 +106,7 @@ export function useUpdateTransactionStatus() {
 - See the **react** skill for hook patterns and data-fetching strategy
 - See the **nextjs** skill for SSR prefetch with HydrationBoundary
 - See the **typescript** skill for typed query results
-- See the **react-hook-form** skill for mutation + form integration
+- See the **forms** skill for Server Action forms (mutations there do not go through Query)
 - See the **zod** skill for validating mutation inputs
 
 ## Documentation Resources

@@ -2,13 +2,13 @@
 name: zod
 description: |
   Validates schemas, forms, and API requests with Zod TypeScript-first validation.
-  Use when: defining validation schemas for entities (organizations, accounts, categories, transactions, line items), integrating with React Hook Form via @hookform/resolvers, validating Server Action inputs, validating API Route query parameters, or inferring TypeScript types from schemas.
+  Use when: defining validation schemas for entities (organizations, accounts, categories, transactions, line items), validating Server Action inputs, validating API Route query parameters, or inferring TypeScript types from schemas.
 allowed-tools: Read, Edit, Write, Glob, Grep, Bash, mcp__context7__resolve-library-id, mcp__context7__query-docs
 ---
 
 # Zod Skill
 
-Zod provides runtime validation with static TypeScript type inference. In this codebase, Zod schemas live in `lib/validations/` and serve as the single source of truth for both runtime validation and TypeScript types across Server Actions, API Routes, and React Hook Form integration. Schemas map directly to the domain model: organizations, accounts, categories, transactions, and line items.
+Zod provides runtime validation with static TypeScript type inference. In this codebase, Zod schemas live in `lib/validations/` and serve as the single source of truth for both runtime validation and TypeScript types across Server Actions and API Routes. Schemas map directly to the domain model: organizations, accounts, categories, transactions, and line items.
 
 ## Quick Start
 
@@ -45,18 +45,21 @@ export async function createOrganization(formData: unknown) {
 }
 ```
 
-### React Hook Form Integration
+### Form Integration
+
+Forms in this codebase are plain `<form>` elements bound to Server Actions with `useActionState`; the schema validates on the server, not in the browser. There is no client-side resolver. See the **forms** skill.
 
 ```typescript
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { organizationSchema, type OrganizationFormData } from "@/lib/validations/organization";
-
-const form = useForm<OrganizationFormData>({
-  resolver: zodResolver(organizationSchema),
-  defaultValues: { name: "", fiscal_year_start_month: 1 },
+// In the Server Action — the schema is the only validation pass.
+const parsed = createOrganizationSchema.safeParse({
+  name: formData.get("name") as string,
+  fiscal_year_start_month: formData.get("fiscal_year_start_month") as string,
 });
+
+if (!parsed.success) return { error: parsed.error.issues[0].message };
 ```
+
+Because every value arrives from `FormData` as a string, numeric and boolean fields need `z.coerce` or a `preprocess`.
 
 ## Key Concepts
 
@@ -116,7 +119,7 @@ export const transactionQuerySchema = z.object({
 
 ## Related Skills
 
-- See the **react-hook-form** skill for form integration via `zodResolver`
+- See the **forms** skill for how schemas are applied to Server Actions
 - See the **typescript** skill for strict mode type inference patterns
 - See the **supabase** skill for aligning schemas with database types
 - See the **nextjs** skill for Server Action and API Route validation patterns
@@ -130,7 +133,7 @@ export const transactionQuerySchema = z.object({
 2. **Prefer website documentation** (IDs starting with `/websites/`) over source code repositories
 3. Query with `mcp__context7__query-docs` using the resolved library ID
 
-**Library ID:** `/websites/v3_zod_dev` _(Zod v3 — the version used with react-hook-form and @hookform/resolvers)_
+**Library ID:** `/websites/v3_zod_dev` _(note: this project is on Zod 4 — prefer the v4 docs when the resolved id offers them)_
 
 **Recommended Queries:**
 - "zod refine superRefine custom validation"

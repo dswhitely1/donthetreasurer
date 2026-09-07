@@ -2,7 +2,7 @@
 name: react
 description: |
   Manages React components, hooks, and client-side state with strict mode TypeScript.
-  Use when: building components with Server/Client split, creating custom hooks for domain data, managing form state with react-hook-form, implementing state management patterns, or optimizing rendering performance.
+  Use when: building components with Server/Client split, creating custom hooks for domain data, managing form state with useActionState, implementing state management patterns, or optimizing rendering performance.
 allowed-tools: Read, Edit, Write, Glob, Grep, Bash, mcp__context7__resolve-library-id, mcp__context7__query-docs
 ---
 
@@ -83,14 +83,13 @@ export function useOrganizations() {
 - [components](references/components.md) — File organization, props patterns, composition
 - [data-fetching](references/data-fetching.md) — Server vs Client fetching strategy
 - [state](references/state.md) — UI, Client, Server, URL state categories
-- [forms](references/forms.md) — React Hook Form integration, transaction form
 - [performance](references/performance.md) — Memoization, code splitting, bundle size
 
 ## Related Skills
 
 - See the **nextjs** skill for App Router and Server Component patterns
 - See the **tanstack-query** skill for server state management
-- See the **react-hook-form** skill for form handling
+- See the **forms** skill for form handling
 - See the **typescript** skill for strict type safety
 - See the **zod** skill for validation schemas
 - See the **tailwind** skill for component styling

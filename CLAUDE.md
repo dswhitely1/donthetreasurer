@@ -199,6 +199,7 @@ When working on tasks involving these technologies, invoke the corresponding ski
 | tailwind | Styling with Tailwind CSS v4 |
 | supabase | Database queries, auth, RLS policies, migrations |
 | tanstack-query | Server state caching, query hooks |
+| forms | Any form: useActionState + Server Actions, FormData traps |
 | zod | Schema validation for forms and API inputs |
 | exceljs | Excel report generation |
 | frontend-design | UI design with shadcn/ui, layouts, dark mode |
