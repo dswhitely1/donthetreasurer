@@ -41,6 +41,8 @@ export default async function EditLetterTemplatePage({
       <LetterTemplateForm
         mode="edit"
         orgId={orgId}
+        seasonsEnabled={org.seasons_enabled}
+        sponsorsEnabled={org.sponsors_enabled}
         defaultValues={{
           id: template.id,
           name: template.name,

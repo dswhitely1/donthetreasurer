@@ -28,9 +28,14 @@ export default async function NewLetterTemplatePage({
     <div className="flex flex-col gap-6">
       <PageHeader
         title="New Letter Template"
-        description="Write the letter once, then generate it for every family who owes."
+        description="Write the letter once, then generate it for every recipient it applies to."
       />
-      <LetterTemplateForm mode="create" orgId={orgId} />
+      <LetterTemplateForm
+        mode="create"
+        orgId={orgId}
+        seasonsEnabled={org.seasons_enabled}
+        sponsorsEnabled={org.sponsors_enabled}
+      />
     </div>
   );
 }

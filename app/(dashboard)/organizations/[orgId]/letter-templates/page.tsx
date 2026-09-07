@@ -99,12 +99,16 @@ export default async function LetterTemplatesPage({
 
   const rows = templates ?? [];
 
+  const pageDescription =
+    org.seasons_enabled && org.sponsors_enabled
+      ? "Reusable letters for families with an outstanding season balance and sponsors who need a 501(c)(3) acknowledgment."
+      : org.sponsors_enabled
+        ? "Reusable 501(c)(3) acknowledgment letters for sponsors."
+        : "Reusable letters for families with an outstanding season balance.";
+
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Letter Templates"
-        description="Reusable letters for families with an outstanding season balance."
-      >
+      <PageHeader title="Letter Templates" description={pageDescription}>
         <Button asChild>
           <Link href={`/organizations/${orgId}/letter-templates/new`}>
             New Template
@@ -127,7 +131,7 @@ export default async function LetterTemplatesPage({
         <EmptyState
           icon={Mail}
           title="No letter templates yet"
-          description="Create a template to generate balance letters for a season."
+          description="Create a template to generate letters."
         />
       ) : (
         LETTER_TEMPLATE_TYPES.map((type: LetterTemplateType) => {
