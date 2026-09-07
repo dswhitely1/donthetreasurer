@@ -59,6 +59,15 @@ describe("createFeeCompanionTransaction", () => {
     const result = await createFeeCompanionTransaction(mockSupabase as never, input());
 
     expect(result).toBeNull();
+    // The single shared terminalResult resolves every chain identically, so a
+    // vacuous assertion here (just `result` is null) would still pass even if
+    // the `is_active` guard were deleted and the companion transaction/line
+    // item insert both ran through to completion. Pinning the call count to
+    // exactly the categories lookup makes the guard load-bearing: with it
+    // removed, two more `from()` calls (transactions, transaction_line_items)
+    // would happen and this assertion would fail.
+    expect(mockSupabase.from).toHaveBeenCalledTimes(1);
+    expect(mockSupabase.from).toHaveBeenCalledWith("categories");
   });
 
   it("creates an expense transaction for the computed fee", async () => {
@@ -97,6 +106,13 @@ describe("createFeeCompanionTransaction", () => {
         amount: 3.2,
         transaction_type: "expense",
         description: "Processing fee: Sponsorship deposit",
+      })
+    );
+    expect(inserts[1]).toEqual(
+      expect.objectContaining({
+        transaction_id: "fee-txn",
+        category_id: feeCategoryId,
+        amount: 3.2,
       })
     );
   });
