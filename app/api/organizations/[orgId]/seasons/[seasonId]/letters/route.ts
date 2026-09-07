@@ -132,7 +132,7 @@ export async function POST(
           {
             title: "Payments Received",
             head: ["Date", "Amount", "Method"],
-            emptyMessage: "No payments recorded.",
+            emptyMessage: "No payments received to date.",
             rows: enrollment.payments.map((payment) => [
               formatDate(payment.payment_date),
               formatCurrency(payment.amount),
