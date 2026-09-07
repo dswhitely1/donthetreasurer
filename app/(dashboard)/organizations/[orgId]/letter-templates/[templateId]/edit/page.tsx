@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/layout/page-header";
 
 import { LetterTemplateForm } from "../../letter-template-form";
 
+import type { LetterTemplateType } from "@/lib/letters/placeholders";
+
 export default async function EditLetterTemplatePage({
   params,
 }: {
@@ -15,12 +17,14 @@ export default async function EditLetterTemplatePage({
 
   const { data: org } = await supabase
     .from("organizations")
-    .select("id, seasons_enabled")
+    .select("id, seasons_enabled, sponsors_enabled")
     .eq("id", orgId)
     .single();
 
   if (!org) notFound();
-  if (!org.seasons_enabled) redirect(`/organizations/${orgId}`);
+  if (!org.seasons_enabled && !org.sponsors_enabled) {
+    redirect(`/organizations/${orgId}`);
+  }
 
   const { data: template } = await supabase
     .from("letter_templates")
@@ -37,9 +41,12 @@ export default async function EditLetterTemplatePage({
       <LetterTemplateForm
         mode="edit"
         orgId={orgId}
+        seasonsEnabled={org.seasons_enabled}
+        sponsorsEnabled={org.sponsors_enabled}
         defaultValues={{
           id: template.id,
           name: template.name,
+          template_type: template.template_type as LetterTemplateType,
           heading: template.heading,
           body: template.body,
           closing: template.closing,

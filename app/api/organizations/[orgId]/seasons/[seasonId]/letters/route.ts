@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { createClient } from "@/lib/supabase/server";
+import { buildSeasonTokenValues } from "@/lib/letters/render-template";
 import { fetchSeasonReport } from "@/lib/seasons/fetch-season-report";
 import { generateLettersPdf } from "@/lib/pdf/generate-letters";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 import type { LetterBatchData, LetterRecipient } from "@/lib/letters/types";
 
@@ -33,7 +35,7 @@ export async function POST(
   const { data: org } = await supabase
     .from("organizations")
     .select(
-      "id, name, seasons_enabled, director_name, director_title, director_email, director_phone"
+      "id, name, ein, seasons_enabled, director_name, director_title, director_email, director_phone"
     )
     .eq("id", orgId)
     .single();
@@ -84,6 +86,18 @@ export async function POST(
       return NextResponse.json({ error: "Season not found" }, { status: 404 });
     }
 
+    // Local date, not UTC: this prints on letters handed to families, and a
+    // UTC cutoff would date evening-generated batches "tomorrow" for most US
+    // treasurers. en-CA formats as YYYY-MM-DD.
+    const today = new Date().toLocaleDateString("en-CA");
+
+    const director = {
+      name: org.director_name,
+      title: org.director_title,
+      email: org.director_email,
+      phone: org.director_phone,
+    };
+
     // The client can only narrow this set, never widen it: an id from another
     // season simply fails to match anything the season report returned.
     const requested = new Set(parsed.data.enrollment_ids);
@@ -95,18 +109,37 @@ export async function POST(
           enrollment.balanceDue > 0
       )
       .map((enrollment) => ({
-        enrollmentId: enrollment.id,
-        studentFirstName: enrollment.studentFirstName,
-        studentLastName: enrollment.studentLastName,
-        guardianName: enrollment.guardianName,
-        feeAmount: enrollment.feeAmount,
-        totalPaid: enrollment.totalPaid,
-        balanceDue: enrollment.balanceDue,
-        payments: enrollment.payments.map((payment) => ({
-          payment_date: payment.payment_date,
-          amount: payment.amount,
-          payment_method: payment.payment_method,
-        })),
+        id: enrollment.id,
+        tokenValues: buildSeasonTokenValues({
+          organizationName: org.name,
+          organizationEin: org.ein,
+          director,
+          seasonName: report.seasonName,
+          seasonStartDate: report.startDate,
+          seasonEndDate: report.endDate,
+          generatedOn: today,
+          enrollment,
+        }),
+        detailTables: [
+          {
+            variant: "summary",
+            rows: [
+              ["Season Fee", formatCurrency(enrollment.feeAmount)],
+              ["Total Paid", formatCurrency(enrollment.totalPaid)],
+              ["Balance Due", formatCurrency(enrollment.balanceDue)],
+            ],
+          },
+          {
+            title: "Payments Received",
+            head: ["Date", "Amount", "Method"],
+            emptyMessage: "No payments received to date.",
+            rows: enrollment.payments.map((payment) => [
+              formatDate(payment.payment_date),
+              formatCurrency(payment.amount),
+              payment.payment_method ?? "",
+            ]),
+          },
+        ],
       }));
 
     if (recipients.length === 0) {
@@ -116,22 +149,9 @@ export async function POST(
       );
     }
 
-    // Local date, not UTC: this prints on letters handed to families, and a
-    // UTC cutoff would date evening-generated batches "tomorrow" for most US
-    // treasurers. en-CA formats as YYYY-MM-DD.
-    const today = new Date().toLocaleDateString("en-CA");
-
     const batch: LetterBatchData = {
       organizationName: org.name,
-      director: {
-        name: org.director_name,
-        title: org.director_title,
-        email: org.director_email,
-        phone: org.director_phone,
-      },
-      seasonName: report.seasonName,
-      seasonStartDate: report.startDate,
-      seasonEndDate: report.endDate,
+      director,
       generatedOn: today,
       template: {
         heading: template.heading,

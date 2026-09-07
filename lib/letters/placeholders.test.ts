@@ -2,8 +2,10 @@ import { describe, it, expect } from "vitest";
 
 import {
   LETTER_PLACEHOLDERS,
+  LETTER_TEMPLATE_TYPES,
   createPlaceholderPattern,
   findUnknownPlaceholders,
+  getPlaceholders,
 } from "./placeholders";
 
 describe("LETTER_PLACEHOLDERS", () => {
@@ -58,5 +60,63 @@ describe("findUnknownPlaceholders", () => {
 
   it("ignores text with no placeholders", () => {
     expect(findUnknownPlaceholders("Plain text, no tokens.")).toEqual([]);
+  });
+});
+
+describe("LETTER_PLACEHOLDERS_BY_TYPE", () => {
+  it("offers season tokens to season templates", () => {
+    const tokens = getPlaceholders("season_balance").map((p) => p.token);
+    expect(tokens).toContain("student_first_name");
+    expect(tokens).toContain("balance_due");
+  });
+
+  it("offers sponsor tokens to sponsor templates", () => {
+    const tokens = getPlaceholders("sponsor_acknowledgment").map((p) => p.token);
+    expect(tokens).toContain("sponsor_name");
+    expect(tokens).toContain("sponsorship_amount");
+    expect(tokens).toContain("term_label");
+  });
+
+  it("keeps student tokens out of sponsor templates", () => {
+    const tokens = getPlaceholders("sponsor_acknowledgment").map((p) => p.token);
+    expect(tokens).not.toContain("student_first_name");
+  });
+
+  it("shares organization and director tokens across both types", () => {
+    for (const type of LETTER_TEMPLATE_TYPES) {
+      const tokens = getPlaceholders(type).map((p) => p.token);
+      expect(tokens).toContain("organization_name");
+      expect(tokens).toContain("organization_ein");
+      expect(tokens).toContain("director_name");
+      expect(tokens).toContain("today");
+    }
+  });
+});
+
+describe("findUnknownPlaceholders with a template type", () => {
+  it("flags a student token used in a sponsor letter", () => {
+    const unknown = findUnknownPlaceholders(
+      "Thank you {{student_first_name}}",
+      "sponsor_acknowledgment"
+    );
+    expect(unknown).toEqual(["student_first_name"]);
+  });
+
+  it("flags a sponsor token used in a season letter", () => {
+    const unknown = findUnknownPlaceholders(
+      "Thank you {{sponsor_name}}",
+      "season_balance"
+    );
+    expect(unknown).toEqual(["sponsor_name"]);
+  });
+
+  it("accepts shared tokens in either type", () => {
+    for (const type of LETTER_TEMPLATE_TYPES) {
+      expect(findUnknownPlaceholders("{{organization_name}} {{today}}", type)).toEqual([]);
+    }
+  });
+
+  it("defaults to the season vocabulary when no type is given", () => {
+    expect(findUnknownPlaceholders("{{balance_due}}")).toEqual([]);
   });
 });

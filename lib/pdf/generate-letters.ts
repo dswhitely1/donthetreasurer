@@ -1,11 +1,12 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
-import { buildTokenValues, renderTemplate } from "@/lib/letters/render-template";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { renderTemplate } from "@/lib/letters/render-template";
+import { formatDate } from "@/lib/utils";
 
 import type {
   LetterBatchData,
+  LetterDetailTable,
   LetterDirector,
   LetterRecipient,
 } from "@/lib/letters/types";
@@ -47,13 +48,80 @@ export function buildSignatureLines(director: LetterDirector): string[] {
     .filter((line) => line.length > 0);
 }
 
+/**
+ * Renders one `LetterDetailTable` — a title, then the table or, if it has no
+ * rows, an `emptyMessage` printed in the table's place.
+ *
+ * The `"summary"` variant reproduces the original balance box: narrow,
+ * two-column, final row bolded. The default `"list"` variant reproduces the
+ * original payment history: full width, with a shaded header row when
+ * `head` is given.
+ */
+function renderDetailTable(
+  doc: jsPDF,
+  table: LetterDetailTable,
+  cursorY: number
+): number {
+  let y = ensureSpace(doc, cursorY, table.title ? 72 : 96);
+
+  if (table.title) {
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text(table.title, MARGIN, y);
+    y += 14;
+  }
+
+  if (table.rows.length === 0) {
+    if (!table.emptyMessage) return y;
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    y += 8;
+    doc.text(table.emptyMessage, MARGIN, y);
+    return y + 28;
+  }
+
+  if (table.variant === "summary") {
+    const rows = table.rows;
+    autoTable(doc, {
+      startY: y,
+      theme: "grid",
+      styles: { fontSize: 10, cellPadding: 6 },
+      columnStyles: {
+        0: { cellWidth: 140 },
+        1: { cellWidth: 110, halign: "right" },
+      },
+      tableWidth: 250,
+      margin: { left: MARGIN, right: MARGIN },
+      body: rows,
+      didParseCell: (hook) => {
+        // Bold the last row (e.g. Balance Due), whichever row that ends up being.
+        if (hook.row.index === rows.length - 1) {
+          hook.cell.styles.fontStyle = "bold";
+        }
+      },
+    });
+  } else {
+    autoTable(doc, {
+      startY: y,
+      head: table.head ? [table.head] : undefined,
+      body: table.rows,
+      theme: "grid",
+      styles: { fontSize: 9, cellPadding: 5 },
+      headStyles: { fillColor: HEADER_BG, textColor: 20, fontStyle: "bold" },
+      columnStyles: { 1: { halign: "right" } },
+      margin: { left: MARGIN, right: MARGIN },
+    });
+  }
+  return getFinalY(doc) + 28;
+}
+
 function renderLetter(
   doc: jsPDF,
   data: LetterBatchData,
   recipient: LetterRecipient,
   contentWidth: number
 ): void {
-  const values = buildTokenValues(data, recipient);
+  const values = recipient.tokenValues;
   let cursorY = MARGIN;
 
   // Letterhead: organization name left, generation date right.
@@ -92,62 +160,8 @@ function renderLetter(
     cursorY += PARAGRAPH_GAP;
   }
 
-  // Balance summary — always printed, so the numbers are on the page even if
-  // the template never used a currency placeholder.
-  cursorY = ensureSpace(doc, cursorY, 96);
-  const balanceRows = [
-    ["Season Fee", formatCurrency(recipient.feeAmount)],
-    ["Total Paid", formatCurrency(recipient.totalPaid)],
-    ["Balance Due", formatCurrency(recipient.balanceDue)],
-  ];
-  autoTable(doc, {
-    startY: cursorY,
-    theme: "grid",
-    styles: { fontSize: 10, cellPadding: 6 },
-    columnStyles: {
-      0: { cellWidth: 140 },
-      1: { cellWidth: 110, halign: "right" },
-    },
-    tableWidth: 250,
-    margin: { left: MARGIN, right: MARGIN },
-    body: balanceRows,
-    didParseCell: (hook) => {
-      // Bold the last row (Balance Due), whichever row that ends up being.
-      if (hook.row.index === balanceRows.length - 1) {
-        hook.cell.styles.fontStyle = "bold";
-      }
-    },
-  });
-  cursorY = getFinalY(doc) + 28;
-
-  cursorY = ensureSpace(doc, cursorY, 72);
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text("Payments Received", MARGIN, cursorY);
-  cursorY += 14;
-
-  if (recipient.payments.length === 0) {
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    cursorY += 8;
-    doc.text("No payments received to date.", MARGIN, cursorY);
-    cursorY += 28;
-  } else {
-    autoTable(doc, {
-      startY: cursorY,
-      head: [["Date", "Amount", "Method"]],
-      body: recipient.payments.map((payment) => [
-        formatDate(payment.payment_date),
-        formatCurrency(payment.amount),
-        payment.payment_method ?? "",
-      ]),
-      theme: "grid",
-      styles: { fontSize: 9, cellPadding: 5 },
-      headStyles: { fillColor: HEADER_BG, textColor: 20, fontStyle: "bold" },
-      columnStyles: { 1: { halign: "right" } },
-      margin: { left: MARGIN, right: MARGIN },
-    });
-    cursorY = getFinalY(doc) + 28;
+  for (const table of recipient.detailTables ?? []) {
+    cursorY = renderDetailTable(doc, table, cursorY);
   }
 
   const closing = data.template.closing

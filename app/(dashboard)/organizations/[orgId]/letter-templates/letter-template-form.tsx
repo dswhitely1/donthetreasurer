@@ -4,13 +4,27 @@ import { useActionState, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-import { LETTER_PLACEHOLDERS } from "@/lib/letters/placeholders";
+import {
+  LETTER_TEMPLATE_TYPES,
+  LETTER_TEMPLATE_TYPE_LABELS,
+  getPlaceholders,
+} from "@/lib/letters/placeholders";
 import { renderTemplate } from "@/lib/letters/render-template";
-import { SAMPLE_TOKEN_VALUES } from "@/lib/letters/sample-context";
+import {
+  SAMPLE_SEASON_TOKEN_VALUES,
+  SAMPLE_SPONSOR_TOKEN_VALUES,
+} from "@/lib/letters/sample-context";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
@@ -22,9 +36,12 @@ import {
 
 import { createLetterTemplate, updateLetterTemplate } from "./actions";
 
+import type { LetterTemplateType } from "@/lib/letters/placeholders";
+
 interface LetterTemplateDefaults {
   id: string;
   name: string;
+  template_type: LetterTemplateType;
   heading: string | null;
   body: string;
   closing: string | null;
@@ -33,19 +50,44 @@ interface LetterTemplateDefaults {
 
 const DEFAULT_CLOSING = "Sincerely,";
 
-const STARTER_BODY = `Dear {{guardian_name}},
+const STARTER_BODY_BY_TYPE: Record<LetterTemplateType, string> = {
+  season_balance: `Dear {{guardian_name}},
 
 Our records show an outstanding balance of {{balance_due}} for {{student_full_name}} for the {{season_name}} season.
 
-Thank you for your support.`;
+Thank you for your support.`,
+  sponsor_acknowledgment: `Dear {{contact_name}},
+
+Thank you for your generous {{level_name}} sponsorship of {{sponsorship_amount}} for {{term_label}}.
+
+Your support makes our work possible.`,
+};
+
+/**
+ * A sponsors-only org following the sponsor-letters empty-state link should
+ * land on a form already set to Sponsor Acknowledgment, not Season Balance —
+ * the type can never be changed after creation, so guessing wrong here means
+ * deleting and recreating the template.
+ */
+function defaultTemplateType(
+  seasonsEnabled: boolean,
+  sponsorsEnabled: boolean
+): LetterTemplateType {
+  if (sponsorsEnabled && !seasonsEnabled) return "sponsor_acknowledgment";
+  return "season_balance";
+}
 
 export function LetterTemplateForm({
   mode,
   orgId,
+  seasonsEnabled,
+  sponsorsEnabled,
   defaultValues,
 }: Readonly<{
   mode: "create" | "edit";
   orgId: string;
+  seasonsEnabled: boolean;
+  sponsorsEnabled: boolean;
   defaultValues?: LetterTemplateDefaults;
 }>) {
   const action =
@@ -54,9 +96,27 @@ export function LetterTemplateForm({
 
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
+  const [selectedType, setSelectedType] = useState<LetterTemplateType>(
+    defaultValues?.template_type ??
+      defaultTemplateType(seasonsEnabled, sponsorsEnabled)
+  );
+  // Only the types this org's flags allow — on edit, the type is fixed and
+  // the control is disabled anyway, so the current value is always offered
+  // even if the org's flags changed after creation.
+  const availableTypes =
+    mode === "edit" && defaultValues
+      ? [defaultValues.template_type]
+      : LETTER_TEMPLATE_TYPES.filter((type) =>
+          type === "season_balance" ? seasonsEnabled : sponsorsEnabled
+        );
+  const sampleTokenValues =
+    selectedType === "sponsor_acknowledgment"
+      ? SAMPLE_SPONSOR_TOKEN_VALUES
+      : SAMPLE_SEASON_TOKEN_VALUES;
   const [heading, setHeading] = useState(defaultValues?.heading ?? "");
   const [body, setBody] = useState(
-    defaultValues?.body ?? (mode === "create" ? STARTER_BODY : "")
+    defaultValues?.body ??
+      (mode === "create" ? STARTER_BODY_BY_TYPE[selectedType] : "")
   );
   const [closing, setClosing] = useState(
     defaultValues?.closing ?? (mode === "create" ? DEFAULT_CLOSING : "")
@@ -86,9 +146,9 @@ export function LetterTemplateForm({
     });
   }
 
-  const previewHeading = renderTemplate(heading, SAMPLE_TOKEN_VALUES).trim();
-  const previewBody = renderTemplate(body, SAMPLE_TOKEN_VALUES);
-  const previewClosing = renderTemplate(closing, SAMPLE_TOKEN_VALUES).trim();
+  const previewHeading = renderTemplate(heading, sampleTokenValues).trim();
+  const previewBody = renderTemplate(body, sampleTokenValues);
+  const previewClosing = renderTemplate(closing, sampleTokenValues).trim();
 
   return (
     <div className="flex flex-col gap-6">
@@ -130,6 +190,35 @@ export function LetterTemplateForm({
           </div>
 
           <div className="flex flex-col gap-1.5">
+            <Label htmlFor="template-type">Template Type</Label>
+            <Select
+              value={selectedType}
+              onValueChange={(value) =>
+                setSelectedType(value as LetterTemplateType)
+              }
+              disabled={mode === "edit"}
+            >
+              <SelectTrigger id="template-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableTypes.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {LETTER_TEMPLATE_TYPE_LABELS[type]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <input type="hidden" name="template_type" value={selectedType} />
+            {mode === "edit" && (
+              <p className="text-sm text-muted-foreground">
+                Template type can&rsquo;t be changed after creation — delete
+                and recreate the template to switch types.
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="template-heading">Heading (optional)</Label>
             <Input
               id="template-heading"
@@ -163,7 +252,7 @@ export function LetterTemplateForm({
           <div className="flex flex-col gap-2">
             <Label>Insert a placeholder</Label>
             <div className="flex flex-wrap gap-1.5">
-              {LETTER_PLACEHOLDERS.map((placeholder) => (
+              {getPlaceholders(selectedType).map((placeholder) => (
                 <Button
                   key={placeholder.token}
                   type="button"
@@ -241,32 +330,34 @@ export function LetterTemplateForm({
 
             <div className="whitespace-pre-wrap">{previewBody}</div>
 
-            <div className="rounded-md border border-border p-3">
-              <div className="flex justify-between">
-                <span>Season Fee</span>
-                <span className="tabular-nums">
-                  {SAMPLE_TOKEN_VALUES.fee_amount}
-                </span>
+            {selectedType === "season_balance" && (
+              <div className="rounded-md border border-border p-3">
+                <div className="flex justify-between">
+                  <span>Season Fee</span>
+                  <span className="tabular-nums">
+                    {sampleTokenValues.fee_amount}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total Paid</span>
+                  <span className="tabular-nums">
+                    {sampleTokenValues.total_paid}
+                  </span>
+                </div>
+                <div className="flex justify-between font-semibold">
+                  <span>Balance Due</span>
+                  <span className="tabular-nums">
+                    {sampleTokenValues.balance_due}
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span>Total Paid</span>
-                <span className="tabular-nums">
-                  {SAMPLE_TOKEN_VALUES.total_paid}
-                </span>
-              </div>
-              <div className="flex justify-between font-semibold">
-                <span>Balance Due</span>
-                <span className="tabular-nums">
-                  {SAMPLE_TOKEN_VALUES.balance_due}
-                </span>
-              </div>
-            </div>
+            )}
 
             {previewClosing && <p>{previewClosing}</p>}
 
             <div className="text-muted-foreground">
-              <p>{SAMPLE_TOKEN_VALUES.director_name}</p>
-              <p>{SAMPLE_TOKEN_VALUES.director_title}</p>
+              <p>{sampleTokenValues.director_name}</p>
+              <p>{sampleTokenValues.director_title}</p>
             </div>
           </CardContent>
         </Card>

@@ -15,20 +15,27 @@ export default async function NewLetterTemplatePage({
 
   const { data: org } = await supabase
     .from("organizations")
-    .select("id, seasons_enabled")
+    .select("id, seasons_enabled, sponsors_enabled")
     .eq("id", orgId)
     .single();
 
   if (!org) notFound();
-  if (!org.seasons_enabled) redirect(`/organizations/${orgId}`);
+  if (!org.seasons_enabled && !org.sponsors_enabled) {
+    redirect(`/organizations/${orgId}`);
+  }
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="New Letter Template"
-        description="Write the letter once, then generate it for every family who owes."
+        description="Write the letter once, then generate it for every recipient it applies to."
       />
-      <LetterTemplateForm mode="create" orgId={orgId} />
+      <LetterTemplateForm
+        mode="create"
+        orgId={orgId}
+        seasonsEnabled={org.seasons_enabled}
+        sponsorsEnabled={org.sponsors_enabled}
+      />
     </div>
   );
 }

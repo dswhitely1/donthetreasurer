@@ -5,7 +5,7 @@
 All the core CRUD features are built and working:
 
 - **Auth** - Login/register with Supabase Auth
-- **Database** - All 6 tables, indexes, RLS policies, triggers (3 migration files)
+- **Database** - 20 tables (well beyond the original 6), indexes, RLS policies, triggers (20 migration files)
 - **Organizations** - Full CRUD, listing, detail page with navigation
 - **Accounts** - Full CRUD, create/edit/detail pages
 - **Categories** - Hierarchical CRUD with parent/child, type enforcement
@@ -15,6 +15,7 @@ All the core CRUD features are built and working:
 - **Excel Export** - API route with Transactions + Summary sheets, proper formatting
 - **Layout** - Header, sidebar, org switcher, dashboard shell
 - **Infrastructure** - TanStack Query hooks, Zod schemas, Supabase clients (browser/server/middleware), dark mode, shadcn/ui
+- **Sponsors** - Sponsors, configurable sponsorship levels, a deposit queue for undeposited payments, sponsorship renewal, and 501(c)(3) acknowledgment letters (opt-in via `sponsors_enabled`)
 
 ## What's Left
 
@@ -40,7 +41,7 @@ All the core CRUD features are built and working:
 
 8. **Inline editing** on the transaction list (PRD 7.3 mentions it, but click-to-edit-page works fine).
 
-9. **Testing** - Zero tests. CLAUDE.md mentions Vitest/Playwright but nothing is configured.
+9. **Testing** - Vitest is configured and in active use (47 test files, 750 tests as of this writing), covering validations, server actions, reports, and letters. Playwright/E2E is still not set up.
 
 ### Not needed for v1 (Could Have in PRD)
 

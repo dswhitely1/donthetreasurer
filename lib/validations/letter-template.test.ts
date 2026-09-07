@@ -98,6 +98,48 @@ describe("createLetterTemplateSchema", () => {
       expect(result.data.is_default).toBe(true);
     }
   });
+
+  it("defaults template_type to season_balance when omitted", () => {
+    const result = createLetterTemplateSchema.safeParse(validInput());
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.template_type).toBe("season_balance");
+    }
+  });
+
+  it("rejects a sponsor-only placeholder in a season_balance template", () => {
+    const result = createLetterTemplateSchema.safeParse(
+      validInput({ body: "Thank you {{sponsor_name}}." })
+    );
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts a sponsor-only placeholder when template_type is sponsor_acknowledgment", () => {
+    const result = createLetterTemplateSchema.safeParse(
+      validInput({
+        template_type: "sponsor_acknowledgment",
+        body: "Thank you {{sponsor_name}} for {{sponsorship_amount}}.",
+      })
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a season-only placeholder when template_type is sponsor_acknowledgment", () => {
+    const result = createLetterTemplateSchema.safeParse(
+      validInput({
+        template_type: "sponsor_acknowledgment",
+        body: "Dear {{guardian_name}}, you owe {{balance_due}}.",
+      })
+    );
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an invalid template_type", () => {
+    const result = createLetterTemplateSchema.safeParse(
+      validInput({ template_type: "not_a_real_type" })
+    );
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("updateLetterTemplateSchema", () => {

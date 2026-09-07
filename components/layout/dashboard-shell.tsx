@@ -69,6 +69,7 @@ export function DashboardShell({
             orgId={currentOrgId}
             orgName={currentOrg?.name ?? ""}
             seasonsEnabled={currentOrg?.seasons_enabled ?? false}
+            sponsorsEnabled={currentOrg?.sponsors_enabled ?? false}
             isOpen={sidebarOpen}
             onClose={handleCloseSidebar}
             collapsed={sidebarCollapsed}

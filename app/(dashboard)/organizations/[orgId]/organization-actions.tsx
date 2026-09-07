@@ -32,6 +32,9 @@ export function OrganizationActions({
   const [seasonsEnabled, setSeasonsEnabled] = useState(
     organization.seasons_enabled ?? false
   );
+  const [sponsorsEnabled, setSponsorsEnabled] = useState(
+    organization.sponsors_enabled ?? false
+  );
 
   const [updateState, updateAction, updatePending] = useActionState(
     updateOrganization,
@@ -182,6 +185,30 @@ export function OrganizationActions({
               </Label>
               <p className="text-sm text-muted-foreground">
                 Track student enrollment and fee payments for seasonal programs
+              </p>
+            </div>
+          </div>
+
+          <input
+            type="hidden"
+            name="sponsors_enabled"
+            value={sponsorsEnabled ? "true" : "false"}
+          />
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="edit-sponsors-enabled"
+              checked={sponsorsEnabled}
+              onCheckedChange={(checked) =>
+                setSponsorsEnabled(checked === true)
+              }
+            />
+            <div className="flex flex-col gap-0.5">
+              <Label htmlFor="edit-sponsors-enabled">
+                Enable sponsor tracking
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Track sponsors, sponsorship levels, and a queue of payments
+                waiting to be deposited.
               </p>
             </div>
           </div>

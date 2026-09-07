@@ -246,6 +246,7 @@ export type Database = {
           is_default: boolean
           name: string
           organization_id: string
+          template_type: string
           updated_at: string | null
         }
         Insert: {
@@ -257,6 +258,7 @@ export type Database = {
           is_default?: boolean
           name: string
           organization_id: string
+          template_type?: string
           updated_at?: string | null
         }
         Update: {
@@ -268,6 +270,7 @@ export type Database = {
           is_default?: boolean
           name?: string
           organization_id?: string
+          template_type?: string
           updated_at?: string | null
         }
         Relationships: [
@@ -293,6 +296,7 @@ export type Database = {
           is_active: boolean | null
           name: string
           seasons_enabled: boolean
+          sponsors_enabled: boolean
           treasurer_id: string
           updated_at: string | null
         }
@@ -308,6 +312,7 @@ export type Database = {
           is_active?: boolean | null
           name: string
           seasons_enabled?: boolean
+          sponsors_enabled?: boolean
           treasurer_id: string
           updated_at?: string | null
         }
@@ -323,6 +328,7 @@ export type Database = {
           is_active?: boolean | null
           name?: string
           seasons_enabled?: boolean
+          sponsors_enabled?: boolean
           treasurer_id?: string
           updated_at?: string | null
         }
@@ -673,6 +679,182 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sponsor_levels: {
+        Row: {
+          created_at: string | null
+          default_amount: number
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          organization_id: string
+          sort_order: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          default_amount?: number
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          organization_id: string
+          sort_order?: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          default_amount?: number
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          organization_id?: string
+          sort_order?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sponsor_levels_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sponsors: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          contact_name: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          organization_id: string
+          phone: string | null
+          postal_code: string | null
+          state: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          contact_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          organization_id: string
+          phone?: string | null
+          postal_code?: string | null
+          state?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          contact_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          organization_id?: string
+          phone?: string | null
+          postal_code?: string | null
+          state?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sponsors_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sponsorships: {
+        Row: {
+          amount: number
+          check_number: string | null
+          created_at: string | null
+          id: string
+          level_id: string
+          notes: string | null
+          payment_method: string
+          received_date: string
+          sponsor_id: string
+          term_end_date: string
+          term_start_date: string
+          transaction_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          check_number?: string | null
+          created_at?: string | null
+          id?: string
+          level_id: string
+          notes?: string | null
+          payment_method: string
+          received_date: string
+          sponsor_id: string
+          term_end_date: string
+          term_start_date: string
+          transaction_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          check_number?: string | null
+          created_at?: string | null
+          id?: string
+          level_id?: string
+          notes?: string | null
+          payment_method?: string
+          received_date?: string
+          sponsor_id?: string
+          term_end_date?: string
+          term_start_date?: string
+          transaction_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sponsorships_level_id_fkey"
+            columns: ["level_id"]
+            isOneToOne: false
+            referencedRelation: "sponsor_levels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sponsorships_sponsor_id_fkey"
+            columns: ["sponsor_id"]
+            isOneToOne: false
+            referencedRelation: "sponsors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sponsorships_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
         ]

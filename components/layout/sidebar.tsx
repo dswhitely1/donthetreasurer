@@ -14,6 +14,7 @@ import {
   Calendar,
   Users,
   Mail,
+  Handshake,
   X,
   ChevronsLeft,
   ChevronsRight,
@@ -45,13 +46,24 @@ const navItems = [
 const seasonNavItems = [
   { label: "Seasons", href: "/seasons", icon: Calendar, exact: false },
   { label: "Students", href: "/students", icon: Users, exact: false },
-  { label: "Letters", href: "/letter-templates", icon: Mail, exact: false },
+];
+
+const letterNavItem = {
+  label: "Letters",
+  href: "/letter-templates",
+  icon: Mail,
+  exact: false,
+};
+
+const sponsorNavItems = [
+  { label: "Sponsors", href: "/sponsors", icon: Handshake, exact: false },
 ];
 
 interface SidebarProps {
   orgId: string;
   orgName: string;
   seasonsEnabled: boolean;
+  sponsorsEnabled: boolean;
   isOpen: boolean;
   onClose: () => void;
   collapsed: boolean;
@@ -62,19 +74,24 @@ function SidebarContent({
   orgId,
   orgName,
   seasonsEnabled,
+  sponsorsEnabled,
   collapsed,
 }: Readonly<{
   orgId: string;
   orgName: string;
   seasonsEnabled: boolean;
+  sponsorsEnabled: boolean;
   collapsed: boolean;
 }>) {
   const pathname = usePathname();
   const basePath = `/organizations/${orgId}`;
 
-  const allItems = seasonsEnabled
-    ? [...navItems, ...seasonNavItems]
-    : navItems;
+  const allItems = [
+    ...navItems,
+    ...(seasonsEnabled ? seasonNavItems : []),
+    ...(sponsorsEnabled ? sponsorNavItems : []),
+    ...(seasonsEnabled || sponsorsEnabled ? [letterNavItem] : []),
+  ];
 
   return (
     <div className="flex h-full flex-col">
@@ -136,6 +153,7 @@ export function Sidebar({
   orgId,
   orgName,
   seasonsEnabled,
+  sponsorsEnabled,
   isOpen,
   onClose,
   collapsed,
@@ -165,6 +183,7 @@ export function Sidebar({
           orgId={orgId}
           orgName={orgName}
           seasonsEnabled={seasonsEnabled}
+          sponsorsEnabled={sponsorsEnabled}
           collapsed={collapsed}
         />
         <div
@@ -226,6 +245,7 @@ export function Sidebar({
               orgId={orgId}
               orgName={orgName}
               seasonsEnabled={seasonsEnabled}
+              sponsorsEnabled={sponsorsEnabled}
               collapsed={false}
             />
           </aside>
