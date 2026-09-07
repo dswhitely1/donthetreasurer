@@ -52,18 +52,27 @@ export default async function NewSponsorshipPage({
     }
   }
 
+  let levelsQuery = supabase
+    .from("sponsor_levels")
+    .select("id, name, default_amount")
+    .eq("organization_id", orgId);
+
+  // A plain new payment only offers active levels. A renewal prefills the
+  // previous term's level, though, so if that level has since been
+  // deactivated it still needs a matching option — otherwise the Select
+  // can't represent the prefilled value and the level actually submitted
+  // could silently differ from the one the renewal implies.
+  levelsQuery = defaultLevelId
+    ? levelsQuery.or(`is_active.eq.true,id.eq.${defaultLevelId}`)
+    : levelsQuery.eq("is_active", true);
+
   const [{ data: sponsors }, { data: levels }] = await Promise.all([
     supabase
       .from("sponsors")
       .select("id, name")
       .eq("organization_id", orgId)
       .order("name"),
-    supabase
-      .from("sponsor_levels")
-      .select("id, name, default_amount")
-      .eq("organization_id", orgId)
-      .eq("is_active", true)
-      .order("sort_order"),
+    levelsQuery.order("sort_order"),
   ]);
 
   return (

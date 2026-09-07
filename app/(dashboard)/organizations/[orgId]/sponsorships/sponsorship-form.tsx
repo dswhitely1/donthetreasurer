@@ -223,8 +223,6 @@ export function SponsorshipForm({
               id={`${formId}-check-number`}
               name="check_number"
               maxLength={20}
-              readOnly={isLocked}
-              className={cn(isLocked && "cursor-not-allowed bg-muted")}
               defaultValue={defaultValues?.check_number ?? ""}
             />
           </div>

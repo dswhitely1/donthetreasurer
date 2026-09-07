@@ -140,6 +140,29 @@ export async function updateSponsorship(
     }
   }
 
+  // A treasurer can own more than one organization. Without re-checking
+  // org membership here, a crafted submission could point sponsor_id or
+  // level_id at a different organization's row — the existing-row check
+  // above only scopes the sponsorship being edited, not the values being
+  // written into it.
+  const { data: sponsor } = await supabase
+    .from("sponsors")
+    .select("id")
+    .eq("id", parsed.data.sponsor_id)
+    .eq("organization_id", parsed.data.organization_id)
+    .single();
+
+  if (!sponsor) return { error: "Sponsor not found." };
+
+  const { data: level } = await supabase
+    .from("sponsor_levels")
+    .select("id")
+    .eq("id", parsed.data.level_id)
+    .eq("organization_id", parsed.data.organization_id)
+    .single();
+
+  if (!level) return { error: "Sponsorship level not found." };
+
   const { error } = await supabase
     .from("sponsorships")
     .update({

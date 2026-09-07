@@ -101,12 +101,42 @@ describe("sponsorship actions", () => {
         },
         error: null,
       },
+      { data: { id: sponsorId }, error: null },
+      { data: { id: levelId }, error: null },
       { data: null, error: null },
     ]);
 
     await expect(
       updateSponsorship(null, validSponsorshipForm({ notes: "Renewed by phone" }))
     ).rejects.toThrow(RedirectError);
+  });
+
+  it("rejects an update whose submitted sponsor_id does not belong to the organization", async () => {
+    mockSupabase.mockChain().sequence([
+      { data: { id: orgId, name: "CCV", fiscal_year_start_month: 7, sponsors_enabled: true }, error: null },
+      {
+        data: {
+          id: sponsorshipId,
+          amount: 500,
+          level_id: levelId,
+          payment_method: "check",
+          transaction_id: null,
+          sponsors: { organization_id: orgId },
+        },
+        error: null,
+      },
+      // The submitted sponsor_id doesn't resolve within this org.
+      { data: null, error: null },
+    ]);
+
+    const updateChainCallsBefore = mockSupabase.from.mock.calls.length;
+
+    const result = await updateSponsorship(null, validSponsorshipForm());
+
+    expect(result?.error).toMatch(/sponsor not found/i);
+    // Exactly org lookup + existing-row lookup + sponsor lookup — the
+    // update itself must never be reached.
+    expect(mockSupabase.from.mock.calls.length).toBe(updateChainCallsBefore + 3);
   });
 
   it("refuses to delete a sponsorship that has been deposited", async () => {
