@@ -11,6 +11,7 @@ import {
 } from "@/lib/validations/transaction";
 import {
   ELECTRONIC_PAYMENT_METHODS,
+  MIXED_PAYMENT_METHODS_ERROR,
   SPONSOR_PAYMENT_METHOD_LABELS,
 } from "@/lib/validations/sponsor";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -56,11 +57,6 @@ type QueuedSponsorship = Pick<
   sponsors: { id: string; name: string; organization_id: string } | null;
   sponsor_levels: { name: string } | null;
 };
-
-/** Mirrors the exact wording `createDepositFromQueue` returns for a mixed
- * selection, so the client-side guard and the server check never disagree. */
-const MIXED_PAYMENT_METHODS_ERROR =
-  "PayPal payments cannot be deposited together with cash or check payments. Deposit them separately.";
 
 function isElectronic(paymentMethod: string): boolean {
   return ELECTRONIC_PAYMENT_METHODS.includes(paymentMethod as never);

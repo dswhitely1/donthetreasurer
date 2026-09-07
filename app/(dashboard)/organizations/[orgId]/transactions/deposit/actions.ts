@@ -10,6 +10,7 @@ import {
   depositFromQueueSchema,
   depositLinesArraySchema,
   ELECTRONIC_PAYMENT_METHODS,
+  MIXED_PAYMENT_METHODS_ERROR,
 } from "@/lib/validations/sponsor";
 
 /**
@@ -110,10 +111,7 @@ export async function createDepositFromQueue(
   );
 
   if (hasElectronic && hasPhysical) {
-    return {
-      error:
-        "PayPal payments cannot be deposited together with cash or check payments. Deposit them separately.",
-    };
+    return { error: MIXED_PAYMENT_METHODS_ERROR };
   }
 
   const categoryIds = [...new Set(parsedLines.data.map((l) => l.category_id))];

@@ -26,6 +26,13 @@ export const ELECTRONIC_PAYMENT_METHODS: readonly SponsorPaymentMethod[] = [
   "paypal",
 ];
 
+/**
+ * Shared verbatim between the deposit action's server-side check and the
+ * deposit builder's client-side guard, so the two can never drift apart.
+ */
+export const MIXED_PAYMENT_METHODS_ERROR =
+  "PayPal payments cannot be deposited together with cash or check payments. Deposit them separately.";
+
 const optionalText = (max: number, label: string) =>
   z
     .string()
@@ -167,7 +174,9 @@ export const depositLinesArraySchema = z
 export const depositFromQueueSchema = z.object({
   organization_id: z.string().uuid("Invalid organization ID."),
   account_id: z.string().uuid("Invalid account ID."),
-  transaction_date: z.string().min(1, "Deposit date is required."),
+  transaction_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Deposit date must be a valid date."),
   description: z
     .string()
     .min(1, "Description is required.")

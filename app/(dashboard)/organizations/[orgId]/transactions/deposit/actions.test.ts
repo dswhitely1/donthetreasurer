@@ -225,6 +225,19 @@ describe("deposit actions", () => {
     return captured;
   }
 
+  it("rejects a malformed deposit date before it ever reaches the database", async () => {
+    // Every other sponsorship date field validates with this same regex;
+    // transaction_date previously only checked non-empty, so a malformed
+    // value (or the wrong format) reached Postgres and surfaced as a
+    // generic "Failed to create the deposit." instead of a field error.
+    const result = await createDepositFromQueue(
+      null,
+      depositForm([], { transaction_date: "08/20/2026" })
+    );
+
+    expect(result?.error).toMatch(/deposit date/i);
+  });
+
   it("rejects a deposit that mixes PayPal with cash or check", async () => {
     const captured = wireDeposit({
       sponsorships: [
