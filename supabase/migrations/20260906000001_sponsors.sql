@@ -3,7 +3,7 @@ ALTER TABLE public.organizations
   ADD COLUMN sponsors_enabled BOOLEAN NOT NULL DEFAULT FALSE;
 
 CREATE TABLE public.sponsor_levels (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   default_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00 CHECK (default_amount >= 0),
@@ -16,7 +16,7 @@ CREATE TABLE public.sponsor_levels (
 );
 
 CREATE TABLE public.sponsors (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   contact_name TEXT,
@@ -38,7 +38,7 @@ CREATE TABLE public.sponsors (
 -- status column and no deposited_at, because ON DELETE SET NULL can return a
 -- row to the queue but cannot clear a companion timestamp beside it.
 CREATE TABLE public.sponsorships (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   sponsor_id UUID NOT NULL REFERENCES public.sponsors(id) ON DELETE RESTRICT,
   level_id UUID NOT NULL REFERENCES public.sponsor_levels(id) ON DELETE RESTRICT,
   term_start_date DATE NOT NULL,
