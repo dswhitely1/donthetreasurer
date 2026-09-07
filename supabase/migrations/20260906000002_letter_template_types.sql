@@ -7,7 +7,7 @@ ALTER TABLE public.letter_templates
 
 -- One default per TYPE, so an org can hold a default season letter and a
 -- default sponsor letter at the same time.
-DROP INDEX IF EXISTS idx_letter_templates_one_default;
+DROP INDEX IF EXISTS public.idx_letter_templates_one_default;
 
 CREATE UNIQUE INDEX idx_letter_templates_one_default
   ON public.letter_templates(organization_id, template_type)
