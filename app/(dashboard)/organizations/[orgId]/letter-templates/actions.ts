@@ -227,7 +227,7 @@ export async function updateLetterTemplate(
     .single();
 
   if (!existing) {
-    return { error: "Organization not found." };
+    return { error: "Letter template not found." };
   }
 
   const raw = {

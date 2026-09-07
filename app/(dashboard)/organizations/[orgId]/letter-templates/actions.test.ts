@@ -323,13 +323,13 @@ describe("letter template actions", () => {
       expect(result).toEqual({ error: "You must be signed in." });
     });
 
-    it("returns an error when the organization is not found", async () => {
+    it("returns an error when the template is not found (single-eq mock variant)", async () => {
       mockSupabase.mockResult({ data: null, error: null });
       const result = await updateLetterTemplate(
         null,
         validCreateData({ id: templateId })
       );
-      expect(result).toEqual({ error: "Organization not found." });
+      expect(result).toEqual({ error: "Letter template not found." });
     });
 
     it("redirects to the template list on success", async () => {
@@ -554,7 +554,7 @@ describe("letter template actions", () => {
         validCreateData({ id: templateId })
       );
 
-      expect(result).toEqual({ error: "Organization not found." });
+      expect(result).toEqual({ error: "Letter template not found." });
     });
   });
 
