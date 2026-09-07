@@ -15,6 +15,7 @@ const MARGIN = 56;
 const BODY_FONT_SIZE = 11;
 const LINE_HEIGHT = 15;
 const PARAGRAPH_GAP = 9;
+const HEADER_BG: [number, number, number] = [226, 232, 240];
 
 function getFinalY(doc: jsPDF): number {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,8 +48,15 @@ export function buildSignatureLines(director: LetterDirector): string[] {
     .filter((line) => line.length > 0);
 }
 
-/** Renders one `LetterDetailTable` — a title, then the table or, if it has
- * no rows, an `emptyMessage` printed in the table's place. */
+/**
+ * Renders one `LetterDetailTable` — a title, then the table or, if it has no
+ * rows, an `emptyMessage` printed in the table's place.
+ *
+ * The `"summary"` variant reproduces the original balance box: narrow,
+ * two-column, final row bolded. The default `"list"` variant reproduces the
+ * original payment history: full width, with a shaded header row when
+ * `head` is given.
+ */
 function renderDetailTable(
   doc: jsPDF,
   table: LetterDetailTable,
@@ -72,13 +80,38 @@ function renderDetailTable(
     return y + 28;
   }
 
-  autoTable(doc, {
-    startY: y,
-    theme: "grid",
-    styles: { fontSize: 10, cellPadding: 6 },
-    margin: { left: MARGIN, right: MARGIN },
-    body: table.rows,
-  });
+  if (table.variant === "summary") {
+    const rows = table.rows;
+    autoTable(doc, {
+      startY: y,
+      theme: "grid",
+      styles: { fontSize: 10, cellPadding: 6 },
+      columnStyles: {
+        0: { cellWidth: 140 },
+        1: { cellWidth: 110, halign: "right" },
+      },
+      tableWidth: 250,
+      margin: { left: MARGIN, right: MARGIN },
+      body: rows,
+      didParseCell: (hook) => {
+        // Bold the last row (e.g. Balance Due), whichever row that ends up being.
+        if (hook.row.index === rows.length - 1) {
+          hook.cell.styles.fontStyle = "bold";
+        }
+      },
+    });
+  } else {
+    autoTable(doc, {
+      startY: y,
+      head: table.head ? [table.head] : undefined,
+      body: table.rows,
+      theme: "grid",
+      styles: { fontSize: 9, cellPadding: 5 },
+      headStyles: { fillColor: HEADER_BG, textColor: 20, fontStyle: "bold" },
+      columnStyles: { 1: { halign: "right" } },
+      margin: { left: MARGIN, right: MARGIN },
+    });
+  }
   return getFinalY(doc) + 28;
 }
 

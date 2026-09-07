@@ -122,6 +122,7 @@ export async function POST(
         }),
         detailTables: [
           {
+            variant: "summary",
             rows: [
               ["Season Fee", formatCurrency(enrollment.feeAmount)],
               ["Total Paid", formatCurrency(enrollment.totalPaid)],
@@ -130,6 +131,7 @@ export async function POST(
           },
           {
             title: "Payments Received",
+            head: ["Date", "Amount", "Method"],
             emptyMessage: "No payments recorded.",
             rows: enrollment.payments.map((payment) => [
               formatDate(payment.payment_date),

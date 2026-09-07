@@ -16,11 +16,25 @@ export interface LetterTemplateContent {
  * box or a payment history. `emptyMessage` prints in place of the table when
  * `rows` is empty, so a recipient with no history still gets a line saying
  * so instead of a blank gap.
+ *
+ * `head` and `variant` are optional precisely because a sponsor letter has
+ * no use for either — a single sponsorship needs no header row and no
+ * summary box. Season letters use both to reproduce their pre-existing
+ * appearance: an untitled `"summary"` box for the balance figures, and a
+ * headered `"list"` (the default) for payment history.
  */
 export interface LetterDetailTable {
   title?: string;
+  /** Column header row, rendered shaded. Omit for a table with no header. */
+  head?: string[];
   rows: string[][];
   emptyMessage?: string;
+  /**
+   * `"summary"` renders a narrow, two-column label/value box with its final
+   * row emphasized (e.g. a balance box ending in "Balance Due"). `"list"`
+   * (the default) renders a normal full-width table.
+   */
+  variant?: "summary" | "list";
 }
 
 /**
