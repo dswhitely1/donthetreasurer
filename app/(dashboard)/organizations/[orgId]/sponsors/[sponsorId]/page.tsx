@@ -143,6 +143,9 @@ export default async function SponsorDetailPage({
                     Received
                   </th>
                   <th className="px-4 py-2 text-left font-medium">Deposit</th>
+                  <th className="px-4 py-2 text-right font-medium">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -181,6 +184,15 @@ export default async function SponsorDetailPage({
                           In queue
                         </span>
                       )}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link
+                          href={`/organizations/${orgId}/sponsorships/${sponsorship.id}/edit`}
+                        >
+                          Edit
+                        </Link>
+                      </Button>
                     </td>
                   </tr>
                 ))}

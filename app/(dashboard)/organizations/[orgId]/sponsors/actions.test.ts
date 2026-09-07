@@ -20,7 +20,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { createClient } from "@/lib/supabase/server";
-import { createSponsor, deleteSponsor } from "./actions";
+import { createSponsor, deleteSponsor, updateSponsor } from "./actions";
 
 const mockedCreateClient = vi.mocked(createClient);
 const userId = "550e8400-e29b-41d4-a716-446655440000";
@@ -109,6 +109,92 @@ describe("sponsor actions", () => {
     expect(insert).toHaveBeenCalledWith(
       expect.objectContaining({ name: "Acme Hardware", email: null, city: null })
     );
+  });
+
+  it("rejects an update when sponsor tracking is disabled", async () => {
+    mockSupabase.mockResult({
+      data: { id: orgId, name: "CCV", fiscal_year_start_month: 7, sponsors_enabled: false },
+      error: null,
+    });
+
+    const result = await updateSponsor(
+      null,
+      makeFormData({ id: sponsorId, organization_id: orgId, name: "Acme Hardware" })
+    );
+
+    expect(result).toEqual({ error: "Sponsor tracking is not enabled." });
+  });
+
+  it("stores blank optional fields as null on update rather than empty strings", async () => {
+    const update = vi.fn(() => ({
+      eq: () => ({
+        eq: () => Promise.resolve({ data: null, error: null }),
+      }),
+    }));
+    mockSupabase.from.mockImplementation(((table: string) => {
+      if (table === "organizations") {
+        return {
+          select: () => ({
+            eq: () => ({
+              single: () =>
+                Promise.resolve({
+                  data: { id: orgId, name: "CCV", fiscal_year_start_month: 7, sponsors_enabled: true },
+                  error: null,
+                }),
+            }),
+          }),
+        } as never;
+      }
+      return { update } as never;
+    }) as never);
+
+    await expect(
+      updateSponsor(
+        null,
+        makeFormData({
+          id: sponsorId,
+          organization_id: orgId,
+          name: "Acme Hardware",
+          email: "",
+        })
+      )
+    ).rejects.toThrow(RedirectError);
+
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Acme Hardware", email: null, city: null })
+    );
+  });
+
+  it("scopes the update to both the sponsor id and the organization", async () => {
+    const eq2 = vi.fn(() => Promise.resolve({ data: null, error: null }));
+    const eq1 = vi.fn(() => ({ eq: eq2 }));
+    const update = vi.fn(() => ({ eq: eq1 }));
+    mockSupabase.from.mockImplementation(((table: string) => {
+      if (table === "organizations") {
+        return {
+          select: () => ({
+            eq: () => ({
+              single: () =>
+                Promise.resolve({
+                  data: { id: orgId, name: "CCV", fiscal_year_start_month: 7, sponsors_enabled: true },
+                  error: null,
+                }),
+            }),
+          }),
+        } as never;
+      }
+      return { update } as never;
+    }) as never);
+
+    await expect(
+      updateSponsor(
+        null,
+        makeFormData({ id: sponsorId, organization_id: orgId, name: "Acme Hardware" })
+      )
+    ).rejects.toThrow(RedirectError);
+
+    expect(eq1).toHaveBeenCalledWith("id", sponsorId);
+    expect(eq2).toHaveBeenCalledWith("organization_id", orgId);
   });
 
   it("explains that a sponsor with sponsorship history cannot be deleted", async () => {
