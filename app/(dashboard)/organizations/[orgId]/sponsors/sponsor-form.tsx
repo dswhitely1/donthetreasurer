@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { createSponsor, updateSponsor } from "./actions";
+import { createSponsor, deleteSponsor, updateSponsor } from "./actions";
 
 import type { Tables } from "@/types/database";
 
@@ -187,5 +187,44 @@ export function SponsorForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+/** Two-step delete control for a sponsor, mirroring DeleteLevelButton. */
+export function DeleteSponsorButton({
+  sponsorId,
+  orgId,
+}: Readonly<{ sponsorId: string; orgId: string }>) {
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [state, formAction, pending] = useActionState(deleteSponsor, null);
+
+  if (isConfirming) {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <form action={formAction}>
+          <input type="hidden" name="id" value={sponsorId} />
+          <input type="hidden" name="organization_id" value={orgId} />
+          <Button type="submit" variant="destructive" size="sm" disabled={pending}>
+            {pending ? "Deleting…" : "Confirm Delete"}
+          </Button>
+        </form>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsConfirming(false)}
+        >
+          Cancel
+        </Button>
+        {state?.error && (
+          <span className="text-sm text-destructive">{state.error}</span>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <Button variant="outline" size="sm" onClick={() => setIsConfirming(true)}>
+      Delete Sponsor
+    </Button>
   );
 }

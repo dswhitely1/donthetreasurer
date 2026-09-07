@@ -10,6 +10,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
+import { DeleteSponsorshipButton } from "../../sponsorships/delete-sponsorship-button";
+
 export default async function SponsorDetailPage({
   params,
 }: Readonly<{
@@ -186,13 +188,19 @@ export default async function SponsorDetailPage({
                       )}
                     </td>
                     <td className="px-4 py-2 text-right">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link
-                          href={`/organizations/${orgId}/sponsorships/${sponsorship.id}/edit`}
-                        >
-                          Edit
-                        </Link>
-                      </Button>
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link
+                            href={`/organizations/${orgId}/sponsorships/${sponsorship.id}/edit`}
+                          >
+                            Edit
+                          </Link>
+                        </Button>
+                        <DeleteSponsorshipButton
+                          sponsorshipId={sponsorship.id}
+                          orgId={orgId}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}
