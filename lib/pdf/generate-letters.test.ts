@@ -13,18 +13,25 @@ function makeRecipient(
   overrides: Partial<LetterRecipient> = {}
 ): LetterRecipient {
   return {
-    enrollmentId: "880e8400-e29b-41d4-a716-446655440000",
-    studentFirstName: "Alex",
-    studentLastName: "Rivera",
-    guardianName: "Maria Rivera",
-    feeAmount: 450,
-    totalPaid: 200,
-    balanceDue: 250,
-    payments: [
+    id: "880e8400-e29b-41d4-a716-446655440000",
+    tokenValues: {
+      guardian_name: "Maria Rivera",
+      student_full_name: "Alex Rivera",
+      season_name: "Fall 2026",
+      balance_due: "$250.00",
+    },
+    detailTables: [
       {
-        payment_date: "2026-09-01",
-        amount: 200,
-        payment_method: "Check #1043",
+        rows: [
+          ["Season Fee", "$450.00"],
+          ["Total Paid", "$200.00"],
+          ["Balance Due", "$250.00"],
+        ],
+      },
+      {
+        title: "Payments Received",
+        emptyMessage: "No payments received to date.",
+        rows: [["09/01/2026", "$200.00", "Check #1043"]],
       },
     ],
     ...overrides,
@@ -40,9 +47,6 @@ function makeBatch(overrides: Partial<LetterBatchData> = {}): LetterBatchData {
       email: "jane@band.org",
       phone: "555-0100",
     },
-    seasonName: "Fall 2026",
-    seasonStartDate: "2026-08-01",
-    seasonEndDate: "2026-12-15",
     generatedOn: "2026-08-20",
     template: {
       heading: "Outstanding Balance Notice",
@@ -117,9 +121,9 @@ describe("buildLettersDocument", () => {
   it("produces one page per recipient", () => {
     const batch = makeBatch({
       recipients: [
-        makeRecipient({ enrollmentId: "a" }),
-        makeRecipient({ enrollmentId: "b" }),
-        makeRecipient({ enrollmentId: "c" }),
+        makeRecipient({ id: "a" }),
+        makeRecipient({ id: "b" }),
+        makeRecipient({ id: "c" }),
       ],
     });
     expect(buildLettersDocument(batch).getNumberOfPages()).toBe(3);
@@ -130,7 +134,26 @@ describe("buildLettersDocument", () => {
   });
 
   it("handles a recipient with no payments", () => {
-    const batch = makeBatch({ recipients: [makeRecipient({ payments: [] })] });
+    const batch = makeBatch({
+      recipients: [
+        makeRecipient({
+          detailTables: [
+            {
+              rows: [
+                ["Season Fee", "$450.00"],
+                ["Total Paid", "$0.00"],
+                ["Balance Due", "$450.00"],
+              ],
+            },
+            {
+              title: "Payments Received",
+              emptyMessage: "No payments received to date.",
+              rows: [],
+            },
+          ],
+        }),
+      ],
+    });
     expect(buildLettersDocument(batch).getNumberOfPages()).toBe(1);
   });
 
@@ -165,14 +188,11 @@ describe("buildLettersDocument", () => {
     );
     const batch = makeBatch({
       template: { heading: null, body: longBody, closing: "Sincerely," },
-      recipients: [
-        makeRecipient({ enrollmentId: "a" }),
-        makeRecipient({ enrollmentId: "b" }),
-      ],
+      recipients: [makeRecipient({ id: "a" }), makeRecipient({ id: "b" })],
     });
     const single = buildLettersDocument({
       ...batch,
-      recipients: [makeRecipient({ enrollmentId: "a" })],
+      recipients: [makeRecipient({ id: "a" })],
     }).getNumberOfPages();
     expect(buildLettersDocument(batch).getNumberOfPages()).toBe(single * 2);
   });

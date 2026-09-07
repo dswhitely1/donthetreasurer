@@ -1,28 +1,29 @@
 import { describe, it, expect } from "vitest";
 
-import { buildTokenValues, renderTemplate } from "./render-template";
+import { buildSeasonTokenValues, renderTemplate } from "./render-template";
 
-import type { LetterBatchData, LetterRecipient } from "./types";
+import type { SeasonTokenContext, SeasonTokenEnrollment } from "./render-template";
 
-function makeRecipient(
-  overrides: Partial<LetterRecipient> = {}
-): LetterRecipient {
+function makeEnrollment(
+  overrides: Partial<SeasonTokenEnrollment> = {}
+): SeasonTokenEnrollment {
   return {
-    enrollmentId: "880e8400-e29b-41d4-a716-446655440000",
     studentFirstName: "Alex",
     studentLastName: "Rivera",
     guardianName: "Maria Rivera",
     feeAmount: 450,
     totalPaid: 200,
     balanceDue: 250,
-    payments: [],
     ...overrides,
   };
 }
 
-function makeBatch(overrides: Partial<LetterBatchData> = {}): LetterBatchData {
+function makeContext(
+  overrides: Partial<SeasonTokenContext> = {}
+): SeasonTokenContext {
   return {
     organizationName: "Acme Band Boosters",
+    organizationEin: null,
     director: {
       name: "Jane Doe",
       title: "Band Director",
@@ -33,67 +34,72 @@ function makeBatch(overrides: Partial<LetterBatchData> = {}): LetterBatchData {
     seasonStartDate: "2026-08-01",
     seasonEndDate: "2026-12-15",
     generatedOn: "2026-08-20",
-    template: { heading: null, body: "", closing: null },
-    recipients: [],
+    enrollment: makeEnrollment(),
     ...overrides,
   };
 }
 
-describe("buildTokenValues", () => {
+describe("buildSeasonTokenValues", () => {
   it("formats currency tokens", () => {
-    const values = buildTokenValues(makeBatch(), makeRecipient());
+    const values = buildSeasonTokenValues(makeContext());
     expect(values.fee_amount).toBe("$450.00");
     expect(values.total_paid).toBe("$200.00");
     expect(values.balance_due).toBe("$250.00");
   });
 
   it("formats date tokens as MM/DD/YYYY", () => {
-    const values = buildTokenValues(makeBatch(), makeRecipient());
+    const values = buildSeasonTokenValues(makeContext());
     expect(values.season_start_date).toBe("08/01/2026");
     expect(values.season_end_date).toBe("12/15/2026");
     expect(values.today).toBe("08/20/2026");
   });
 
   it("builds the student's full name", () => {
-    const values = buildTokenValues(makeBatch(), makeRecipient());
+    const values = buildSeasonTokenValues(makeContext());
     expect(values.student_full_name).toBe("Alex Rivera");
   });
 
   it("uses the guardian name when present", () => {
-    const values = buildTokenValues(makeBatch(), makeRecipient());
+    const values = buildSeasonTokenValues(makeContext());
     expect(values.guardian_name).toBe("Maria Rivera");
   });
 
   it("falls back to the student's full name when guardian is null", () => {
-    const values = buildTokenValues(
-      makeBatch(),
-      makeRecipient({ guardianName: null })
+    const values = buildSeasonTokenValues(
+      makeContext({ enrollment: makeEnrollment({ guardianName: null }) })
     );
     expect(values.guardian_name).toBe("Alex Rivera");
   });
 
   it("falls back to the student's full name when guardian is whitespace", () => {
-    const values = buildTokenValues(
-      makeBatch(),
-      makeRecipient({ guardianName: "   " })
+    const values = buildSeasonTokenValues(
+      makeContext({ enrollment: makeEnrollment({ guardianName: "   " }) })
     );
     expect(values.guardian_name).toBe("Alex Rivera");
   });
 
   it("coerces null director fields to empty strings", () => {
-    const batch = makeBatch({
-      director: { name: null, title: null, email: null, phone: null },
-    });
-    const values = buildTokenValues(batch, makeRecipient());
+    const values = buildSeasonTokenValues(
+      makeContext({
+        director: { name: null, title: null, email: null, phone: null },
+      })
+    );
     expect(values.director_name).toBe("");
     expect(values.director_title).toBe("");
     expect(values.director_email).toBe("");
     expect(values.director_phone).toBe("");
   });
+
+  it("coerces a missing EIN to an empty string", () => {
+    const values = buildSeasonTokenValues(
+      makeContext({ organizationEin: null })
+    );
+    expect(values.organization_ein).toBe("");
+  });
 });
 
 describe("renderTemplate", () => {
-  const values = buildTokenValues(makeBatch(), makeRecipient());
+  const values = buildSeasonTokenValues(makeContext());
 
   it("substitutes a single token", () => {
     expect(renderTemplate("You owe {{balance_due}}.", values)).toBe(
@@ -128,9 +134,10 @@ describe("renderTemplate", () => {
   });
 
   it("does not re-expand a token that appears inside a substituted value", () => {
-    const sneaky = buildTokenValues(
-      makeBatch(),
-      makeRecipient({ studentFirstName: "{{balance_due}}" })
+    const sneaky = buildSeasonTokenValues(
+      makeContext({
+        enrollment: makeEnrollment({ studentFirstName: "{{balance_due}}" }),
+      })
     );
     expect(renderTemplate("{{student_first_name}}", sneaky)).toBe(
       "{{balance_due}}"
@@ -138,9 +145,8 @@ describe("renderTemplate", () => {
   });
 
   it("treats $& in a substituted value as a literal, not a regex reference", () => {
-    const sneaky = buildTokenValues(
-      makeBatch(),
-      makeRecipient({ studentLastName: "$&" })
+    const sneaky = buildSeasonTokenValues(
+      makeContext({ enrollment: makeEnrollment({ studentLastName: "$&" }) })
     );
     expect(renderTemplate("{{student_last_name}}", sneaky)).toBe("$&");
   });

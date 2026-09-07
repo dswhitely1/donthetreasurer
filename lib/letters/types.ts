@@ -1,27 +1,8 @@
-import type { PlaceholderToken } from "./placeholders";
-
 export interface LetterDirector {
   name: string | null;
   title: string | null;
   email: string | null;
   phone: string | null;
-}
-
-export interface LetterPayment {
-  payment_date: string;
-  amount: number;
-  payment_method: string | null;
-}
-
-export interface LetterRecipient {
-  enrollmentId: string;
-  studentFirstName: string;
-  studentLastName: string;
-  guardianName: string | null;
-  feeAmount: number;
-  totalPaid: number;
-  balanceDue: number;
-  payments: LetterPayment[];
 }
 
 export interface LetterTemplateContent {
@@ -30,16 +11,35 @@ export interface LetterTemplateContent {
   closing: string | null;
 }
 
+/**
+ * One table of rows printed below the letter body — e.g. a balance summary
+ * box or a payment history. `emptyMessage` prints in place of the table when
+ * `rows` is empty, so a recipient with no history still gets a line saying
+ * so instead of a blank gap.
+ */
+export interface LetterDetailTable {
+  title?: string;
+  rows: string[][];
+  emptyMessage?: string;
+}
+
+/**
+ * A single letter recipient, described entirely by precomputed token values
+ * plus optional detail tables. Neither the renderer nor this type knows
+ * whether the recipient is a family or a sponsor — that's resolved upstream
+ * by whichever `build*TokenValues` function produced `tokenValues`.
+ */
+export interface LetterRecipient {
+  id: string;
+  tokenValues: Record<string, string>;
+  detailTables?: LetterDetailTable[];
+}
+
 export interface LetterBatchData {
   organizationName: string;
   director: LetterDirector;
-  seasonName: string;
-  seasonStartDate: string;
-  seasonEndDate: string;
   /** Date the batch is generated, as YYYY-MM-DD. */
   generatedOn: string;
   template: LetterTemplateContent;
   recipients: LetterRecipient[];
 }
-
-export type TokenValues = Record<PlaceholderToken, string>;

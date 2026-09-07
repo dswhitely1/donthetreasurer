@@ -2,48 +2,57 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 
 import { createPlaceholderPattern } from "./placeholders";
 
-import type { LetterBatchData, LetterRecipient, TokenValues } from "./types";
+import type { LetterDirector } from "./types";
 
-export function buildTokenValues(
-  batch: LetterBatchData,
-  recipient: LetterRecipient
-): TokenValues {
+/** The season-fee facts a season balance letter is addressed around. */
+export interface SeasonTokenEnrollment {
+  studentFirstName: string;
+  studentLastName: string;
+  guardianName: string | null;
+  feeAmount: number;
+  totalPaid: number;
+  balanceDue: number;
+}
+
+export interface SeasonTokenContext {
+  organizationName: string;
+  organizationEin: string | null;
+  director: LetterDirector;
+  seasonName: string;
+  seasonStartDate: string;
+  seasonEndDate: string;
+  /** Date the batch is generated, as YYYY-MM-DD. */
+  generatedOn: string;
+  enrollment: SeasonTokenEnrollment;
+}
+
+export function buildSeasonTokenValues(
+  context: SeasonTokenContext
+): Record<string, string> {
+  const { enrollment } = context;
   const fullName =
-    `${recipient.studentFirstName} ${recipient.studentLastName}`.trim();
-  const guardian = recipient.guardianName?.trim();
+    `${enrollment.studentFirstName} ${enrollment.studentLastName}`.trim();
+  const guardian = enrollment.guardianName?.trim();
 
   return {
-    organization_name: batch.organizationName,
-    // Sponsor-only tokens are irrelevant to a season batch; they're rendered
-    // empty here rather than left blank on the TokenValues type, which now
-    // spans both template types since LETTER_PLACEHOLDERS is their union.
-    // Task 11 generalizes this per template type.
-    organization_ein: "",
-    sponsor_name: "",
-    contact_name: "",
-    level_name: "",
-    sponsorship_amount: "",
-    received_date: "",
-    payment_method: "",
-    term_start_date: "",
-    term_end_date: "",
-    term_label: "",
-    season_name: batch.seasonName,
-    season_start_date: formatDate(batch.seasonStartDate),
-    season_end_date: formatDate(batch.seasonEndDate),
-    student_first_name: recipient.studentFirstName,
-    student_last_name: recipient.studentLastName,
+    organization_name: context.organizationName,
+    organization_ein: context.organizationEin ?? "",
+    season_name: context.seasonName,
+    season_start_date: formatDate(context.seasonStartDate),
+    season_end_date: formatDate(context.seasonEndDate),
+    student_first_name: enrollment.studentFirstName,
+    student_last_name: enrollment.studentLastName,
     student_full_name: fullName,
     // A letter addressed to nobody is worse than one addressed to the student.
     guardian_name: guardian ? guardian : fullName,
-    fee_amount: formatCurrency(recipient.feeAmount),
-    total_paid: formatCurrency(recipient.totalPaid),
-    balance_due: formatCurrency(recipient.balanceDue),
-    today: formatDate(batch.generatedOn),
-    director_name: batch.director.name ?? "",
-    director_title: batch.director.title ?? "",
-    director_email: batch.director.email ?? "",
-    director_phone: batch.director.phone ?? "",
+    fee_amount: formatCurrency(enrollment.feeAmount),
+    total_paid: formatCurrency(enrollment.totalPaid),
+    balance_due: formatCurrency(enrollment.balanceDue),
+    today: formatDate(context.generatedOn),
+    director_name: context.director.name ?? "",
+    director_title: context.director.title ?? "",
+    director_email: context.director.email ?? "",
+    director_phone: context.director.phone ?? "",
   };
 }
 
@@ -52,14 +61,15 @@ export function buildTokenValues(
  *
  * The replacement is a FUNCTION rather than a string on purpose: it makes the
  * pass non-recursive (a value containing `{{token}}` is never re-expanded) and
- * stops `$&` / `$1` inside a student's name from being read as a regex
+ * stops `$&` / `$1` inside a recipient's name from being read as a regex
  * back-reference. Unknown tokens render empty — save-time validation is the
  * real guard against typos.
  */
-export function renderTemplate(text: string, values: TokenValues): string {
+export function renderTemplate(
+  text: string,
+  values: Record<string, string>
+): string {
   return text.replace(createPlaceholderPattern(), (_match, token: string) =>
-    Object.prototype.hasOwnProperty.call(values, token)
-      ? values[token as keyof TokenValues]
-      : ""
+    Object.prototype.hasOwnProperty.call(values, token) ? values[token] : ""
   );
 }

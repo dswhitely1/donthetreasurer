@@ -38,6 +38,7 @@ const foreignId = "880e8400-e29b-41d4-a716-446655440009";
 const orgRow = {
   id: orgId,
   name: "Acme Band Boosters",
+  ein: "12-3456789",
   seasons_enabled: true,
   director_name: "Jane Doe",
   director_title: "Band Director",
@@ -240,7 +241,7 @@ describe("POST /api/organizations/[orgId]/seasons/[seasonId]/letters", () => {
 
     const batch = mockedGenerateLettersPdf.mock.calls[0][0] as LetterBatchData;
     expect(batch.recipients).toHaveLength(1);
-    expect(batch.recipients[0].enrollmentId).toBe(owingId);
+    expect(batch.recipients[0].id).toBe(owingId);
   });
 
   it("drops ids that are not in this season", async () => {
@@ -258,7 +259,7 @@ describe("POST /api/organizations/[orgId]/seasons/[seasonId]/letters", () => {
     );
 
     const batch = mockedGenerateLettersPdf.mock.calls[0][0] as LetterBatchData;
-    expect(batch.recipients.map((r) => r.enrollmentId)).toEqual([owingId]);
+    expect(batch.recipients.map((r) => r.id)).toEqual([owingId]);
   });
 
   it("excludes withdrawn enrollments even when explicitly requested", async () => {
