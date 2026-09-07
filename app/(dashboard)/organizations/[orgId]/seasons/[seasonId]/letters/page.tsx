@@ -29,10 +29,14 @@ export default async function GenerateLettersPage({
   const report = await fetchSeasonReport(supabase, seasonId);
   if (!report) notFound();
 
+  // Sponsor acknowledgment templates use a disjoint placeholder vocabulary;
+  // generating a season letter from one would render every placeholder
+  // blank with no validation error, so exclude them here.
   const { data: templates } = await supabase
     .from("letter_templates")
     .select("id, name, is_default, updated_at")
     .eq("organization_id", orgId)
+    .eq("template_type", "season_balance")
     .order("updated_at", { ascending: false });
 
   const templateRows = templates ?? [];

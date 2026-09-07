@@ -260,14 +260,47 @@ describe("letter template actions", () => {
         expect.objectContaining({ is_default: false })
       );
 
-      // Clearing the old default excludes the newly created row, and happens
-      // before the row is promoted.
+      // Clearing the old default excludes the newly created row, is scoped
+      // to the template's own type, and happens before the row is promoted.
       expect(clearChain.update).toHaveBeenCalledWith({ is_default: false });
+      expect(clearChain.eq).toHaveBeenCalledWith("template_type", "season_balance");
       expect(clearChain.neq).toHaveBeenCalledWith("id", templateId);
 
       // Promotion sets the new row's default flag on, after the clear.
       expect(promoteChain.update).toHaveBeenCalledWith({ is_default: true });
       expect(promoteChain.eq).toHaveBeenCalledWith("id", templateId);
+    });
+
+    it("scopes the cleared default to the SPONSOR type when promoting a sponsor template (regression: an unscoped clear would silently un-default the org's season template instead)", async () => {
+      mockSupabase.mockChain().sequence([
+        { data: { id: orgId }, error: null }, // organization lookup
+        { data: { id: templateId }, error: null }, // insert (forced is_default: false)
+        { data: null, error: null }, // clearDefault write
+        { data: null, error: null }, // promote write
+      ]);
+
+      try {
+        await createLetterTemplate(
+          null,
+          validCreateData({
+            template_type: "sponsor_acknowledgment",
+            body: "Thank you {{sponsor_name}} for your generous support.",
+            is_default: "true",
+          })
+        );
+        expect.unreachable("expected a redirect");
+      } catch (err) {
+        expect(err).toBeInstanceOf(RedirectError);
+      }
+
+      const [, , clearChain] = mockSupabase.from.mock.results.map(
+        (call) => call.value as MockChain
+      );
+
+      expect(clearChain.eq).toHaveBeenCalledWith(
+        "template_type",
+        "sponsor_acknowledgment"
+      );
     });
   });
 
@@ -316,7 +349,7 @@ describe("letter template actions", () => {
 
     it("reports a duplicate name clearly", async () => {
       mockSupabase.mockChain().sequence([
-        { data: { id: orgId }, error: null }, // organization lookup
+        { data: { id: orgId }, error: null }, // template fetch (stored type; no template_type field -> defaults to season_balance)
         {
           data: null,
           error: {
@@ -336,7 +369,7 @@ describe("letter template actions", () => {
 
     it("reports a generic conflict, not a duplicate-name error, when the 23505 is the one-default index", async () => {
       mockSupabase.mockChain().sequence([
-        { data: { id: orgId }, error: null }, // organization lookup
+        { data: { id: orgId }, error: null }, // template fetch (stored type; no template_type field -> defaults to season_balance)
         {
           data: null,
           error: {
@@ -358,7 +391,7 @@ describe("letter template actions", () => {
 
     it("returns a distinct error when clearing the previous default fails, not a duplicate-name error", async () => {
       mockSupabase.mockChain().sequence([
-        { data: { id: orgId }, error: null }, // organization lookup
+        { data: { id: orgId }, error: null }, // template fetch (stored type; no template_type field -> defaults to season_balance)
         { data: null, error: null }, // main update succeeds (is_default forced false)
         { data: null, error: { message: "update failed" } }, // clearDefault write fails
       ]);
@@ -374,7 +407,7 @@ describe("letter template actions", () => {
 
     it("stores heading and closing as null when left blank", async () => {
       mockSupabase.mockChain().sequence([
-        { data: { id: orgId }, error: null }, // organization lookup
+        { data: { id: orgId }, error: null }, // template fetch (stored type; no template_type field -> defaults to season_balance)
         { data: null, error: null }, // main update
       ]);
 
@@ -397,7 +430,7 @@ describe("letter template actions", () => {
 
     it("does not touch the previous default when the update fails (regression: default must not be cleared before a write that can fail)", async () => {
       mockSupabase.mockChain().sequence([
-        { data: { id: orgId }, error: null }, // organization lookup
+        { data: { id: orgId }, error: null }, // template fetch (stored type; no template_type field -> defaults to season_balance)
         {
           data: null,
           error: {
@@ -416,9 +449,9 @@ describe("letter template actions", () => {
       expect(result?.error).toContain("already exists");
       expect(mockSupabase.from).toHaveBeenCalledTimes(2);
 
-      // The first call must be the organization lookup (`select`), never
+      // The first call must be the template fetch (`select`), never
       // clearDefault (`update`). Against the pre-fix code — which had no
-      // organization guard and cleared the default before writing — this
+      // pre-write guard and cleared the default before writing — this
       // first chain would be clearDefault instead: its `update` would already
       // have wiped the org's real default before the row's own write, which
       // then fails, ever ran.
@@ -432,7 +465,7 @@ describe("letter template actions", () => {
 
     it("writes the non-default fields first, then clears the previous default and promotes on the happy path", async () => {
       mockSupabase.mockChain().sequence([
-        { data: { id: orgId }, error: null }, // organization lookup
+        { data: { id: orgId }, error: null }, // template fetch (stored type; no template_type field -> defaults to season_balance)
         { data: null, error: null }, // main update (forced is_default: false)
         { data: null, error: null }, // clearDefault write
         { data: null, error: null }, // promote write
@@ -457,9 +490,71 @@ describe("letter template actions", () => {
         expect.objectContaining({ is_default: false })
       );
       expect(clearChain.update).toHaveBeenCalledWith({ is_default: false });
+      expect(clearChain.eq).toHaveBeenCalledWith("template_type", "season_balance");
       expect(clearChain.neq).toHaveBeenCalledWith("id", templateId);
       expect(promoteChain.update).toHaveBeenCalledWith({ is_default: true });
       expect(promoteChain.eq).toHaveBeenCalledWith("id", templateId);
+    });
+
+    it("validates placeholders against the template's STORED type, ignoring a mismatched submitted type (regression: a tampered request must not persist a token that renders blank under the real vocabulary)", async () => {
+      mockSupabase.mockChain().sequence([
+        { data: { template_type: "season_balance" }, error: null }, // template fetch: stored type
+      ]);
+
+      const result = await updateLetterTemplate(
+        null,
+        validCreateData({
+          id: templateId,
+          // Attacker/tampered submission claims sponsor_acknowledgment so
+          // {{sponsor_name}} looks valid — the action must validate against
+          // the row's real stored type (season_balance) instead.
+          template_type: "sponsor_acknowledgment",
+          body: "Thank you {{sponsor_name}}.",
+        })
+      );
+
+      expect(result?.error).toBeDefined();
+      expect(result?.error).toContain("{{sponsor_name}}");
+      // Only the template-fetch ran; validation failed before the write.
+      expect(mockSupabase.from).toHaveBeenCalledTimes(1);
+    });
+
+    it("accepts a body valid for the stored type even when a mismatched type is submitted (proves the submitted value is ignored, not merely stricter)", async () => {
+      mockSupabase.mockChain().sequence([
+        { data: { template_type: "season_balance" }, error: null }, // template fetch: stored type
+        { data: null, error: null }, // main update
+      ]);
+
+      try {
+        await updateLetterTemplate(
+          null,
+          validCreateData({
+            id: templateId,
+            template_type: "sponsor_acknowledgment", // ignored — stored type wins
+            body: "Dear {{guardian_name}}, you owe {{balance_due}}.",
+          })
+        );
+        expect.unreachable("expected a redirect");
+      } catch (err) {
+        expect(err).toBeInstanceOf(RedirectError);
+      }
+
+      expect(mockRedirect).toHaveBeenCalledWith(
+        `/organizations/${orgId}/letter-templates`
+      );
+    });
+
+    it("returns an error when the template can't be found in this organization", async () => {
+      mockSupabase.mockChain().sequence([
+        { data: null, error: null }, // template fetch finds nothing
+      ]);
+
+      const result = await updateLetterTemplate(
+        null,
+        validCreateData({ id: templateId })
+      );
+
+      expect(result).toEqual({ error: "Organization not found." });
     });
   });
 
@@ -510,38 +605,65 @@ describe("letter template actions", () => {
     });
 
     it("clears the previous default before setting the new one", async () => {
-      mockSupabase.mockResult({ data: null, error: null });
+      mockSupabase.mockChain().sequence([
+        { data: { template_type: "season_balance" }, error: null }, // template fetch (stored type)
+        { data: null, error: null }, // clearDefault write
+        { data: null, error: null }, // promote write
+      ]);
       const fd = makeFormData({ id: templateId, organization_id: orgId });
 
       await setDefaultLetterTemplate(null, fd);
 
-      // Two writes: one clearing the old default, one setting the new one.
-      expect(mockSupabase.from).toHaveBeenCalledTimes(2);
+      // Three calls: look up the template's stored type, clear the old
+      // default OF THAT TYPE, then set the new one.
+      expect(mockSupabase.from).toHaveBeenCalledTimes(3);
       expect(mockSupabase.from).toHaveBeenNthCalledWith(1, "letter_templates");
       expect(mockSupabase.from).toHaveBeenNthCalledWith(2, "letter_templates");
+      expect(mockSupabase.from).toHaveBeenNthCalledWith(3, "letter_templates");
 
-      // `mock.results` reflects call order, so results[0] is necessarily the
-      // first write the action performed and results[1] the second. Asserting
-      // on which payload each one carries proves the clear genuinely ran
+      // `mock.results` reflects call order, so results[1] is necessarily the
+      // clearing write and results[2] the promoting write. Asserting on
+      // which payload each one carries proves the clear genuinely ran
       // before the promote, not merely that two writes happened.
-      const [firstChain, secondChain] = mockSupabase.from.mock.results.map(
+      const [, clearChain, promoteChain] = mockSupabase.from.mock.results.map(
         (call) => call.value as MockChain
       );
 
-      // The clearing write flips the old default off, excludes the row being
-      // promoted (so it isn't wiped out along with the old default), and
-      // happens first.
-      expect(firstChain.update).toHaveBeenCalledWith({ is_default: false });
-      expect(firstChain.neq).toHaveBeenCalledWith("id", templateId);
+      // The clearing write flips the old default off, is scoped to the
+      // template's own type, excludes the row being promoted (so it isn't
+      // wiped out along with the old default), and happens first.
+      expect(clearChain.update).toHaveBeenCalledWith({ is_default: false });
+      expect(clearChain.eq).toHaveBeenCalledWith("template_type", "season_balance");
+      expect(clearChain.neq).toHaveBeenCalledWith("id", templateId);
 
       // The promoting write sets the target row's default flag on, and
-      // happens second.
-      expect(secondChain.update).toHaveBeenCalledWith({ is_default: true });
-      expect(secondChain.eq).toHaveBeenCalledWith("id", templateId);
+      // happens second (third overall).
+      expect(promoteChain.update).toHaveBeenCalledWith({ is_default: true });
+      expect(promoteChain.eq).toHaveBeenCalledWith("id", templateId);
+    });
+
+    it("scopes the cleared default to the template's own SPONSOR type, never the org's season type (regression: an unscoped clear would silently un-default the other type)", async () => {
+      mockSupabase.mockChain().sequence([
+        { data: { template_type: "sponsor_acknowledgment" }, error: null }, // template fetch
+        { data: null, error: null }, // clearDefault write
+        { data: null, error: null }, // promote write
+      ]);
+      const fd = makeFormData({ id: templateId, organization_id: orgId });
+
+      await setDefaultLetterTemplate(null, fd);
+
+      const [, clearChain] = mockSupabase.from.mock.results.map(
+        (call) => call.value as MockChain
+      );
+      expect(clearChain.eq).toHaveBeenCalledWith(
+        "template_type",
+        "sponsor_acknowledgment"
+      );
     });
 
     it("returns a distinct error when clearing the previous default fails, not a duplicate-name error", async () => {
       mockSupabase.mockChain().sequence([
+        { data: { template_type: "season_balance" }, error: null }, // template fetch
         { data: null, error: { message: "update failed" } }, // clearDefault write fails
       ]);
 
@@ -550,6 +672,17 @@ describe("letter template actions", () => {
 
       expect(result?.error).toBeDefined();
       expect(result?.error).not.toContain("already exists");
+    });
+
+    it("returns a distinct error when the template can't be found", async () => {
+      mockSupabase.mockChain().sequence([
+        { data: null, error: null }, // template fetch finds nothing
+      ]);
+
+      const fd = makeFormData({ id: templateId, organization_id: orgId });
+      const result = await setDefaultLetterTemplate(null, fd);
+
+      expect(result).toEqual({ error: "Letter template not found." });
     });
   });
 });
