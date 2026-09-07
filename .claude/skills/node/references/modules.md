@@ -200,8 +200,8 @@ Install these as implementation progresses:
 # Supabase
 npm install @supabase/supabase-js @supabase/ssr
 
-# Forms and validation (see zod and react-hook-form skills)
-npm install react-hook-form zod @hookform/resolvers
+# Validation (see the zod and forms skills)
+npm install zod
 
 # Server state (see tanstack-query skill)
 npm install @tanstack/react-query

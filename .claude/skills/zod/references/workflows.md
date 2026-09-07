@@ -41,43 +41,54 @@ export const categoryUpdateSchema = categoryCreateSchema.partial();
 
 ## Form Validation End-to-End
 
-This workflow connects Zod schemas to React Hook Form and Server Actions. See the **react-hook-form** skill for detailed form patterns.
+The schema is the only validation pass. Forms are plain `<form>` elements bound to a Server Action with `useActionState`; there is no client-side resolver. See the **forms** skill for the form side.
 
-```typescript
-// components/forms/account-form.tsx
+```tsx
+// account-form.tsx — the client half holds no validation at all.
 "use client";
 
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { accountSchema, type AccountFormData } from "@/lib/validations/account";
+import { useActionState } from "react";
+import { createAccount } from "./actions";
 
 export function AccountForm() {
-  const form = useForm<AccountFormData>({
-    resolver: zodResolver(accountSchema),
-    defaultValues: {
-      name: "",
-      account_type: "checking",
-      opening_balance: 0,
-      is_active: true,
-    },
-  });
+  const [state, formAction, pending] = useActionState(createAccount, null);
 
-  async function onSubmit(data: AccountFormData) {
-    // data is already validated by Zod via zodResolver
-    const result = await createAccount(data);
-    if (result?.error) {
-      // Server returned field errors — set them on the form
-      Object.entries(result.error).forEach(([field, messages]) => {
-        form.setError(field as keyof AccountFormData, {
-          message: (messages as string[])[0],
-        });
-      });
-    }
-  }
-
-  return <form onSubmit={form.handleSubmit(onSubmit)}>{/* fields */}</form>;
+  return (
+    <form action={formAction}>
+      {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
+      <input name="name" required />
+      <input name="opening_balance" type="number" step="0.01" />
+      <button type="submit" disabled={pending}>Create</button>
+    </form>
+  );
 }
 ```
+
+```ts
+// actions.ts — where validation actually happens.
+"use server";
+
+export async function createAccount(
+  _prevState: { error: string } | null,
+  formData: FormData
+) {
+  const parsed = createAccountSchema.safeParse({
+    organization_id: formData.get("organization_id") as string,
+    name: formData.get("name") as string,
+    opening_balance: formData.get("opening_balance") as string,
+  });
+
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  // ... insert, then revalidatePath() and redirect()
+}
+```
+
+Two consequences of validating only on the server:
+
+- **Every value is a string.** `FormData` has no types, so numeric and boolean fields need `z.coerce.number()` or a `preprocess` — a schema expecting `z.number()` will reject a perfectly good form.
+- **The action is the security boundary.** A Server Action is directly invocable, so a rule that exists only in the UI does not exist. Cross-field rules belong in `superRefine`, not in a disabled button.
+
 
 ## API Route Query Validation
 

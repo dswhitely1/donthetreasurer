@@ -81,7 +81,7 @@ type AccountType = (typeof ACCOUNT_TYPES)[number];
 - See the **supabase** skill for generated database types
 - See the **nextjs** skill for Server Action and API Route patterns
 - See the **react** skill for component prop conventions
-- See the **react-hook-form** skill for form type integration
+- See the **forms** skill for form type integration
 - See the **tanstack-query** skill for typed query hooks
 
 ## Documentation Resources

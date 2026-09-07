@@ -220,7 +220,7 @@ const displayDate = format(parseISO("2025-01-15"), "MM/dd/yyyy");
 ## Build and Dev Workflow
 
 Copy this checklist when troubleshooting build issues:
-- [ ] Verify Node.js 18+ with `node --version`
+- [ ] Verify Node.js 20.9+ with `node --version`
 - [ ] Clear `.next` cache: `rm -rf .next`
 - [ ] Reinstall deps: `rm -rf node_modules && npm install`
 - [ ] Run lint: `npm run lint`

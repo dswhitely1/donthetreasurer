@@ -125,7 +125,7 @@ function CategoryLabel({ parent, child }: Readonly<{ parent: string; child?: str
 
 ## Form Field Styling
 
-See the **react-hook-form** skill for form logic. This section covers visual patterns.
+See the **forms** skill for form logic. This section covers visual patterns.
 
 ### Currency Input
 

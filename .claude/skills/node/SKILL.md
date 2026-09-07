@@ -1,14 +1,14 @@
 ---
 name: node
 description: |
-  Configures Node.js 18+ runtime for server execution and build processes.
+  Configures Node.js 20.9+ runtime for server execution and build processes.
   Use when: working with environment variables, Node.js built-in modules (Buffer, Stream, crypto), async patterns in Server Actions, npm dependency management, or debugging build and runtime errors.
 allowed-tools: Read, Edit, Write, Glob, Grep, Bash, mcp__context7__resolve-library-id, mcp__context7__query-docs
 ---
 
 # Node.js Skill
 
-Node.js 18+ runtime for Next.js server execution and build. Environment variables validated at startup. Built-in modules (Buffer, Stream) used for Excel export. Async patterns in Server Actions and API Routes. ESM module system with `"moduleResolution": "bundler"`.
+Node.js 20.9+ runtime for Next.js server execution and build. Environment variables validated at startup. Built-in modules (Buffer, Stream) used for Excel export. Async patterns in Server Actions and API Routes. ESM module system with `"moduleResolution": "bundler"`.
 
 ## Quick Start
 
@@ -67,7 +67,7 @@ export async function createTransaction(data: unknown) {
 
 | Concept | Pattern |
 |---------|---------|
-| Runtime | Node.js 18+ (required for Next.js 16) |
+| Runtime | Node.js 20.9+ (Next.js 16 declares `engines.node >=20.9.0`) |
 | Module system | ESM with `"moduleResolution": "bundler"` |
 | Env vars | `NEXT_PUBLIC_*` for client, plain names for server-only |
 | Async | `async/await` throughout, `Promise.all` for parallel ops |

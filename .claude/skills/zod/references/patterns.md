@@ -130,7 +130,7 @@ export const statusSchema = z.enum(TRANSACTION_STATUSES);
 export type TransactionStatus = z.infer<typeof statusSchema>;
 ```
 
-This const array can be shared with UI components for rendering `<select>` options without duplication. See the **react-hook-form** skill for form integration.
+This const array can be shared with UI components for rendering `<select>` options without duplication. See the **forms** skill for form integration.
 
 ## Reusable Schema Composition
 
