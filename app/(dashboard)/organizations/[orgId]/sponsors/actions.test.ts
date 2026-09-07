@@ -70,7 +70,15 @@ describe("sponsor actions", () => {
   });
 
   it("stores blank optional fields as null rather than empty strings", async () => {
-    const insert = vi.fn(() => Promise.resolve({ data: null, error: null }));
+    // `createSponsor` reads the id back with `.insert(...).select("id").single()`,
+    // mirroring `createOrganization` / `createStudent`, so the mock's `insert`
+    // returns a chain rather than a bare resolved value.
+    const insert = vi.fn(() => ({
+      select: () => ({
+        single: () =>
+          Promise.resolve({ data: { id: sponsorId }, error: null }),
+      }),
+    }));
     // The shared mock's `from` is typed with no parameters (it never needs
     // one elsewhere); cast the whole implementation rather than widen that
     // shared type for one test.

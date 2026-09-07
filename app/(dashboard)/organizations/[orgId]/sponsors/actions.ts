@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { randomUUID } from "crypto";
 
 import { createClient } from "@/lib/supabase/server";
 import { fetchSponsorsOrg } from "@/lib/sponsors/guard";
@@ -46,32 +45,33 @@ export async function createSponsor(
   const org = await fetchSponsorsOrg(supabase, parsed.data.organization_id);
   if (!org) return { error: "Sponsor tracking is not enabled." };
 
-  // Generated here (rather than read back after insert) so the redirect can
-  // target the new sponsor's detail page without a second round trip.
-  const id = randomUUID();
+  const { data: sponsor, error } = await supabase
+    .from("sponsors")
+    .insert({
+      organization_id: parsed.data.organization_id,
+      name: parsed.data.name,
+      contact_name: parsed.data.contact_name || null,
+      email: parsed.data.email || null,
+      phone: parsed.data.phone || null,
+      address_line1: parsed.data.address_line1 || null,
+      address_line2: parsed.data.address_line2 || null,
+      city: parsed.data.city || null,
+      state: parsed.data.state || null,
+      postal_code: parsed.data.postal_code || null,
+      notes: parsed.data.notes || null,
+      is_active: parsed.data.is_active,
+    })
+    .select("id")
+    .single();
 
-  const { error } = await supabase.from("sponsors").insert({
-    id,
-    organization_id: parsed.data.organization_id,
-    name: parsed.data.name,
-    contact_name: parsed.data.contact_name || null,
-    email: parsed.data.email || null,
-    phone: parsed.data.phone || null,
-    address_line1: parsed.data.address_line1 || null,
-    address_line2: parsed.data.address_line2 || null,
-    city: parsed.data.city || null,
-    state: parsed.data.state || null,
-    postal_code: parsed.data.postal_code || null,
-    notes: parsed.data.notes || null,
-    is_active: parsed.data.is_active,
-  });
-
-  if (error) {
+  if (error || !sponsor) {
     return { error: "Failed to create the sponsor. Please try again." };
   }
 
   revalidatePath("/dashboard", "layout");
-  redirect(`/organizations/${parsed.data.organization_id}/sponsors/${id}`);
+  redirect(
+    `/organizations/${parsed.data.organization_id}/sponsors/${sponsor.id}`
+  );
 }
 
 export async function updateSponsor(
