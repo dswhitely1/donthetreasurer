@@ -78,6 +78,8 @@ describe("deposit actions", () => {
     sponsorships,
     claimedCount,
     account: accountOverrides,
+    lineItemInsertError,
+    transactionDeleteError,
   }: {
     sponsorships: unknown[];
     claimedCount?: number;
@@ -86,6 +88,10 @@ describe("deposit actions", () => {
       fee_flat_amount: number | null;
       fee_category_id: string | null;
     }>;
+    /** Forces the deposit's own line-item insert to fail, to exercise the rollback path. */
+    lineItemInsertError?: { message: string } | null;
+    /** Forces the rollback delete itself to fail, to exercise the "manual cleanup" message. */
+    transactionDeleteError?: { message: string } | null;
   }) {
     const captured = {
       transactionInserts: [] as unknown[],
@@ -196,7 +202,10 @@ describe("deposit actions", () => {
           delete: () => ({
             eq: (_column: string, value: string) => {
               captured.deletedTransactionIds.push(value);
-              return Promise.resolve({ data: null, error: null });
+              return Promise.resolve({
+                data: null,
+                error: transactionDeleteError ?? null,
+              });
             },
           }),
         } as never;
@@ -205,7 +214,10 @@ describe("deposit actions", () => {
       return {
         insert: (payload: unknown) => {
           captured.lineItemInserts.push(payload);
-          return Promise.resolve({ data: null, error: null });
+          return Promise.resolve({
+            data: null,
+            error: lineItemInsertError ?? null,
+          });
         },
       } as never;
     }) as never);
@@ -348,5 +360,65 @@ describe("deposit actions", () => {
     expect(captured.feeTransactionInserts[0]).toEqual(
       expect.objectContaining({ transaction_type: "expense", amount: 22.5 })
     );
+  });
+
+  it("does not create a fee companion transaction when apply_fee is not requested, even on a fee-configured account", async () => {
+    const feeCategoryId = "ee0e8400-e29b-41d4-a716-446655440000";
+    const captured = wireDeposit({
+      sponsorships: twoQueuedCheckSponsorships(),
+      account: { fee_percentage: 3, fee_flat_amount: 0, fee_category_id: feeCategoryId },
+    });
+
+    // apply_fee is omitted entirely — the treasurer never opted in.
+    await expect(
+      createDepositFromQueue(
+        null,
+        depositForm([
+          { sponsorship_id: sponsorshipA, category_id: categoryId, memo: "Acme — Gold" },
+          { sponsorship_id: sponsorshipB, category_id: categoryId, memo: "Baker — Silver" },
+        ])
+      )
+    ).rejects.toThrow(RedirectError);
+
+    expect(captured.transactionInserts).toHaveLength(1);
+    expect(captured.feeTransactionInserts).toHaveLength(0);
+  });
+
+  it("reports the surviving transaction id when the line-item rollback delete itself fails", async () => {
+    wireDeposit({
+      sponsorships: twoQueuedCheckSponsorships(),
+      lineItemInsertError: { message: "insert failed" },
+      transactionDeleteError: { message: "delete failed" },
+    });
+
+    const result = await createDepositFromQueue(
+      null,
+      depositForm([
+        { sponsorship_id: sponsorshipA, category_id: categoryId, memo: "Acme — Gold" },
+        { sponsorship_id: sponsorshipB, category_id: categoryId, memo: "Baker — Silver" },
+      ])
+    );
+
+    expect(result?.error).toContain("new-txn");
+    expect(result?.error).toMatch(/manually/i);
+  });
+
+  it("reports the surviving transaction id when the claim-rollback delete itself fails", async () => {
+    wireDeposit({
+      sponsorships: twoQueuedCheckSponsorships(),
+      claimedCount: 1,
+      transactionDeleteError: { message: "delete failed" },
+    });
+
+    const result = await createDepositFromQueue(
+      null,
+      depositForm([
+        { sponsorship_id: sponsorshipA, category_id: categoryId, memo: "Acme — Gold" },
+        { sponsorship_id: sponsorshipB, category_id: categoryId, memo: "Baker — Silver" },
+      ])
+    );
+
+    expect(result?.error).toContain("new-txn");
+    expect(result?.error).toMatch(/manually/i);
   });
 });

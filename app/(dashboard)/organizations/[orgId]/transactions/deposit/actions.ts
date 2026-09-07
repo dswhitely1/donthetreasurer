@@ -12,6 +12,17 @@ import {
   ELECTRONIC_PAYMENT_METHODS,
 } from "@/lib/validations/sponsor";
 
+/**
+ * A rollback delete that itself fails leaves a real income transaction (and
+ * its line items) standing while the treasurer is told "nothing was saved."
+ * Both rollback sites share this message so they cannot drift apart on the
+ * one thing that matters: naming the transaction id someone has to remove
+ * by hand.
+ */
+function transactionDeleteFailedMessage(transactionId: string): string {
+  return `The deposit could not be completed and a partial transaction (id: ${transactionId}) could not be removed automatically. Please delete transaction ${transactionId} manually before trying again.`;
+}
+
 export async function createDepositFromQueue(
   _prevState: { error: string } | null,
   formData: FormData
@@ -164,9 +175,7 @@ export async function createDepositFromQueue(
       .eq("id", transaction.id);
 
     if (deleteError) {
-      return {
-        error: `The deposit could not be completed and a partial transaction (id: ${transaction.id}) could not be removed automatically. Please delete transaction ${transaction.id} manually before trying again.`,
-      };
+      return { error: transactionDeleteFailedMessage(transaction.id) };
     }
 
     return { error: "Failed to create the deposit lines. Please try again." };
@@ -193,9 +202,7 @@ export async function createDepositFromQueue(
       .eq("id", transaction.id);
 
     if (deleteError) {
-      return {
-        error: `The deposit could not be completed and a partial transaction (id: ${transaction.id}) could not be removed automatically. Please delete transaction ${transaction.id} manually before trying again.`,
-      };
+      return { error: transactionDeleteFailedMessage(transaction.id) };
     }
 
     return {
