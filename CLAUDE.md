@@ -20,7 +20,7 @@ npx vitest run lib/balances.test.ts   # Run a single test file
 
 ## Tech Stack
 
-Next.js 16 (App Router) · React 19 · TypeScript 5 (strict) · Tailwind CSS 4 · Supabase (PostgreSQL + Auth + RLS + Storage) · shadcn/ui · TanStack Query 5 · React Hook Form 7 · Zod 4 · ExcelJS 4 · jsPDF + jspdf-autotable · date-fns 4 · Vitest 4
+Next.js 16 (App Router) · React 19 · TypeScript 5 (strict) · Tailwind CSS 4 · Supabase (PostgreSQL + Auth + RLS + Storage) · shadcn/ui · TanStack Query 5 · Zod 4 · ExcelJS 4 · jsPDF + jspdf-autotable · date-fns 4 · Vitest 4
 
 ## Architecture
 
@@ -49,6 +49,14 @@ Actions live in `actions.ts` files colocated with their route segment (e.g., `or
 2. Calls `createClient()` for server-side Supabase
 3. Returns `{ error: string }` or `null` on success
 4. Calls `revalidatePath()` then `redirect()` after mutations
+
+### Forms
+
+Forms are plain HTML `<form>` elements whose `action` is a Server Action, bound with React's `useActionState`. **This codebase does not use react-hook-form** — it is not a dependency and appears in no source file. Mirror `app/(dashboard)/organizations/[orgId]/students/student-form.tsx`: `useActionState(action, null)`, `useId()` for label association, hidden inputs for ids, and a destructive banner rendering `state?.error`.
+
+Two form details worth knowing:
+- An unchecked checkbox is **absent** from `FormData`, not present-and-false. This codebase emits booleans as a hidden input driven by React state (see `organization-actions.tsx`), so the field is always the literal `"true"` or `"false"`.
+- A **disabled** Radix `Select` drops out of `FormData` entirely. Where a field is conditionally locked, render a hidden input alongside it carrying the value (see `sponsorships/sponsorship-form.tsx`).
 
 ### Report System
 
@@ -93,7 +101,12 @@ File attachments on transactions using Supabase Storage:
 | `lib/validations/` | Zod schemas per entity (transaction, account, category, organization, report, reconciliation, receipt, recurring-template) |
 | `lib/reports/` | Report data fetching, utilities, and types |
 | `lib/excel/` | ExcelJS workbook generation |
-| `lib/pdf/` | jsPDF + jspdf-autotable PDF report generation |
+| `lib/pdf/` | jsPDF + jspdf-autotable PDF report and letter generation |
+| `lib/letters/` | Placeholder vocabulary, type-scoped validation, template rendering |
+| `lib/seasons/` | Season report computation and payment status |
+| `lib/sponsors/` | Sponsorship term arithmetic and the `sponsors_enabled` guard |
+| `lib/transactions/` | Shared transaction helpers (processing-fee companion) |
+| `lib/categories/` | Category tree building and merge helpers |
 | `lib/fiscal-year.ts` | Fiscal year date range presets and label generation |
 | `lib/recurrence.ts` | Recurring transaction date arithmetic (next occurrence calculation) |
 | `lib/balances.ts` | Running balance and account balance computation |
@@ -151,7 +164,7 @@ Line Item (Many) → (1) Category
 
 ## Database
 
-PostgreSQL via Supabase. Ten tables: `treasurers`, `organizations`, `accounts`, `categories`, `transactions`, `transaction_line_items`, `reconciliation_sessions`, `recurring_templates`, `recurring_template_line_items`, `receipts`. Migrations in `supabase/migrations/`. Key constraints:
+PostgreSQL via Supabase. Twenty tables: `treasurers`, `organizations`, `accounts`, `categories`, `transactions`, `transaction_line_items`, `reconciliation_sessions`, `recurring_templates`, `recurring_template_line_items`, `receipts`, `budgets`, `budget_line_items`, `seasons`, `students`, `season_enrollments`, `season_payments`, `letter_templates`, `sponsors`, `sponsor_levels`, `sponsorships`. Migrations in `supabase/migrations/`. Key constraints:
 
 - Line item sum = transaction total (application-level Zod)
 - Categories with transactions cannot be deleted (`ON DELETE RESTRICT`)
@@ -186,7 +199,6 @@ When working on tasks involving these technologies, invoke the corresponding ski
 | tailwind | Styling with Tailwind CSS v4 |
 | supabase | Database queries, auth, RLS policies, migrations |
 | tanstack-query | Server state caching, query hooks |
-| react-hook-form | Form state, validation integration |
 | zod | Schema validation for forms and API inputs |
 | exceljs | Excel report generation |
 | frontend-design | UI design with shadcn/ui, layouts, dark mode |
