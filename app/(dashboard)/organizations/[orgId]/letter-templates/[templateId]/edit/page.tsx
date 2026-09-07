@@ -17,12 +17,14 @@ export default async function EditLetterTemplatePage({
 
   const { data: org } = await supabase
     .from("organizations")
-    .select("id, seasons_enabled")
+    .select("id, seasons_enabled, sponsors_enabled")
     .eq("id", orgId)
     .single();
 
   if (!org) notFound();
-  if (!org.seasons_enabled) redirect(`/organizations/${orgId}`);
+  if (!org.seasons_enabled && !org.sponsors_enabled) {
+    redirect(`/organizations/${orgId}`);
+  }
 
   const { data: template } = await supabase
     .from("letter_templates")

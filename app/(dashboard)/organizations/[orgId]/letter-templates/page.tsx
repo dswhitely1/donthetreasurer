@@ -82,12 +82,14 @@ export default async function LetterTemplatesPage({
 
   const { data: org } = await supabase
     .from("organizations")
-    .select("id, seasons_enabled, director_name")
+    .select("id, seasons_enabled, sponsors_enabled, director_name")
     .eq("id", orgId)
     .single();
 
   if (!org) notFound();
-  if (!org.seasons_enabled) redirect(`/organizations/${orgId}`);
+  if (!org.seasons_enabled && !org.sponsors_enabled) {
+    redirect(`/organizations/${orgId}`);
+  }
 
   const { data: templates } = await supabase
     .from("letter_templates")
