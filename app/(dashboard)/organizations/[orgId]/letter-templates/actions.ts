@@ -109,6 +109,7 @@ export async function createLetterTemplate(
   const raw = {
     organization_id: formData.get("organization_id") as string,
     name: formData.get("name") as string,
+    template_type: (formData.get("template_type") as string) || undefined,
     heading: (formData.get("heading") as string) ?? "",
     body: formData.get("body") as string,
     closing: (formData.get("closing") as string) ?? "",
@@ -148,6 +149,7 @@ export async function createLetterTemplate(
     .insert({
       organization_id: parsed.data.organization_id,
       name: parsed.data.name,
+      template_type: parsed.data.template_type,
       heading: parsed.data.heading || null,
       body: parsed.data.body,
       closing: parsed.data.closing || null,
@@ -186,6 +188,7 @@ export async function updateLetterTemplate(
     id: formData.get("id") as string,
     organization_id: formData.get("organization_id") as string,
     name: formData.get("name") as string,
+    template_type: (formData.get("template_type") as string) || undefined,
     heading: (formData.get("heading") as string) ?? "",
     body: formData.get("body") as string,
     closing: (formData.get("closing") as string) ?? "",

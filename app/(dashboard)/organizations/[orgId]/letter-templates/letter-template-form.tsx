@@ -4,13 +4,24 @@ import { useActionState, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-import { LETTER_PLACEHOLDERS } from "@/lib/letters/placeholders";
+import {
+  LETTER_TEMPLATE_TYPES,
+  LETTER_TEMPLATE_TYPE_LABELS,
+  getPlaceholders,
+} from "@/lib/letters/placeholders";
 import { renderTemplate } from "@/lib/letters/render-template";
 import { SAMPLE_TOKEN_VALUES } from "@/lib/letters/sample-context";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
@@ -22,9 +33,12 @@ import {
 
 import { createLetterTemplate, updateLetterTemplate } from "./actions";
 
+import type { LetterTemplateType } from "@/lib/letters/placeholders";
+
 interface LetterTemplateDefaults {
   id: string;
   name: string;
+  template_type: LetterTemplateType;
   heading: string | null;
   body: string;
   closing: string | null;
@@ -54,6 +68,9 @@ export function LetterTemplateForm({
 
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
+  const [selectedType, setSelectedType] = useState<LetterTemplateType>(
+    defaultValues?.template_type ?? "season_balance"
+  );
   const [heading, setHeading] = useState(defaultValues?.heading ?? "");
   const [body, setBody] = useState(
     defaultValues?.body ?? (mode === "create" ? STARTER_BODY : "")
@@ -130,6 +147,35 @@ export function LetterTemplateForm({
           </div>
 
           <div className="flex flex-col gap-1.5">
+            <Label htmlFor="template-type">Template Type</Label>
+            <Select
+              value={selectedType}
+              onValueChange={(value) =>
+                setSelectedType(value as LetterTemplateType)
+              }
+              disabled={mode === "edit"}
+            >
+              <SelectTrigger id="template-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LETTER_TEMPLATE_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {LETTER_TEMPLATE_TYPE_LABELS[type]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <input type="hidden" name="template_type" value={selectedType} />
+            {mode === "edit" && (
+              <p className="text-sm text-muted-foreground">
+                Template type can&rsquo;t be changed after creation — delete
+                and recreate the template to switch types.
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="template-heading">Heading (optional)</Label>
             <Input
               id="template-heading"
@@ -163,7 +209,7 @@ export function LetterTemplateForm({
           <div className="flex flex-col gap-2">
             <Label>Insert a placeholder</Label>
             <div className="flex flex-wrap gap-1.5">
-              {LETTER_PLACEHOLDERS.map((placeholder) => (
+              {getPlaceholders(selectedType).map((placeholder) => (
                 <Button
                   key={placeholder.token}
                   type="button"

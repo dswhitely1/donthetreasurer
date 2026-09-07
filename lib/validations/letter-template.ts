@@ -1,6 +1,11 @@
 import { z } from "zod";
 
-import { findUnknownPlaceholders } from "@/lib/letters/placeholders";
+import {
+  LETTER_TEMPLATE_TYPES,
+  findUnknownPlaceholders,
+} from "@/lib/letters/placeholders";
+
+import type { LetterTemplateType } from "@/lib/letters/placeholders";
 
 const PLACEHOLDER_FIELDS = ["heading", "body", "closing"] as const;
 
@@ -10,6 +15,11 @@ const baseLetterTemplateSchema = z.object({
     .string()
     .min(1, "Name is required.")
     .max(100, "Name must be 100 characters or fewer."),
+  template_type: z
+    .enum(LETTER_TEMPLATE_TYPES, {
+      message: "Invalid template type.",
+    })
+    .default("season_balance"),
   heading: z
     .string()
     .max(150, "Heading must be 150 characters or fewer.")
@@ -33,6 +43,7 @@ type PlaceholderCarrier = {
   heading?: string;
   body: string;
   closing?: string;
+  template_type: LetterTemplateType;
 };
 
 /**
@@ -47,7 +58,7 @@ function checkPlaceholders(
     const value = data[field];
     if (!value) continue;
 
-    const unknown = findUnknownPlaceholders(value);
+    const unknown = findUnknownPlaceholders(value, data.template_type);
     if (unknown.length === 0) continue;
 
     const rendered = unknown.map((token) => `{{${token}}}`).join(", ");

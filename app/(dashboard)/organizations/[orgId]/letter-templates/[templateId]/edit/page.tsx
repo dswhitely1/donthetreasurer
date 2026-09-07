@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/layout/page-header";
 
 import { LetterTemplateForm } from "../../letter-template-form";
 
+import type { LetterTemplateType } from "@/lib/letters/placeholders";
+
 export default async function EditLetterTemplatePage({
   params,
 }: {
@@ -40,6 +42,7 @@ export default async function EditLetterTemplatePage({
         defaultValues={{
           id: template.id,
           name: template.name,
+          template_type: template.template_type as LetterTemplateType,
           heading: template.heading,
           body: template.body,
           closing: template.closing,

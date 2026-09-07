@@ -14,6 +14,20 @@ export function buildTokenValues(
 
   return {
     organization_name: batch.organizationName,
+    // Sponsor-only tokens are irrelevant to a season batch; they're rendered
+    // empty here rather than left blank on the TokenValues type, which now
+    // spans both template types since LETTER_PLACEHOLDERS is their union.
+    // Task 11 generalizes this per template type.
+    organization_ein: "",
+    sponsor_name: "",
+    contact_name: "",
+    level_name: "",
+    sponsorship_amount: "",
+    received_date: "",
+    payment_method: "",
+    term_start_date: "",
+    term_end_date: "",
+    term_label: "",
     season_name: batch.seasonName,
     season_start_date: formatDate(batch.seasonStartDate),
     season_end_date: formatDate(batch.seasonEndDate),
