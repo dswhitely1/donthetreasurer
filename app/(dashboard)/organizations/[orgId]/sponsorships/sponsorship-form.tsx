@@ -98,14 +98,23 @@ export function SponsorshipForm({
       {isLocked && (
         <div className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
           This sponsorship was deposited
-          {depositDate ? ` on ${formatDate(depositDate)}` : ""}. Amount,
-          level, and payment method are locked.
+          {depositDate ? ` on ${formatDate(depositDate)}` : ""}. Sponsor,
+          amount, level, and payment method are locked.
         </div>
       )}
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={`${formId}-sponsor`}>Sponsor</Label>
-        <Select name="sponsor_id" value={sponsorId} onValueChange={setSponsorId}>
+        {/* A disabled Radix Select drops its own bubbled <select> from the
+            submitted form, so the locked value is carried by this hidden
+            input instead — the Select itself is UI-only while locked. */}
+        {isLocked && <input type="hidden" name="sponsor_id" value={sponsorId} />}
+        <Select
+          name={isLocked ? undefined : "sponsor_id"}
+          value={sponsorId}
+          onValueChange={setSponsorId}
+          disabled={isLocked}
+        >
           <SelectTrigger id={`${formId}-sponsor`}>
             <SelectValue placeholder="Select a sponsor" />
           </SelectTrigger>

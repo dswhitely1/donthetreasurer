@@ -272,8 +272,9 @@ Then, mirroring the compensating-transaction pattern the fee code already uses:
 
 ### Editing after deposit
 
-A deposited sponsorship locks `amount`, `level_id`, and `payment_method`, since
-its ledger line already exists — `notes` stay editable. Deleting a deposited
+A deposited sponsorship locks `sponsor_id`, `amount`, `level_id`, and
+`payment_method`, since its ledger line already exists — `notes` stay
+editable. Deleting a deposited
 sponsorship is blocked with a message pointing at the deposit transaction. This
 follows the reconciled-transaction locking rule the app already applies.
 

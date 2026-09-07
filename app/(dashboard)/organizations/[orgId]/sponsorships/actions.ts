@@ -114,7 +114,7 @@ export async function updateSponsorship(
   const { data: existing } = await supabase
     .from("sponsorships")
     .select(
-      "id, amount, level_id, payment_method, transaction_id, sponsors!inner(organization_id)"
+      "id, sponsor_id, amount, level_id, payment_method, transaction_id, sponsors!inner(organization_id)"
     )
     .eq("id", parsed.data.id)
     .eq("sponsors.organization_id", parsed.data.organization_id)
@@ -122,12 +122,16 @@ export async function updateSponsorship(
 
   if (!existing) return { error: "Sponsorship not found." };
 
-  // The ledger line for a deposited sponsorship already exists. Letting the
-  // amount drift away from it would silently desynchronize the two, so the
-  // treasurer edits the deposit instead — deleting it returns every
-  // sponsorship on it to the queue.
+  // The ledger line for a deposited sponsorship already exists — its memo
+  // names the sponsor and its amount, level, and payment method are baked
+  // into the posted line. Letting any of those drift away from it would
+  // silently desynchronize the two (a re-pointed sponsor_id is the sharpest
+  // case: the acknowledgment letter would then go to someone the deposit
+  // line doesn't name), so the treasurer edits the deposit instead —
+  // deleting it returns every sponsorship on it to the queue.
   if (existing.transaction_id) {
     const changesLockedFields =
+      existing.sponsor_id !== parsed.data.sponsor_id ||
       Number(existing.amount) !== parsed.data.amount ||
       existing.level_id !== parsed.data.level_id ||
       existing.payment_method !== parsed.data.payment_method;
@@ -135,7 +139,7 @@ export async function updateSponsorship(
     if (changesLockedFields) {
       return {
         error:
-          "This sponsorship has already been deposited. Delete or edit the deposit transaction to change its amount, level, or payment method.",
+          "This sponsorship has already been deposited. Delete or edit the deposit transaction to change its sponsor, amount, level, or payment method.",
       };
     }
   }

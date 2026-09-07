@@ -72,6 +72,7 @@ describe("sponsorship actions", () => {
       {
         data: {
           id: sponsorshipId,
+          sponsor_id: sponsorId,
           amount: 500,
           level_id: levelId,
           payment_method: "check",
@@ -87,12 +88,43 @@ describe("sponsorship actions", () => {
     expect(result?.error).toMatch(/already been deposited/i);
   });
 
+  it("refuses to re-point a deposited sponsorship at a different sponsor", async () => {
+    // Regression test for locking sponsor_id on a deposited sponsorship: the
+    // posted ledger line's memo names the original sponsor, so re-pointing
+    // sponsor_id after deposit would leave the line and the record
+    // disagreeing about who actually sponsored it.
+    const otherSponsorId = "990e8400-e29b-41d4-a716-446655440000";
+    mockSupabase.mockChain().sequence([
+      { data: { id: orgId, name: "CCV", fiscal_year_start_month: 7, sponsors_enabled: true }, error: null },
+      {
+        data: {
+          id: sponsorshipId,
+          sponsor_id: sponsorId,
+          amount: 500,
+          level_id: levelId,
+          payment_method: "check",
+          transaction_id: transactionId,
+          sponsors: { organization_id: orgId },
+        },
+        error: null,
+      },
+    ]);
+
+    const result = await updateSponsorship(
+      null,
+      validSponsorshipForm({ sponsor_id: otherSponsorId })
+    );
+
+    expect(result?.error).toMatch(/already been deposited/i);
+  });
+
   it("allows editing notes on a deposited sponsorship", async () => {
     mockSupabase.mockChain().sequence([
       { data: { id: orgId, name: "CCV", fiscal_year_start_month: 7, sponsors_enabled: true }, error: null },
       {
         data: {
           id: sponsorshipId,
+          sponsor_id: sponsorId,
           amount: 500,
           level_id: levelId,
           payment_method: "check",
@@ -117,6 +149,7 @@ describe("sponsorship actions", () => {
       {
         data: {
           id: sponsorshipId,
+          sponsor_id: sponsorId,
           amount: 500,
           level_id: levelId,
           payment_method: "check",
