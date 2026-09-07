@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { createFeeCompanionTransaction } from "@/lib/transactions/create-fee-companion";
 import {
   createTransactionSchema,
   updateTransactionSchema,
@@ -13,7 +14,6 @@ import {
   updateClearedDateSchema,
   TRANSACTION_STATUSES,
 } from "@/lib/validations/transaction";
-import { calculateFee } from "@/lib/validations/account";
 
 export async function createTransaction(
   _prevState: { error: string } | null,
@@ -167,59 +167,17 @@ export async function createTransaction(
   }
 
   // Auto-create processing fee transaction if requested
-  if (
-    parsed.data.apply_fee === "true" &&
-    parsed.data.transaction_type === "income" &&
-    account.fee_category_id &&
-    (account.fee_percentage || account.fee_flat_amount)
-  ) {
-    const feeAmount = calculateFee(
-      parsed.data.amount,
-      account.fee_percentage,
-      account.fee_flat_amount
-    );
+  if (parsed.data.apply_fee === "true" && parsed.data.transaction_type === "income") {
+    const feeError = await createFeeCompanionTransaction(supabase, {
+      account,
+      amount: parsed.data.amount,
+      transactionDate: parsed.data.transaction_date,
+      description: parsed.data.description,
+      status: parsed.data.status,
+      clearedAt,
+    });
 
-    if (feeAmount > 0) {
-      // Verify fee category still exists and is active
-      const { data: feeCat } = await supabase
-        .from("categories")
-        .select("id, is_active")
-        .eq("id", account.fee_category_id)
-        .single();
-
-      if (feeCat?.is_active) {
-        const { data: feeTxn, error: feeTxnError } = await supabase
-          .from("transactions")
-          .insert({
-            account_id: parsed.data.account_id,
-            transaction_date: parsed.data.transaction_date,
-            amount: feeAmount,
-            transaction_type: "expense",
-            description: `Processing fee: ${parsed.data.description}`,
-            status: parsed.data.status,
-            cleared_at: clearedAt,
-          })
-          .select("id")
-          .single();
-
-        if (feeTxnError || !feeTxn) {
-          return { error: "Income transaction was created, but the processing fee could not be created. Please add the fee manually." };
-        }
-
-        const { error: feeLiError } = await supabase
-          .from("transaction_line_items")
-          .insert({
-            transaction_id: feeTxn.id,
-            category_id: account.fee_category_id,
-            amount: feeAmount,
-          });
-
-        if (feeLiError) {
-          await supabase.from("transactions").delete().eq("id", feeTxn.id);
-          return { error: "Income transaction was created, but the processing fee line item failed. Please add the fee manually." };
-        }
-      }
-    }
+    if (feeError) return feeError;
   }
 
   const intent = formData.get("_intent") as string;
