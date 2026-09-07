@@ -77,14 +77,22 @@ describe("deposit actions", () => {
   function wireDeposit({
     sponsorships,
     claimedCount,
+    account: accountOverrides,
   }: {
     sponsorships: unknown[];
     claimedCount?: number;
+    account?: Partial<{
+      fee_percentage: number | null;
+      fee_flat_amount: number | null;
+      fee_category_id: string | null;
+    }>;
   }) {
     const captured = {
       transactionInserts: [] as unknown[],
       lineItemInserts: [] as unknown[],
       deletedTransactionIds: [] as string[],
+      releasedTransactionIds: [] as string[],
+      feeTransactionInserts: [] as unknown[],
     };
 
     // The shared mock's `from` is typed with no parameters (it never needs
@@ -119,6 +127,7 @@ describe("deposit actions", () => {
                         fee_percentage: null,
                         fee_flat_amount: null,
                         fee_category_id: null,
+                        ...(accountOverrides ?? {}),
                       },
                       error: null,
                     }),
@@ -142,7 +151,10 @@ describe("deposit actions", () => {
                   error: null,
                 }),
             }),
-            eq: () => Promise.resolve({ data: null, error: null }),
+            eq: (_column: string, value: string) => {
+              captured.releasedTransactionIds.push(value);
+              return Promise.resolve({ data: null, error: null });
+            },
           }),
         } as never;
       }
@@ -153,6 +165,16 @@ describe("deposit actions", () => {
             in: () => ({
               eq: () => ({ eq: () => Promise.resolve({ data: [{ id: categoryId }], error: null }) }),
             }),
+            eq: () => ({
+              single: () =>
+                Promise.resolve({
+                  data: {
+                    id: accountOverrides?.fee_category_id ?? null,
+                    is_active: true,
+                  },
+                  error: null,
+                }),
+            }),
           }),
         } as never;
       }
@@ -160,6 +182,12 @@ describe("deposit actions", () => {
       if (table === "transactions") {
         return {
           insert: (payload: unknown) => {
+            if ((payload as { transaction_type?: string }).transaction_type === "expense") {
+              captured.feeTransactionInserts.push(payload);
+              return {
+                select: () => ({ single: () => Promise.resolve({ data: { id: "fee-txn" }, error: null }) }),
+              };
+            }
             captured.transactionInserts.push(payload);
             return {
               select: () => ({ single: () => Promise.resolve({ data: { id: "new-txn" }, error: null }) }),
@@ -223,7 +251,7 @@ describe("deposit actions", () => {
 
   it("rejects a sponsorship id belonging to another organization", async () => {
     // The org filter on the query excludes it, so it simply is not returned.
-    wireDeposit({ sponsorships: [] });
+    const captured = wireDeposit({ sponsorships: [] });
 
     const result = await createDepositFromQueue(
       null,
@@ -231,6 +259,7 @@ describe("deposit actions", () => {
     );
 
     expect(result?.error).toMatch(/no longer in the queue/i);
+    expect(captured.transactionInserts).toHaveLength(0);
   });
 
   it("computes the transaction amount from the database, not the form", async () => {
@@ -240,8 +269,8 @@ describe("deposit actions", () => {
       createDepositFromQueue(
         null,
         depositForm([
-          { sponsorship_id: sponsorshipA, category_id: categoryId, memo: "Acme — Gold" },
-          { sponsorship_id: sponsorshipB, category_id: categoryId, memo: "Baker — Silver" },
+          { sponsorship_id: sponsorshipA, category_id: categoryId, memo: "Acme — Gold", amount: 999999 },
+          { sponsorship_id: sponsorshipB, category_id: categoryId, memo: "Baker — Silver", amount: 999999 },
         ])
       )
     ).rejects.toThrow(RedirectError);
@@ -292,5 +321,32 @@ describe("deposit actions", () => {
 
     expect(result?.error).toMatch(/another window/i);
     expect(captured.deletedTransactionIds).toContain("new-txn");
+    expect(captured.releasedTransactionIds).toContain("new-txn");
+  });
+
+  it("creates the fee companion transaction when apply_fee is requested and the account is fee-configured", async () => {
+    const feeCategoryId = "ee0e8400-e29b-41d4-a716-446655440000";
+    const captured = wireDeposit({
+      sponsorships: twoQueuedCheckSponsorships(),
+      account: { fee_percentage: 3, fee_flat_amount: 0, fee_category_id: feeCategoryId },
+    });
+
+    await expect(
+      createDepositFromQueue(
+        null,
+        depositForm(
+          [
+            { sponsorship_id: sponsorshipA, category_id: categoryId, memo: "Acme — Gold" },
+            { sponsorship_id: sponsorshipB, category_id: categoryId, memo: "Baker — Silver" },
+          ],
+          { apply_fee: "true" }
+        )
+      )
+    ).rejects.toThrow(RedirectError);
+
+    expect(captured.feeTransactionInserts).toHaveLength(1);
+    expect(captured.feeTransactionInserts[0]).toEqual(
+      expect.objectContaining({ transaction_type: "expense", amount: 22.5 })
+    );
   });
 });

@@ -158,7 +158,17 @@ export async function createDepositFromQueue(
   );
 
   if (liError) {
-    await supabase.from("transactions").delete().eq("id", transaction.id);
+    const { error: deleteError } = await supabase
+      .from("transactions")
+      .delete()
+      .eq("id", transaction.id);
+
+    if (deleteError) {
+      return {
+        error: `The deposit could not be completed and a partial transaction (id: ${transaction.id}) could not be removed automatically. Please delete transaction ${transaction.id} manually before trying again.`,
+      };
+    }
+
     return { error: "Failed to create the deposit lines. Please try again." };
   }
 
@@ -176,7 +186,18 @@ export async function createDepositFromQueue(
       .from("sponsorships")
       .update({ transaction_id: null })
       .eq("transaction_id", transaction.id);
-    await supabase.from("transactions").delete().eq("id", transaction.id);
+
+    const { error: deleteError } = await supabase
+      .from("transactions")
+      .delete()
+      .eq("id", transaction.id);
+
+    if (deleteError) {
+      return {
+        error: `The deposit could not be completed and a partial transaction (id: ${transaction.id}) could not be removed automatically. Please delete transaction ${transaction.id} manually before trying again.`,
+      };
+    }
+
     return {
       error:
         "One of these payments was deposited from another window while you were working. Nothing was saved — reload the page and try again.",
@@ -193,7 +214,10 @@ export async function createDepositFromQueue(
       clearedAt,
     });
 
-    if (feeError) return feeError;
+    if (feeError) {
+      revalidatePath("/dashboard", "layout");
+      return feeError;
+    }
   }
 
   revalidatePath("/dashboard", "layout");
