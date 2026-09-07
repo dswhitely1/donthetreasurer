@@ -72,13 +72,28 @@ export default async function TransactionsPage({
   // Verify org exists and user has access
   const { data: organization } = await supabase
     .from("organizations")
-    .select("id, name")
+    .select("id, name, sponsors_enabled")
     .eq("id", orgId)
     .eq("is_active", true)
     .single();
 
   if (!organization) {
     notFound();
+  }
+
+  // Deposit-from-queue entry point is only worth showing when sponsor
+  // tracking is on and there is actually something waiting to be deposited.
+  let queuedCount = 0;
+  if (organization.sponsors_enabled) {
+    const { count } = await supabase
+      .from("sponsorships")
+      .select("id, sponsors!inner(organization_id)", {
+        count: "exact",
+        head: true,
+      })
+      .eq("sponsors.organization_id", orgId)
+      .is("transaction_id", null);
+    queuedCount = count ?? 0;
   }
 
   // Fetch active accounts for the filter dropdown
@@ -328,6 +343,13 @@ export default async function TransactionsPage({
   return (
     <div>
       <PageHeader title="Transactions" description={`Manage transactions for ${organization.name}.`}>
+        {organization.sponsors_enabled && queuedCount > 0 && (
+          <Button asChild variant="outline">
+            <Link href={`/organizations/${orgId}/transactions/deposit`}>
+              Deposit from queue ({queuedCount})
+            </Link>
+          </Button>
+        )}
         <Button asChild>
           <Link href={`/organizations/${orgId}/transactions/new`}>
             <Plus className="mr-2 h-4 w-4" />
