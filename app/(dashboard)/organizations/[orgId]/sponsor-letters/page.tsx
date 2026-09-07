@@ -4,7 +4,10 @@ import { Mail } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { fetchSponsorsOrg } from "@/lib/sponsors/guard";
-import { formatTermLabel } from "@/lib/sponsors/sponsorship-year";
+import {
+  formatTermLabel,
+  getSponsorshipTerm,
+} from "@/lib/sponsors/sponsorship-year";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -41,7 +44,7 @@ export default async function SponsorLettersPage({
 
   const sponsorships = sponsorshipRows ?? [];
 
-  // Distinct terms, newest first, defaulting to the org's current term.
+  // Distinct terms, newest first.
   const uniqueTerms = [
     ...new Map(
       sponsorships.map((s) => [`${s.term_start_date}|${s.term_end_date}`, s])
@@ -51,6 +54,18 @@ export default async function SponsorLettersPage({
     endDate: t.term_end_date,
     label: formatTermLabel(t.term_start_date, t.term_end_date),
   }));
+
+  // Default to the org's current term when a sponsorship has actually been
+  // logged for it; otherwise fall back to the newest term present, so a
+  // future term logged ahead of time doesn't silently become the default.
+  const currentTerm = getSponsorshipTerm(org.fiscal_year_start_month);
+  const defaultTermKey = uniqueTerms.some(
+    (t) => t.startDate === currentTerm.startDate && t.endDate === currentTerm.endDate
+  )
+    ? `${currentTerm.startDate}|${currentTerm.endDate}`
+    : uniqueTerms[0]
+      ? `${uniqueTerms[0].startDate}|${uniqueTerms[0].endDate}`
+      : "";
 
   // A plain object, not a Map: Server Component props cross the RSC
   // boundary as serialized data, and a Map instance doesn't survive that.
@@ -133,6 +148,7 @@ export default async function SponsorLettersPage({
         <GenerateSponsorLettersForm
           orgId={orgId}
           terms={uniqueTerms}
+          defaultTermKey={defaultTermKey}
           candidatesByTerm={candidatesByTerm}
           templates={templateRows.map((template) => ({
             id: template.id,

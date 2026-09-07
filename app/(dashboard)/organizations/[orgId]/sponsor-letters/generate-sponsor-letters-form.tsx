@@ -47,17 +47,24 @@ function termKey(term: SponsorshipTermOption): string {
 export function GenerateSponsorLettersForm({
   orgId,
   terms,
+  defaultTermKey,
   candidatesByTerm,
   templates,
   defaultTemplateId,
 }: Readonly<{
   orgId: string;
   terms: SponsorshipTermOption[];
+  /** The org's current term when a sponsorship exists for it, otherwise the
+   * newest term present — computed by the server so client and server never
+   * disagree on which term is "current". */
+  defaultTermKey: string;
   candidatesByTerm: Record<string, SponsorshipCandidate[]>;
   templates: TemplateOption[];
   defaultTemplateId: string;
 }>) {
-  const [selectedTermKey, setSelectedTermKey] = useState(termKey(terms[0]));
+  const [selectedTermKey, setSelectedTermKey] = useState(
+    defaultTermKey || termKey(terms[0])
+  );
   const [templateId, setTemplateId] = useState(defaultTemplateId);
   const candidates = useMemo(
     () => candidatesByTerm[selectedTermKey] ?? [],
